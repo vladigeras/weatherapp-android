@@ -35,6 +35,8 @@ local.properties
 log/
 local.properties
 
+.kotlin
+
 # Keystore files
 *.jks
 *.keystore
