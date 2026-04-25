@@ -1,0 +1,83 @@
+# Built application files
+*.apk
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+
+# Gradle files
+.gradle/
+build/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Android Studio / IntelliJ IDEA
+*.iml
+.idea/
+.gradle/
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/libraries/
+.idea/caches
+*.ipr
+*.iws
+log/
+local.properties
+
+# Keystore files
+*.jks
+*.keystore
+
+# Signing files
+!*sign*.keystore
+signing-config.json
+
+# ProGuard
+proguard/
+proguardLogs/
+*-proguard-rules.txt
+
+# Flutter
+.flutter/
+DartTool/
+.packages
+.pub-cache/
+.pub/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/.file_cache/
+.fvm/
+
+# React Native
+.expo/
+.expo-shared/
+ios/Pods/
+android/.gradle/
+android/app/build/
+
+# Kotlin
+*.kotlin_module
+
+# Crashlytics
+crashlytics.properties
+crashlytics-build.properties
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS specific
+.DS_Store
+Thumbs.db
