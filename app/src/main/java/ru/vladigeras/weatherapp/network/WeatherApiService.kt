@@ -1,0 +1,26 @@
+package ru.vladigeras.weatherapp.network
+
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.parameter
+import ru.vladigeras.weatherapp.BuildConfig
+import ru.vladigeras.weatherapp.data.WeatherResponse
+
+interface WeatherApiService {
+    suspend fun getCurrentWeather(latitude: Double, longitude: Double): WeatherResponse
+}
+
+class WeatherApiServiceImpl(
+    private val httpClient: HttpClient
+) : WeatherApiService {
+    
+    override suspend fun getCurrentWeather(latitude: Double, longitude: Double): WeatherResponse {
+        return httpClient.get(BuildConfig.API_URL) {
+            parameter("latitude", latitude)
+            parameter("longitude", longitude)
+            parameter("current_weather", true)
+            parameter("hourly", "temperature_2m,relativehumidity_2m,windspeed_10m")
+        }.body()
+    }
+}

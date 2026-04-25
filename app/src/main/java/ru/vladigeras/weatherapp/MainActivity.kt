@@ -1,16 +1,28 @@
 package ru.vladigeras.weatherapp
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-import ru.vladigeras.weatherapp.databinding.ActivityMainBinding
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
+import dagger.hilt.android.AndroidEntryPoint
+import ru.vladigeras.weatherapp.ui.WeatherScreen
+import ru.vladigeras.weatherapp.ui.theme.WeatherAppTheme
 
-class MainActivity : AppCompatActivity() {
-
-    private lateinit var binding: ActivityMainBinding
-
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        enableEdgeToEdge()
+        setContent {
+            WeatherAppTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    WeatherScreen()
+                }
+            }
+        }
     }
 }
