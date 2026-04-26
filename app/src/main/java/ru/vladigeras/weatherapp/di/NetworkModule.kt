@@ -5,7 +5,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.cio.endpoint
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
@@ -29,7 +30,7 @@ object NetworkModule {
     
     @Provides
     @Singleton
-    fun provideHttpClient(json: Json): HttpClient = HttpClient(OkHttp) {
+    fun provideHttpClient(json: Json): HttpClient = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(json)
         }
@@ -37,11 +38,10 @@ object NetworkModule {
             level = LogLevel.BODY
         }
         engine {
-            config {
-                followRedirects(true)
-                connectTimeoutMillis.toLong()
-                readTimeoutMillis.toLong()
-                writeTimeoutMillis.toLong()
+            requestTimeout = 30_000
+            endpoint {
+                connectTimeout = 30_000
+                socketTimeout = 30_000
             }
         }
     }
