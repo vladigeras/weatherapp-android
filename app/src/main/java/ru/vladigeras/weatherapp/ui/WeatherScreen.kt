@@ -1,7 +1,10 @@
 package ru.vladigeras.weatherapp.ui
 
+import android.Manifest
 import android.widget.Toast
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -22,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Button
@@ -30,7 +34,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -41,6 +47,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -50,15 +59,57 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.SavedStateHandle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherScreen(
+    savedStateHandle: SavedStateHandle,
+    onNavigateToLocationSelection: () -> Unit = {},
     viewModel: WeatherViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentState = uiState
     val context = LocalContext.current
+    
+    val savedLatitude = savedStateHandle.get<Double>("latitude")
+    val savedLongitude = savedStateHandle.get<Double>("longitude")
+    val hasSavedLocation = savedLatitude != null && savedLongitude != null
+    
+    var hasLocationPermission by remember { mutableStateOf(false) }
+    var showPermissionError by remember { mutableStateOf(false) }
+    
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        if (hasLocationPermission) {
+            showPermissionError = false
+            viewModel.loadWeatherForCurrentLocation()
+        } else {
+            showPermissionError = true
+        }
+    }
+    
+    fun requestLocationPermission() {
+        permissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
+    }
+    
+    val onSelectLocation = onNavigateToLocationSelection
+    val onRequestPermission = ::requestLocationPermission
+    
+    LaunchedEffect(savedLatitude, savedLongitude) {
+        if (hasSavedLocation) {
+            viewModel.loadWeather(savedLatitude!!, savedLongitude!!)
+        } else {
+            viewModel.loadSavedLocation()
+        }
+    }
     
     val pullToRefreshState = rememberPullToRefreshState()
     val isRefreshing = currentState is WeatherUiState.Loading
@@ -79,7 +130,16 @@ fun WeatherScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = "Weather", fontWeight = FontWeight.Bold) },
+                title = { Text(text = "Weatherapp", fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = onNavigateToLocationSelection) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = "Select location",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
@@ -87,9 +147,17 @@ fun WeatherScreen(
             )
         }
     ) { paddingValues ->
+        val isActuallyLoading = currentState is WeatherUiState.Loading
+
         PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = { viewModel.loadWeather(55.7558, 37.6173) },
+            isRefreshing = isActuallyLoading,
+            onRefresh = {
+                when {
+                    hasSavedLocation -> viewModel.loadWeather(savedLatitude!!, savedLongitude!!)
+                    hasLocationPermission -> viewModel.loadWeatherForCurrentLocation()
+                    else -> { /* User must select location first */ }
+                }
+            },
             state = pullToRefreshState,
             modifier = Modifier
                 .fillMaxSize()
@@ -99,15 +167,27 @@ fun WeatherScreen(
             AnimatedVisibility(visible = currentState is WeatherUiState.Loading, enter = fadeIn(), exit = fadeOut()) {
                 SkeletonLoader()
             }
-            
+
             AnimatedVisibility(visible = currentState is WeatherUiState.Success, enter = fadeIn(), exit = fadeOut()) {
                 val state = currentState as? WeatherUiState.Success
                 state?.let { SuccessContent(it) }
             }
-            
+
             AnimatedVisibility(visible = currentState is WeatherUiState.Error, enter = fadeIn(), exit = fadeOut()) {
                 val state = currentState as? WeatherUiState.Error
-                state?.let { ErrorContent(it, viewModel) }
+                state?.let { ErrorContent(it, onRequestPermission, onSelectLocation) }
+            }
+
+            AnimatedVisibility(
+                visible = !hasSavedLocation && !hasLocationPermission
+                    && currentState is WeatherUiState.Empty,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                EmptyStateContent(
+                    onSelectLocation = onSelectLocation,
+                    onRequestPermission = onRequestPermission
+                )
             }
         }
     }
@@ -155,7 +235,7 @@ private fun SuccessContent(state: WeatherUiState.Success) {
         WeatherMainCard(temperature = state.temperature, weatherCode = state.weatherCode, timezone = state.timezone)
         Spacer(modifier = Modifier.height(16.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            DetailCard(icon = Icons.Default.Thermostat, label = "Feels like", value = "${state.feelsLike.toInt()}°", modifier = Modifier.weight(1f))
+            DetailCard(icon = Icons.Default.Thermostat, label = "Feels like", value = "${state.feelsLike.toInt()}°C", modifier = Modifier.weight(1f))
             DetailCard(icon = Icons.Default.WaterDrop, label = "Humidity", value = "${state.humidity}%", modifier = Modifier.weight(1f))
         }
         Spacer(modifier = Modifier.height(16.dp))
@@ -173,7 +253,7 @@ private fun WeatherMainCard(temperature: Double, weatherCode: Int, timezone: Str
         Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = getWeatherCondition(weatherCode), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onPrimaryContainer)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "${temperature.toInt()}°", fontSize = 80.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text(text = "${temperature.toInt()}°C", fontSize = 80.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
             Text(text = timezone, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
         }
     }
@@ -198,7 +278,11 @@ private fun DetailCard(icon: ImageVector, label: String, value: String, modifier
 }
 
 @Composable
-private fun ErrorContent(state: WeatherUiState.Error, viewModel: WeatherViewModel) {
+private fun ErrorContent(
+    state: WeatherUiState.Error,
+    onRetry: () -> Unit,
+    onSelectLocation: () -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,
@@ -210,7 +294,58 @@ private fun ErrorContent(state: WeatherUiState.Error, viewModel: WeatherViewMode
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = state.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f), textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = { viewModel.loadWeather(55.7558, 37.6173) }) { Text("Retry") }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = onSelectLocation) {
+                Text("Select City")
+            }
+            Button(onClick = onRetry) {
+                Text("Use GPS")
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyStateContent(
+    onSelectLocation: () -> Unit,
+    onRequestPermission: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.LocationOn,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Select Location",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Choose a city manually or grant location permission to use GPS",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(onClick = onSelectLocation) {
+            Text("Select City")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedButton(onClick = onRequestPermission) {
+            Text("Use GPS")
+        }
     }
 }
 

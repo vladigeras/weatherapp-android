@@ -41,7 +41,7 @@ class WeatherScreenTest {
     
     @Test
     fun weatherScreen_displaysLoadingState() {
-        onNodeWithText("Weather").assertIsDisplayed()
+        onNodeWithText("Weatherapp").assertIsDisplayed()
     }
     
     @Test

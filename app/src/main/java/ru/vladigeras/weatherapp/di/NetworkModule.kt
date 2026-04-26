@@ -12,6 +12,7 @@ import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import ru.vladigeras.weatherapp.network.GeocodingService
 import ru.vladigeras.weatherapp.network.WeatherApiService
 import ru.vladigeras.weatherapp.network.WeatherApiServiceImpl
 import javax.inject.Singleton
@@ -50,5 +51,11 @@ object NetworkModule {
     @Singleton
     fun provideWeatherApiService(httpClient: HttpClient): WeatherApiService {
         return WeatherApiServiceImpl(httpClient)
+    }
+    
+    @Provides
+    @Singleton
+    fun provideGeocodingService(httpClient: HttpClient): GeocodingService {
+        return GeocodingService(httpClient)
     }
 }

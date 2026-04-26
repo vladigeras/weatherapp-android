@@ -24,6 +24,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
         buildConfigField("String", "API_URL", "\"https://api.open-meteo.com/v1/forecast\"")
+        buildConfigField("String", "GEOCODING_API_URL", "\"https://geocoding-api.open-meteo.com/v1\"")
     }
 
     buildTypes {
@@ -74,6 +75,21 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+
+    // DataStore
+    implementation(libs.datastore.preferences)
+
+    // AndroidX Navigation
+    implementation("androidx.navigation:navigation-compose:2.7.7")
+
+    // Accompanist Permissions
+    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+
+    // Location Services
+    implementation(libs.play.services.location)
+    implementation(libs.kotlinx.coroutines)
+
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 
     // Testing
     testImplementation(libs.junit)

@@ -11,7 +11,6 @@ kotlin = "2.3.21"
 compose-bom = "2026.03.01"
 ktor = "3.4.2"
 kotlinx-coroutines = "1.10.2"
-kotlinx-serialization-json = "1.11.0"
 turbine = "1.2.1"
 mockk = "1.14.9"
 kotest = "6.1.11"
@@ -19,6 +18,9 @@ ksp = "2.3.6"
 
 # Hilt
 hilt = "2.59.2"
+
+# DataStore
+datastore-preferences = "1.1.1"
 hilt-gradle-plugin = "2.59.2"
 hilt-navigation-compose = "1.2.0"
 
@@ -51,6 +53,10 @@ ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serializatio
 # Coroutines
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 
+kotlinx-coroutines = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+
+# Location
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version = "21.3.0" }
 
 # Testing
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
@@ -62,6 +68,9 @@ hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
 hilt-android-testing = { group = "com.google.dagger", name = "hilt-android-testing", version.ref = "hilt" }
 hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hilt-navigation-compose" }
+
+# DataStore
+datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore-preferences" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
