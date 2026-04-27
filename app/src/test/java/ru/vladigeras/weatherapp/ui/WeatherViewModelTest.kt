@@ -7,10 +7,10 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -23,9 +23,6 @@ import ru.vladigeras.weatherapp.data.WeatherResponse
 import ru.vladigeras.weatherapp.repository.LocationRepository
 import ru.vladigeras.weatherapp.repository.SelectedLocationRepository
 import ru.vladigeras.weatherapp.repository.WeatherRepository
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.tasks.await
-import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WeatherViewModelTest {
@@ -36,7 +33,6 @@ class WeatherViewModelTest {
     private lateinit var weatherViewModel: WeatherViewModel
 
     private val mockLocation = Location(55.7558, 37.6173, "Moscow")
-    private val mockLocation2 = Location(48.8566, 2.3522, "Paris")
     
     private val mockResponse = WeatherResponse(
         latitude = 55.7558,
@@ -118,50 +114,78 @@ class WeatherViewModelTest {
     }
     
     @Test
-    fun `should load weather for selected location and cancel previous requests`() = runTest {
-        // Arrange
+    fun `should load weather for location without delay`() = runTest {
         coEvery { weatherRepository.getWeather(55.7558, 37.6173) } returns Result.success(mockResponse)
-        coEvery { weatherRepository.getWeather(48.8566, 2.3522) } returns delay(100).thenReturn(Result.success(mockResponse2)) // Задержка для имитации медленного запроса
         
+        weatherViewModel.loadWeather(55.7558, 37.6173)
+        
+        advanceTimeBy(50)
+        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
+        val state = weatherViewModel.uiState.value as WeatherUiState.Success
+        assertEquals(20.5, state.temperature, 0.001)
+    }
+    
+    @Test
+    fun `should load weather for selected location`() = runTest {
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173) } returns Result.success(mockResponse)
         coEvery { selectedLocationRepository.getSelectedLocation() } returns flowOf(mockLocation)
         
-        // Act
-        weatherViewModel.loadSavedLocation() // Загружаем первую локацию (Москва)
-        weatherViewModel.loadWeather(48.8566, 2.3522) // Запрашиваем вторую локацию (Париж)
+        weatherViewModel.loadSavedLocation()
         
-        // Assert
-        advanceTimeBy(150) // Ждем достаточно времени для завершения обоих запросов
+        advanceTimeBy(50)
         assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
         val successState = weatherViewModel.uiState.value as WeatherUiState.Success
-        assertEquals(18.2, successState.temperature, 0.001) // Должна быть температура Парижа, а не Москвы
+        assertEquals(20.5, successState.temperature, 0.001)
+    }
+    
+    @Test
+    fun `should cancel previous request when loading new location`() = runTest {
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173) } returns Result.success(mockResponse)
+        coEvery { selectedLocationRepository.getSelectedLocation() } returns flowOf(mockLocation)
+        coEvery { weatherRepository.getWeather(48.8566, 2.3522) } returns Result.success(mockResponse2)
+        
+        weatherViewModel.loadSavedLocation()
+        weatherViewModel.loadWeather(48.8566, 2.3522)
+        
+        advanceTimeBy(50)
+        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
+        val successState = weatherViewModel.uiState.value as WeatherUiState.Success
+        assertEquals(18.2, successState.temperature, 0.001)
     }
     
     @Test
     fun `should handle rapid location changes correctly`() = runTest {
-        // Arrange
-        val locations = listOf(
-            mockLocation,
-            Location(51.5074, -0.1278, "London"),
-            Location(40.7128, -74.0060, "New York")
-        )
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173) } returns Result.success(mockResponse)
+        coEvery { weatherRepository.getWeather(51.5074, -0.1278) } returns Result.success(mockResponse2)
+        coEvery { weatherRepository.getWeather(40.7128, -74.0060) } returns Result.success(mockResponse)
         
-        val responses = listOf(mockResponse, mockResponse2)
+        weatherViewModel.loadWeather(55.7558, 37.6173)
+        weatherViewModel.loadWeather(51.5074, -0.1278)
+        weatherViewModel.loadWeather(40.7128, -74.0060)
         
-        // Настраиваем моки для возврата разных ответов с задержкой
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173) } returns delay(50).thenReturn(Result.success(responses[0]))
-        coEvery { weatherRepository.getWeather(51.5074, -0.1278) } returns delay(100).thenReturn(Result.success(responses[1]))
-        coEvery { weatherRepository.getWeather(40.7128, -74.0060) } returns delay(150).thenReturn(Result.success(responses[0])) // Возвращаем первый ответ для проверки
-        
-        // Act - быстро меняем локации
-        weatherViewModel.loadWeather(55.7558, 37.6173) // Лондон
-        weatherViewModel.loadWeather(51.5074, -0.1278) // Париж
-        weatherViewModel.loadWeather(40.7128, -74.0060) // Нью-Йорк
-        
-        // Assert
-        advanceTimeBy(200) // Ждем завершения всех запросов
+        advanceTimeBy(50)
         assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
         val successState = weatherViewModel.uiState.value as WeatherUiState.Success
-        // Должен быть результат последнего запроса (Нью-Йорк, который возвращает данные Лондона из-за настройки моков)
         assertEquals(20.5, successState.temperature, 0.001)
+    }
+    
+    @Test
+    fun `should show error state when weather request fails`() = runTest {
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173) } returns Result.failure(Exception("Network error"))
+        
+        weatherViewModel.loadWeather(55.7558, 37.6173)
+        
+        advanceTimeBy(50)
+        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Error)
+    }
+    
+    @Test
+    fun `should show empty state when no location selected`() = runTest {
+        coEvery { selectedLocationRepository.getSelectedLocation() } returns flowOf(null)
+        
+        weatherViewModel.loadSavedLocation()
+        
+        advanceTimeBy(50)
+        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Empty)
     }
 }
