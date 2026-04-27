@@ -24,7 +24,7 @@ Android development with:
 ## ⚙️ Requirements
 
 - **Minimum Android SDK**: 35 (Android 15)
-- **Java**: 17
+- **Java**: 21
 
 ---
 
