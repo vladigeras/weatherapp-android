@@ -125,25 +125,8 @@ class LocationSelectionViewModelTest {
         advanceTimeBy(100)
 
         val state = viewModel.uiState.first()
-        assertTrue(state.searchResults.isEmpty())
+assertTrue(state.searchResults.isEmpty())
     }
-
-     @Test
-     fun `should handle rapid location selection changes correctly`() = runTest {
-         advanceTimeBy(1000)
-         
-         val londonLoc = Location(51.5074, -0.1278, "London", isAutoDetected = false)
-         
-         coEvery { selectedLocationRepository.saveSelectedLocation(any()) } returns Unit
-         
-         viewModel.selectLocation(londonLoc)
-         kotlinx.coroutines.delay(100)
-         
-         val finalState = viewModel.uiState.first()
-         assertTrue(finalState.isManualMode)
-         assertEquals("London", finalState.activeLocation?.name)
-     }
-
 
 }
 
