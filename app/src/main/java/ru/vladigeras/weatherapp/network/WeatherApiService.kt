@@ -19,8 +19,11 @@ class WeatherApiServiceImpl(
         return httpClient.get(BuildConfig.API_URL) {
             parameter("latitude", latitude)
             parameter("longitude", longitude)
-            parameter("current_weather", true)
+            parameter("current", "temperature_2m,windspeed_10m,winddirection_10m,weathercode,is_day,apparent_temperature")
             parameter("hourly", "temperature_2m,relativehumidity_2m,windspeed_10m")
+            parameter("daily", "weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset,windspeed_10m_max,winddirection_10m_dominant,uv_index_max")
+            parameter("forecast_days", "16")
+            parameter("timezone", "auto")
         }.body()
     }
 }

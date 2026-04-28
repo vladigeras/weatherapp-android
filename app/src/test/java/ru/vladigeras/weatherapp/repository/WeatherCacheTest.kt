@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
-import ru.vladigeras.weatherapp.data.CurrentWeather
+import ru.vladigeras.weatherapp.data.Current
 import ru.vladigeras.weatherapp.data.WeatherResponse
 import java.util.concurrent.TimeUnit
 
@@ -30,14 +30,15 @@ class WeatherCacheTest {
             utcOffsetSeconds = 0,
             timezone = "GMT",
             elevation = 149.0,
-            currentWeather = CurrentWeather(
+            current = Current(
                 time = "2026-04-25T16:00",
                 interval = 900,
-                temperature = 9.3,
-                windSpeed = 2.5,
-                windDirection = 225,
-                isDay = 1,
-                weatherCode = 3
+                temperature = 9.3, // temperature_2m
+                apparentTemperature = null,
+                windSpeed = 2.5, // windspeed_10m
+                windDirection = 225, // winddirection_10m
+                weatherCode = 3,
+                isDay = 1
             )
         )
     }
@@ -108,8 +109,9 @@ class WeatherCacheTest {
         assertNull(cached)
         
         // Try to add new item and verify cache is clean
-        val newResponse = createTestWeatherResponse().copy(
-            currentWeather = createTestWeatherResponse().currentWeather.copy(temperature = 15.0)
+        val base = createTestWeatherResponse()
+        val newResponse = base.copy(
+            current = base.current?.copy(temperature = 15.0)
         )
         cache.putWeather(testLatitude, testLongitude, newResponse)
         
@@ -120,8 +122,8 @@ class WeatherCacheTest {
     @Test
     fun `differentCoordinatesUseDifferentCacheEntries`() = runTest {
         val weatherResponse1 = createTestWeatherResponse()
-        val weatherResponse2 = createTestWeatherResponse().copy(
-            currentWeather = createTestWeatherResponse().currentWeather.copy(temperature = 15.0)
+        val weatherResponse2 = weatherResponse1.copy(
+            current = weatherResponse1.current?.copy(temperature = 15.0)
         )
         
         // Put two different locations
@@ -140,7 +142,7 @@ class WeatherCacheTest {
     fun `nearbyCoordinatesShareCacheEntryDueToRounding`() = runTest {
         val weatherResponse1 = createTestWeatherResponse()
         val weatherResponse2 = createTestWeatherResponse().copy(
-            currentWeather = createTestWeatherResponse().currentWeather.copy(temperature = 15.0)
+            current = createTestWeatherResponse().current?.copy(temperature = 15.0)
         )
         
         // These coordinates should round to the same key

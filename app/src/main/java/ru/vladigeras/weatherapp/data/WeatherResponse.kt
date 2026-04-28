@@ -15,50 +15,51 @@ data class WeatherResponse(
     @SerialName("timezone_abbreviation")
     val timezoneAbbreviation: String? = null,
     val elevation: Double,
-    @SerialName("current_weather")
-    val currentWeather: CurrentWeather,
-    @SerialName("current_weather_units")
-    val currentWeatherUnits: CurrentWeatherUnits? = null,
+    val current: Current? = null,
+    @SerialName("current_units")
+    val currentUnits: CurrentUnits? = null,
     val hourly: HourlyWeather? = null,
     @SerialName("hourly_units")
-    val hourlyUnits: HourlyUnits? = null
+    val hourlyUnits: HourlyUnits? = null,
+    val daily: DailyWeather? = null,
+    @SerialName("daily_units")
+    val dailyUnits: DailyUnits? = null
 )
 
 @Serializable
-data class CurrentWeather(
+data class Current(
     val time: String,
     val interval: Int,
+    @SerialName("temperature_2m")
     val temperature: Double,
-    @SerialName("temperature_unit")
-    val temperatureUnit: String? = null,
-    @SerialName("windspeed")
+    @SerialName("apparent_temperature")
+    val apparentTemperature: Double? = null,
+    @SerialName("windspeed_10m")
     val windSpeed: Double,
-    @SerialName("winddirection")
+    @SerialName("winddirection_10m")
     val windDirection: Int,
-    @SerialName("wind_direction_unit")
-    val windDirectionUnit: String? = null,
-    @SerialName("is_day")
-    val isDay: Int,
     @SerialName("weathercode")
     val weatherCode: Int,
-    @SerialName("weathercode_unit")
-    val weatherCodeUnit: String? = null
+    @SerialName("is_day")
+    val isDay: Int
 )
 
 @Serializable
-data class CurrentWeatherUnits(
+data class CurrentUnits(
     val time: String = "",
     val interval: String = "",
-    @SerialName("temperature")
+    @SerialName("temperature_2m")
     val temperatureUnit: String = "",
-    @SerialName("windspeed")
+    @SerialName("apparent_temperature")
+    val apparentTemperatureUnit: String = "",
+    @SerialName("windspeed_10m")
     val windSpeedUnit: String = "",
-    @SerialName("winddirection")
+    @SerialName("winddirection_10m")
     val windDirectionUnit: String = "",
-    @SerialName("is_day")
-    val isDayUnit: String = "",
     @SerialName("weathercode")
-    val weatherCodeUnit: String = ""
+    val weatherCodeUnit: String = "",
+    @SerialName("is_day")
+    val isDayUnit: String = ""
 )
 
 @Serializable
@@ -82,4 +83,52 @@ data class HourlyUnits(
     val relativehumidity2mUnit: String = "",
     @SerialName("windspeed_10m")
     val windspeed10mUnit: String = ""
+)
+
+@Serializable
+data class DailyWeather(
+    @SerialName("time")
+    val time: List<String>,
+    @SerialName("weathercode")
+    val weatherCode: List<Int>,
+    @SerialName("temperature_2m_max")
+    val temperature2mMax: List<Double>,
+    @SerialName("temperature_2m_min")
+    val temperature2mMin: List<Double>,
+    @SerialName("precipitation_sum")
+    val precipitationSum: List<Double>,
+    @SerialName("sunrise")
+    val sunrise: List<String>,
+    @SerialName("sunset")
+    val sunset: List<String>,
+    @SerialName("windspeed_10m_max")
+    val windspeed10mMax: List<Double>,
+    @SerialName("winddirection_10m_dominant")
+    val winddirection10mDominant: List<Int>,
+    @SerialName("uv_index_max")
+    val uvIndexMax: List<Double>
+)
+
+@Serializable
+data class DailyUnits(
+    @SerialName("time")
+    val timeUnit: String = "",
+    @SerialName("weathercode")
+    val weatherCodeUnit: String = "",
+    @SerialName("temperature_2m_max")
+    val temperature2mMaxUnit: String = "",
+    @SerialName("temperature_2m_min")
+    val temperature2mMinUnit: String = "",
+    @SerialName("precipitation_sum")
+    val precipitationSumUnit: String = "",
+    @SerialName("sunrise")
+    val sunriseUnit: String = "",
+    @SerialName("sunset")
+    val sunsetUnit: String = "",
+    @SerialName("windspeed_10m_max")
+    val windspeed10mMaxUnit: String = "",
+    @SerialName("winddirection_10m_dominant")
+    val winddirection10mDominantUnit: String = "",
+    @SerialName("uv_index_max")
+    val uvIndexMaxUnit: String = ""
 )

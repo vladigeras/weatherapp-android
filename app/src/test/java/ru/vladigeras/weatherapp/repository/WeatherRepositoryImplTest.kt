@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import ru.vladigeras.weatherapp.data.Current
 import ru.vladigeras.weatherapp.data.WeatherResponse
 import ru.vladigeras.weatherapp.network.WeatherApiService
 import java.util.concurrent.TimeUnit
@@ -15,15 +16,16 @@ private fun createMockWeatherResponse() = WeatherResponse(
     generationtimeMs = 0.1,
     utcOffsetSeconds = 0,
     timezone = "GMT",
-    elevation = 149.0,
-    currentWeather = ru.vladigeras.weatherapp.data.CurrentWeather(
+        elevation = 149.0,
+        current = Current(
         time = "2026-04-25T16:00",
         interval = 900,
-        temperature = 9.3,
-        windSpeed = 2.5,
-        windDirection = 225,
-        isDay = 1,
-        weatherCode = 3
+        temperature = 9.3, // temperature_2m
+        apparentTemperature = null,
+        windSpeed = 2.5, // windspeed_10m
+        windDirection = 225, // winddirection_10m
+        weatherCode = 3,
+        isDay = 1
     )
 )
 
@@ -50,7 +52,7 @@ class WeatherRepositoryImplTest {
         val result = weatherRepository.getWeather(55.7558, 37.6173)
         
         assertTrue(result.isSuccess)
-        assertEquals(9.3, result.getOrNull()!!.currentWeather!!.temperature, 0.001)
+        assertEquals(9.3, result.getOrNull()!!.current?.temperature ?: 0.0, 0.001)
         assertEquals(1, mockWeatherApiService.callCount)
     }
     
@@ -109,10 +111,10 @@ class WeatherRepositoryImplTest {
     @Test
     fun `getWeather uses separate cache entries for different coordinates`() = runTest {
         val mockResponse1 = createMockWeatherResponse().copy(
-            currentWeather = createMockWeatherResponse().currentWeather.copy(temperature = 10.0)
+            current = createMockWeatherResponse().current?.copy(temperature = 10.0)
         )
         val mockResponse2 = createMockWeatherResponse().copy(
-            currentWeather = createMockWeatherResponse().currentWeather.copy(temperature = 20.0)
+            current = createMockWeatherResponse().current?.copy(temperature = 20.0)
         )
         
         // Setup API to return different responses based on call count
@@ -121,22 +123,22 @@ class WeatherRepositoryImplTest {
         // First location
         val result1a = weatherRepository.getWeather(55.7558, 37.6173)
         assertTrue(result1a.isSuccess)
-        assertEquals(10.0, result1a.getOrNull()!!.currentWeather!!.temperature, 0.001)
+        assertEquals(10.0, result1a.getOrNull()?.current?.temperature ?: 0.0, 0.001)
         
         // Second location
         val result2a = weatherRepository.getWeather(56.0, 38.0)
         assertTrue(result2a.isSuccess)
-        assertEquals(20.0, result2a.getOrNull()!!.currentWeather!!.temperature, 0.001)
+        assertEquals(20.0, result2a.getOrNull()?.current?.temperature ?: 0.0, 0.001)
         
         // First location again (should hit cache)
         val result1b = weatherRepository.getWeather(55.7558, 37.6173)
         assertTrue(result1b.isSuccess)
-        assertEquals(10.0, result1b.getOrNull()!!.currentWeather!!.temperature, 0.001)
+        assertEquals(10.0, result1b.getOrNull()?.current?.temperature ?: 0.0, 0.001)
         
         // Second location again (should hit cache)
         val result2b = weatherRepository.getWeather(56.0, 38.0)
         assertTrue(result2b.isSuccess)
-        assertEquals(20.0, result2b.getOrNull()!!.currentWeather!!.temperature, 0.001)
+        assertEquals(20.0, result2b.getOrNull()?.current?.temperature ?: 0.0, 0.001)
         
         // Should have made only 2 API calls (one for each unique location)
         assertEquals(2, mockWeatherApiService.callCount)
@@ -149,14 +151,15 @@ class WeatherRepositoryImplTest {
         utcOffsetSeconds = 0,
         timezone = "GMT",
         elevation = 149.0,
-        currentWeather = ru.vladigeras.weatherapp.data.CurrentWeather(
+        current = Current(
             time = "2026-04-25T16:00",
             interval = 900,
-            temperature = 9.3,
-            windSpeed = 2.5,
-            windDirection = 225,
-            isDay = 1,
-weatherCode = 3
+            temperature = 9.3, // temperature_2m
+            apparentTemperature = null,
+            windSpeed = 2.5, // windspeed_10m
+            windDirection = 225, // winddirection_10m
+            weatherCode = 3,
+            isDay = 1
         )
     )
     
