@@ -18,8 +18,16 @@ android {
         applicationId = "ru.vladigeras.weatherapp"
         minSdk = 35
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+
+        val tag = System.getenv("APP_VERSION_TAG") ?: ""
+        val cleanTag = tag.removePrefix("v")
+        val parts = cleanTag.split(".")
+        val major = parts.getOrElse(0, { "1" }).toIntOrNull() ?: 1
+        val minor = parts.getOrElse(0, { "1" }).toIntOrNull() ?: 0
+
+        versionCode = if (tag.isNotEmpty()) major * 100 + minor else 1
+        versionName = if (tag.isNotEmpty()) cleanTag else "1.0"
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_URL", "\"https://api.open-meteo.com/v1/forecast\"")
         buildConfigField("String", "GEOCODING_API_URL", "\"https://geocoding-api.open-meteo.com/v1\"")
@@ -93,16 +101,16 @@ dependencies {
     implementation(libs.datastore.preferences)
 
     // AndroidX Navigation
-    implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation(libs.androidx.navigation.compose)
 
     // Accompanist Permissions
-    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+    implementation(libs.accompanist.permissions)
 
     // Location Services
     implementation(libs.play.services.location)
     implementation(libs.kotlinx.coroutines)
 
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation(libs.kotlinx.serialization.json)
 
     // Testing
     testImplementation(libs.junit)

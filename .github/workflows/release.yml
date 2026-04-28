@@ -54,6 +54,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          APP_VERSION_TAG: ${{ steps.release_tag.outputs.TAG }}
 
       - name: Verify APK Build
         run: |
