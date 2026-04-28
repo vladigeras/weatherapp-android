@@ -15,6 +15,7 @@ import kotlinx.serialization.json.Json
 import ru.vladigeras.weatherapp.network.GeocodingService
 import ru.vladigeras.weatherapp.network.WeatherApiService
 import ru.vladigeras.weatherapp.network.WeatherApiServiceImpl
+import ru.vladigeras.weatherapp.repository.CitySearchCache
 import javax.inject.Singleton
 
 @Module
@@ -58,4 +59,8 @@ object NetworkModule {
     fun provideGeocodingService(httpClient: HttpClient): GeocodingService {
         return GeocodingService(httpClient)
     }
+    
+    @Provides
+    @Singleton
+    fun provideCitySearchCache(): CitySearchCache = CitySearchCache()
 }

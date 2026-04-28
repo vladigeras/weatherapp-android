@@ -1,23 +1,145 @@
 package ru.vladigeras.weatherapp.repository
 
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import ru.vladigeras.weatherapp.data.WeatherResponse
 import ru.vladigeras.weatherapp.network.WeatherApiService
+import java.util.concurrent.TimeUnit
+
+private fun createMockWeatherResponse() = WeatherResponse(
+    latitude = 55.7558,
+    longitude = 37.6173,
+    generationtimeMs = 0.1,
+    utcOffsetSeconds = 0,
+    timezone = "GMT",
+    elevation = 149.0,
+    currentWeather = ru.vladigeras.weatherapp.data.CurrentWeather(
+        time = "2026-04-25T16:00",
+        interval = 900,
+        temperature = 9.3,
+        windSpeed = 2.5,
+        windDirection = 225,
+        isDay = 1,
+        weatherCode = 3
+    )
+)
 
 class WeatherRepositoryImplTest {
+    
+    private lateinit var weatherRepository: WeatherRepositoryImpl
+    private lateinit var mockWeatherApiService: TestWeatherApiService
+    private lateinit var weatherCache: WeatherCache
+    private var fakeTime: Long = 0
+    
+    @Before
+    fun setup() {
+        fakeTime = 0
+        mockWeatherApiService = TestWeatherApiService()
+        weatherCache = WeatherCache({ fakeTime })
+        weatherRepository = WeatherRepositoryImpl(mockWeatherApiService, weatherCache)
+    }
     
     @Test
     fun `getWeather returns success when API call succeeds`() = runTest {
         val mockResponse = createMockWeatherResponse()
-        val weatherApiService = TestWeatherApiService(mockResponse)
-        val weatherRepository = WeatherRepositoryImpl(weatherApiService)
+        mockWeatherApiService.setResponse(mockResponse)
         
         val result = weatherRepository.getWeather(55.7558, 37.6173)
         
         assertTrue(result.isSuccess)
-        assertTrue(result.getOrNull()?.currentWeather?.temperature == 9.3)
+        assertEquals(9.3, result.getOrNull()!!.currentWeather!!.temperature, 0.001)
+        assertEquals(1, mockWeatherApiService.callCount)
+    }
+    
+    @Test
+    fun `getWeather returns cached result on second call within TTL`() = runTest {
+        val mockResponse = createMockWeatherResponse()
+        mockWeatherApiService.setResponse(mockResponse)
+        
+        // First call - should hit API
+        val result1 = weatherRepository.getWeather(55.7558, 37.6173)
+        assertTrue(result1.isSuccess)
+        assertEquals(1, mockWeatherApiService.callCount)
+        
+        // Second call immediately - should hit cache
+        val result2 = weatherRepository.getWeather(55.7558, 37.6173)
+        assertTrue(result2.isSuccess)
+        assertEquals(mockResponse, result2.getOrNull())
+        assertEquals(1, mockWeatherApiService.callCount) // Still only 1 API call
+    }
+    
+    @Test
+    fun `getWeather makes new API call after TTL expiration`() = runTest {
+        val mockResponse = createMockWeatherResponse()
+        mockWeatherApiService.setResponse(mockResponse)
+        
+        // First call - should hit API
+        val result1 = weatherRepository.getWeather(55.7558, 37.6173)
+        assertTrue(result1.isSuccess)
+        assertEquals(1, mockWeatherApiService.callCount)
+        
+        // Advance time past TTL (30 minutes + 1 second)
+        fakeTime = TimeUnit.MINUTES.toMillis(30) + 1000
+        
+        // Second call - should hit API again (cache expired)
+        val result2 = weatherRepository.getWeather(55.7558, 37.6173)
+        assertTrue(result2.isSuccess)
+        assertEquals(2, mockWeatherApiService.callCount) // API called twice
+    }
+    
+    @Test
+    fun `getWeather does not cache error responses`() = runTest {
+        // Setup API to throw exception
+        mockWeatherApiService.setException(Exception("API Error"))
+        
+        // First call - should fail and not cache
+        val result1 = weatherRepository.getWeather(55.7558, 37.6173)
+        assertTrue(result1.isFailure)
+        assertEquals(1, mockWeatherApiService.callCount)
+        
+        // Second call immediately - should fail again and call API again (error not cached)
+        val result2 = weatherRepository.getWeather(55.7558, 37.6173)
+        assertTrue(result2.isFailure)
+        assertEquals(2, mockWeatherApiService.callCount) // API called twice
+    }
+    
+    @Test
+    fun `getWeather uses separate cache entries for different coordinates`() = runTest {
+        val mockResponse1 = createMockWeatherResponse().copy(
+            currentWeather = createMockWeatherResponse().currentWeather.copy(temperature = 10.0)
+        )
+        val mockResponse2 = createMockWeatherResponse().copy(
+            currentWeather = createMockWeatherResponse().currentWeather.copy(temperature = 20.0)
+        )
+        
+        // Setup API to return different responses based on call count
+        mockWeatherApiService.setResponses(listOf(mockResponse1, mockResponse2, mockResponse1, mockResponse2))
+        
+        // First location
+        val result1a = weatherRepository.getWeather(55.7558, 37.6173)
+        assertTrue(result1a.isSuccess)
+        assertEquals(10.0, result1a.getOrNull()!!.currentWeather!!.temperature, 0.001)
+        
+        // Second location
+        val result2a = weatherRepository.getWeather(56.0, 38.0)
+        assertTrue(result2a.isSuccess)
+        assertEquals(20.0, result2a.getOrNull()!!.currentWeather!!.temperature, 0.001)
+        
+        // First location again (should hit cache)
+        val result1b = weatherRepository.getWeather(55.7558, 37.6173)
+        assertTrue(result1b.isSuccess)
+        assertEquals(10.0, result1b.getOrNull()!!.currentWeather!!.temperature, 0.001)
+        
+        // Second location again (should hit cache)
+        val result2b = weatherRepository.getWeather(56.0, 38.0)
+        assertTrue(result2b.isSuccess)
+        assertEquals(20.0, result2b.getOrNull()!!.currentWeather!!.temperature, 0.001)
+        
+        // Should have made only 2 API calls (one for each unique location)
+        assertEquals(2, mockWeatherApiService.callCount)
     }
     
     private fun createMockWeatherResponse() = WeatherResponse(
@@ -34,11 +156,46 @@ class WeatherRepositoryImplTest {
             windSpeed = 2.5,
             windDirection = 225,
             isDay = 1,
-            weatherCode = 3
+weatherCode = 3
         )
     )
     
-    private class TestWeatherApiService(private val response: WeatherResponse) : WeatherApiService {
-        override suspend fun getCurrentWeather(latitude: Double, longitude: Double): WeatherResponse = response
+    /** Mock WeatherApiService that tracks calls and allows setting responses/exceptions */
+    private class TestWeatherApiService : WeatherApiService {
+        var callCount: Int = 0
+        private var responses: List<WeatherResponse> = emptyList()
+        private var exceptionToThrow: Exception? = null
+        private var responseIndex: Int = 0
+        
+        fun setResponse(response: WeatherResponse) {
+            responses = listOf(response)
+            exceptionToThrow = null
+            responseIndex = 0
+        }
+        
+        fun setResponses(responses: List<WeatherResponse>) {
+            this.responses = responses
+            exceptionToThrow = null
+            responseIndex = 0
+        }
+        
+        fun setException(exception: Exception) {
+            exceptionToThrow = exception
+            responses = emptyList()
+            responseIndex = 0
+        }
+        
+        override suspend fun getCurrentWeather(latitude: Double, longitude: Double): WeatherResponse {
+            callCount++
+            
+            if (exceptionToThrow != null) {
+                throw exceptionToThrow!!
+            }
+            
+            val idx = if (responseIndex > responses.lastIndex) responses.lastIndex else responseIndex
+            return responses.getOrNull(idx)?.also {
+                responseIndex++
+            } ?: createMockWeatherResponse()
+        }
     }
 }

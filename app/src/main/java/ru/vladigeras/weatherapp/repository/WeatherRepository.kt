@@ -12,16 +12,27 @@ interface WeatherRepository {
 
 @Singleton
 class WeatherRepositoryImpl @Inject constructor(
-    private val weatherApiService: WeatherApiService
+    private val weatherApiService: WeatherApiService,
+    private val weatherCache: WeatherCache
 ) : WeatherRepository {
     
     override suspend fun getWeather(latitude: Double, longitude: Double): Result<WeatherResponse> {
+        // First check cache
+        val cachedResponse = weatherCache.getWeather(latitude, longitude)
+        if (cachedResponse != null) {
+            return Result.success(cachedResponse)
+        }
+        
+        // If not in cache, make API call
         return try {
             val response = weatherApiService.getCurrentWeather(latitude, longitude)
+            // Store successful response in cache
+            weatherCache.putWeather(latitude, longitude, response)
             Result.success(response)
         } catch (e: CancellationException) {
             Result.failure(e)
         } catch (e: Exception) {
+            // Don't cache errors
             Result.failure(e)
         }
     }
