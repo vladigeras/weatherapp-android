@@ -9,7 +9,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -71,7 +70,6 @@ class LocationSelectionViewModelTest {
 
     @Test
     fun `initial state shows manual mode when manual location is saved`() = runTest {
-        advanceTimeBy(100)
         val state = viewModel.uiState.first()
         assertTrue(state.isManualMode)
         assertEquals(mockManualLocation, state.activeLocation)
@@ -85,35 +83,40 @@ class LocationSelectionViewModelTest {
         assertEquals("Moscow", query)
     }
 
-@Test
-     fun `selectLocation saves manual location and switches to manual mode`() = runTest {
-         advanceTimeBy(1000)
-         
-         val newLocation = Location(60.0, 30.0, "Saint Petersburg", isAutoDetected = false)
-         
-         coEvery { selectedLocationRepository.saveSelectedLocation(any()) } returns Unit
-         
-         viewModel.selectLocation(newLocation)
-         kotlinx.coroutines.delay(100)
-         
-         coVerify { selectedLocationRepository.saveSelectedLocation(match { it.name == "Saint Petersburg" && !it.isAutoDetected }) }
-         
-         val state = viewModel.uiState.first()
-         assertTrue(state.isManualMode)
-         assertEquals("Saint Petersburg", state.activeLocation?.name)
-     }
+    @Test
+    fun `selectLocation saves manual location and switches to manual mode`() = runTest {
+        val newLocation = Location(60.0, 30.0, "Saint Petersburg", isAutoDetected = false)
+        
+        coEvery { selectedLocationRepository.saveSelectedLocation(any()) } returns Unit
+        
+        viewModel.selectLocation(newLocation)
+        
+        // Wait for state to update to manual mode with new location
+        viewModel.uiState
+            .first { it.isManualMode && it.activeLocation?.name == "Saint Petersburg" }
+        
+        coVerify { selectedLocationRepository.saveSelectedLocation(match { it.name == "Saint Petersburg" && !it.isAutoDetected }) }
+        
+        // Get final state for assertions
+        val finalState = viewModel.uiState.first()
+        assertTrue(finalState.isManualMode)
+        assertEquals("Saint Petersburg", finalState.activeLocation?.name)
+    }
 
     @Test
     fun `useAutoLocation switches to auto mode and saves auto location`() = runTest {
         viewModel.useAutoLocation()
-
-        advanceTimeBy(100)
-
+        
+        // Wait for mode switch to auto
+        viewModel.uiState
+            .first { !it.isManualMode && it.activeLocation == mockAutoLocation }
+        
         coVerify { selectedLocationRepository.saveSelectedLocation(mockAutoLocation) }
-
-        val state = viewModel.uiState.first()
-        assertTrue(!state.isManualMode)
-        assertEquals(mockAutoLocation, state.activeLocation)
+        
+        // Get final state for assertions
+        val finalState = viewModel.uiState.first()
+        assertTrue(!finalState.isManualMode)
+        assertEquals(mockAutoLocation, finalState.activeLocation)
     }
 
     @Test
@@ -122,10 +125,13 @@ class LocationSelectionViewModelTest {
 
         viewModel.selectLocation(newLocation)
 
-        advanceTimeBy(100)
+        // Wait for search results to be cleared
+        viewModel.uiState
+            .first { it.searchResults.isEmpty() }
 
-        val state = viewModel.uiState.first()
-assertTrue(state.searchResults.isEmpty())
+        // Get final state for assertions
+        val finalState = viewModel.uiState.first()
+        assertTrue(finalState.searchResults.isEmpty())
     }
 
 }

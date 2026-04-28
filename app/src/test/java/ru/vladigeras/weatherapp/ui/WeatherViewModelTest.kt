@@ -6,14 +6,13 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.vladigeras.weatherapp.data.CurrentWeather
@@ -119,10 +118,10 @@ class WeatherViewModelTest {
         
         weatherViewModel.loadWeather(55.7558, 37.6173)
         
-        advanceTimeBy(50)
-        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
-        val state = weatherViewModel.uiState.value as WeatherUiState.Success
-        assertEquals(20.5, state.temperature, 0.001)
+        // Wait specifically for Success state
+        val successState = weatherViewModel.uiState
+            .first { it is WeatherUiState.Success } as WeatherUiState.Success
+        assertEquals(20.5, successState.temperature, 0.001)
     }
     
     @Test
@@ -132,9 +131,9 @@ class WeatherViewModelTest {
         
         weatherViewModel.loadSavedLocation()
         
-        advanceTimeBy(50)
-        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
-        val successState = weatherViewModel.uiState.value as WeatherUiState.Success
+        // Wait specifically for Success state
+        val successState = weatherViewModel.uiState
+            .first { it is WeatherUiState.Success } as WeatherUiState.Success
         assertEquals(20.5, successState.temperature, 0.001)
     }
     
@@ -144,12 +143,13 @@ class WeatherViewModelTest {
         coEvery { selectedLocationRepository.getSelectedLocation() } returns flowOf(mockLocation)
         coEvery { weatherRepository.getWeather(48.8566, 2.3522) } returns Result.success(mockResponse2)
         
-        weatherViewModel.loadSavedLocation()
-        weatherViewModel.loadWeather(48.8566, 2.3522)
+        weatherViewModel.loadSavedLocation() // This loads Moscow (from selectedLocationRepository)
+        weatherViewModel.loadWeather(48.8566, 2.3522) // This loads Paris (from coordinates) - should cancel Moscow
         
-        advanceTimeBy(50)
-        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
-        val successState = weatherViewModel.uiState.value as WeatherUiState.Success
+        // Wait specifically for Success state from the latest request (Paris)
+        val successState = weatherViewModel.uiState
+            .first { it is WeatherUiState.Success } as WeatherUiState.Success
+        // Should show Paris temperature (18.2), not Moscow (20.5)
         assertEquals(18.2, successState.temperature, 0.001)
     }
     
@@ -159,13 +159,14 @@ class WeatherViewModelTest {
         coEvery { weatherRepository.getWeather(51.5074, -0.1278) } returns Result.success(mockResponse2)
         coEvery { weatherRepository.getWeather(40.7128, -74.0060) } returns Result.success(mockResponse)
         
-        weatherViewModel.loadWeather(55.7558, 37.6173)
-        weatherViewModel.loadWeather(51.5074, -0.1278)
-        weatherViewModel.loadWeather(40.7128, -74.0060)
+        weatherViewModel.loadWeather(55.7558, 37.6173)    // Moscow
+        weatherViewModel.loadWeather(51.5074, -0.1278)  // London
+        weatherViewModel.loadWeather(40.7128, -74.0060) // New York
         
-        advanceTimeBy(50)
-        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
-        val successState = weatherViewModel.uiState.value as WeatherUiState.Success
+        // Wait specifically for Success state from the latest request (New York)
+        val successState = weatherViewModel.uiState
+            .first { it is WeatherUiState.Success } as WeatherUiState.Success
+        // Should show New York temperature (20.5) from the last request
         assertEquals(20.5, successState.temperature, 0.001)
     }
     
@@ -175,8 +176,9 @@ class WeatherViewModelTest {
         
         weatherViewModel.loadWeather(55.7558, 37.6173)
         
-        advanceTimeBy(50)
-        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Error)
+        // Wait specifically for Error state
+        val errorState = weatherViewModel.uiState
+            .first { it is WeatherUiState.Error } as WeatherUiState.Error
     }
     
     @Test
@@ -185,7 +187,8 @@ class WeatherViewModelTest {
         
         weatherViewModel.loadSavedLocation()
         
-        advanceTimeBy(50)
-        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Empty)
+        // Wait specifically for Empty state
+        val emptyState = weatherViewModel.uiState
+            .first { it is WeatherUiState.Empty } as WeatherUiState.Empty
     }
 }
