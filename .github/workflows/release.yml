@@ -23,10 +23,33 @@ jobs:
           echo "TAG=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
       - name: Build Release APK
         run: ./gradlew assembleRelease
+      - name: Verify APK Build
+        run: |
+          echo "Verifying APK build output..."
+          ls -la app/build/outputs/apk/release/
       - name: Locate Release APK
         id: locate_apk
         run: |
-          echo "APK_PATH=$(find app/build/outputs/apk/release -name '*.apk' | head -n 1)" >> $GITHUB_OUTPUT
+          echo "Searching for APK file..."
+          APK_FILE=$(find app/build/outputs/apk/release -name "*.apk" -type f | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "ERROR: No APK file found in app/build/outputs/apk/release/"
+            echo "Directory contents:"
+            ls -la app/build/outputs/apk/release/
+            exit 1
+          fi
+          echo "FOUND APK: $APK_FILE"
+          echo "APK_PATH=$APK_FILE" >> $GITHUB_OUTPUT
+      - name: Debug APK Location
+        run: |
+          echo "APK path to be used: ${{ steps.locate_apk.outputs.APK_PATH }}"
+          if [ -f "${{ steps.locate_apk.outputs.APK_PATH }}" ]; then
+            echo "APK file exists and is readable"
+            ls -la "${{ steps.locate_apk.outputs.APK_PATH }}"
+          else
+            echo "ERROR: APK file does not exist at path: ${{ steps.locate_apk.outputs.APK_PATH }}"
+            exit 1
+          fi
       - name: Upload Release Asset
         uses: svenstaro/upload-release-action@v2
         with:
