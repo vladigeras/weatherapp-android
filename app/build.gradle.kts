@@ -20,15 +20,27 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        
         buildConfigField("String", "API_URL", "\"https://api.open-meteo.com/v1/forecast\"")
         buildConfigField("String", "GEOCODING_API_URL", "\"https://geocoding-api.open-meteo.com/v1\"")
     }
 
+    signingConfigs {
+        create("release") {
+            if (System.getenv("KEYSTORE_PATH") != null) {
+                storeFile = file(System.getenv("KEYSTORE_PATH"))
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (System.getenv("KEYSTORE_PATH") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -36,11 +48,12 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    
+
     buildFeatures {
         compose = true
         buildConfig = true
