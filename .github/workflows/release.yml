@@ -26,9 +26,22 @@ jobs:
           echo "TAG=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
 
       - name: Decode Keystore
-        run: echo "$KEYSTORE_BASE64" | base64 -d > app/release.keystore
+        run: |
+          echo "$KEYSTORE_BASE64" | openssl base64 -d -out app/release.keystore
+          chmod 600 app/release.keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+
+      - name: Verify Keystore
+        run: |
+          keytool -list -keystore app/release.keystore \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
+            -alias "$KEY_ALIAS"
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
 
       - name: Build Release APK
         run: ./gradlew assembleRelease
