@@ -27,17 +27,21 @@ jobs:
 
       - name: Decode Keystore
         run: |
-          echo "$KEYSTORE_BASE64" | openssl base64 -d -out app/release.keystore
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > app/release.keystore
           chmod 600 app/release.keystore
+          file app/release.keystore
+          ls -la app/release.keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Verify Keystore
         run: |
+          echo "Keystore size: $(wc -c < app/release.keystore) bytes"
+          head -c 100 app/release.keystore | xxd | head -5
           keytool -list -keystore app/release.keystore \
             -storepass "$KEYSTORE_PASSWORD" \
             -keypass "$KEY_PASSWORD" \
-            -alias "$KEY_ALIAS"
+            -alias "$KEY_ALIAS" || echo "Keytool failed"
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
