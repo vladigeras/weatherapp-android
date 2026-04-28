@@ -3,10 +3,10 @@
 A simple, modern application built with Kotlin, Jetpack Compose, and Clean
 Architecture principles.
 
-![CI](https://github.com/vladigeras/weatherapp-android/actions/workflows/ci.yml/badge.svg)
+![Build](https://github.com/vladigeras/weatherapp-android/actions/workflows/build.yml/badge.svg)
 ![GitHub release](https://img.shields.io/github/v/release/vladigeras/weatherapp-android)
 ![GitHub downloads](https://img.shields.io/github/downloads/vladigeras/weatherapp-android/total)
-
+![GitHub last commit](https://img.shields.io/github/last-commit/vladigeras/weatherapp-android)
 ---
 
 ## 📱 About
