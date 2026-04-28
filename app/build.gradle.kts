@@ -23,7 +23,7 @@ android {
         val cleanTag = tag.removePrefix("v")
         val parts = cleanTag.split(".")
         val major = parts.getOrElse(0, { "1" }).toIntOrNull() ?: 1
-        val minor = parts.getOrElse(0, { "1" }).toIntOrNull() ?: 0
+        val minor = parts.getOrElse(1, { "0" }).toIntOrNull() ?: 0
 
         versionCode = if (tag.isNotEmpty()) major * 100 + minor else 1
         versionName = if (tag.isNotEmpty()) cleanTag else "1.0"
