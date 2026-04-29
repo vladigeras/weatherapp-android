@@ -3,6 +3,7 @@ package ru.vladigeras.weatherapp.ui
 import androidx.arch.core.executor.ArchTaskExecutor
 import androidx.arch.core.executor.TaskExecutor
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,9 +21,12 @@ import ru.vladigeras.weatherapp.data.CurrentUnits
 import ru.vladigeras.weatherapp.data.DailyWeather
 import ru.vladigeras.weatherapp.data.HourlyWeather
 import ru.vladigeras.weatherapp.data.Location
+import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.data.WeatherResponse
 import ru.vladigeras.weatherapp.repository.LocationRepository
 import ru.vladigeras.weatherapp.repository.SelectedLocationRepository
+import ru.vladigeras.weatherapp.repository.WeatherCache
+import ru.vladigeras.weatherapp.repository.WeatherDisplayPrefsRepository
 import ru.vladigeras.weatherapp.repository.WeatherRepository
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -31,6 +35,8 @@ class WeatherViewModelTest {
     private lateinit var weatherRepository: WeatherRepository
     private lateinit var locationRepository: LocationRepository
     private lateinit var selectedLocationRepository: SelectedLocationRepository
+    private lateinit var weatherDisplayPrefsRepository: WeatherDisplayPrefsRepository
+    private lateinit var weatherCache: WeatherCache
     private lateinit var weatherViewModel: WeatherViewModel
 
     private val mockLocation = Location(55.7558, 37.6173, "Moscow")
@@ -116,7 +122,13 @@ class WeatherViewModelTest {
         weatherRepository = mockk()
         locationRepository = mockk()
         selectedLocationRepository = mockk()
-        weatherViewModel = WeatherViewModel(weatherRepository, locationRepository, selectedLocationRepository)
+        weatherDisplayPrefsRepository = mockk {
+            every { getPrefs() } returns flowOf(WeatherDisplayPrefs())
+        }
+        weatherCache = mockk {
+            coEvery { evict(any(), any()) } returns Unit
+        }
+        weatherViewModel = WeatherViewModel(weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, weatherCache)
 
         Dispatchers.setMain(Dispatchers.Unconfined)
         ArchTaskExecutor.getInstance().setDelegate(object : TaskExecutor() {
@@ -178,11 +190,12 @@ class WeatherViewModelTest {
         coEvery { weatherRepository.getWeather(48.8566, 2.3522) } returns Result.success(mockResponse2)
         
         weatherViewModel.loadSavedLocation() // This loads Moscow (from selectedLocationRepository)
-        weatherViewModel.loadWeather(48.8566, 2.3522) // This loads Paris (from coordinates) - should cancel Moscow
+        kotlinx.coroutines.yield() // Give time for the first request to start
+        weatherViewModel.loadWeather(48.8566, 2.3522) // This loads Paris - should cancel Moscow
         
-        // Wait specifically for Success state from the latest request (Paris)
+        // Wait for the final Success state (should be Paris)
         val successState = weatherViewModel.uiState
-            .first { it is WeatherUiState.Success } as WeatherUiState.Success
+            .first { it is WeatherUiState.Success && it.temperature == 18.2 } as WeatherUiState.Success
         // Should show Paris temperature (18.2), not Moscow (20.5)
         assertEquals(18.2, successState.temperature, 0.001)
     }
@@ -197,9 +210,9 @@ class WeatherViewModelTest {
         weatherViewModel.loadWeather(51.5074, -0.1278)  // London
         weatherViewModel.loadWeather(40.7128, -74.0060) // New York
         
-        // Wait specifically for Success state from the latest request (New York)
+        // Wait specifically for Success state with New York temperature (20.5)
         val successState = weatherViewModel.uiState
-            .first { it is WeatherUiState.Success } as WeatherUiState.Success
+            .first { it is WeatherUiState.Success && it.temperature == 20.5 } as WeatherUiState.Success
         // Should show New York temperature (20.5) from the last request
         assertEquals(20.5, successState.temperature, 0.001)
     }
@@ -278,15 +291,15 @@ class WeatherViewModelTest {
         assertEquals(0, day1.weatherCode)
         assertEquals(15.0, day1.temperatureMin, 0.001)
         assertEquals(25.0, day1.temperatureMax, 0.001)
-        assertEquals(0.0, day1.precipitationSum, 0.001)
+        assertEquals(0.0, day1.precipitationSum ?: 0.0, 0.001)
         // Sunrise and sunset are formatted to HH:mm in local time (Europe/Moscow, UTC+3)
         // Given sunrise UTC "2026-04-27T04:30:00", offset +3 hours -> 07:30
         assertEquals("07:30", day1.sunrise)
         // Given sunset UTC "2026-04-27T20:15:00", offset +3 hours -> 23:15
         assertEquals("23:15", day1.sunset)
-        assertEquals(10.0, day1.windSpeedMax, 0.001)
-        assertEquals(180, day1.windDirectionDominant)
-        assertEquals(5.0, day1.uvIndexMax, 0.001)
+        assertEquals(10.0, day1.windSpeedMax ?: 0.0, 0.001)
+        assertEquals(180, day1.windDirectionDominant ?: 0)
+        assertEquals(5.0, day1.uvIndexMax ?: 0.0, 0.001)
 
         // Check second day (2026-04-28)
         val day2 = successState.dailyForecast[1]
@@ -295,13 +308,13 @@ class WeatherViewModelTest {
         assertEquals(1, day2.weatherCode)
         assertEquals(14.0, day2.temperatureMin, 0.001)
         assertEquals(23.0, day2.temperatureMax, 0.001)
-        assertEquals(2.5, day2.precipitationSum, 0.001)
+        assertEquals(2.5, day2.precipitationSum ?: 0.0, 0.001)
         // Sunrise: "2026-04-28T04:29:00" + 3 hours = 07:29
         assertEquals("07:29", day2.sunrise)
         // Sunset: "2026-04-28T20:16:00" + 3 hours = 23:16
         assertEquals("23:16", day2.sunset)
-        assertEquals(12.0, day2.windSpeedMax, 0.001)
-        assertEquals(200, day2.windDirectionDominant)
-        assertEquals(3.0, day2.uvIndexMax, 0.001)
+        assertEquals(12.0, day2.windSpeedMax ?: 0.0, 0.001)
+        assertEquals(200, day2.windDirectionDominant ?: 0)
+        assertEquals(3.0, day2.uvIndexMax ?: 0.0, 0.001)
     }
 }

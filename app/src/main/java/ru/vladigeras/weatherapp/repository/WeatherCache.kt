@@ -22,7 +22,7 @@ open class WeatherCache @Inject constructor(
     private val CACHE_TTL_MS = 30 * 60 * 1000L // 30 minutes
     
     private val cache = ConcurrentHashMap<String, CachedWeather>()
-
+    
     /**
      * Creates a cache key from coordinates by rounding to 3 decimal places.
      * This groups nearby locations (within ~110 meters) under the same key.
@@ -33,7 +33,7 @@ open class WeatherCache @Inject constructor(
         val lngRounded = (longitude * 1000).roundToInt() / 1000.0
         return "${latRounded}_${lngRounded}"
     }
-
+    
     /**
      * Retrieves cached weather data if it exists and hasn't expired.
      * @return cached WeatherResponse or null if not found/expired
@@ -51,7 +51,7 @@ open class WeatherCache @Inject constructor(
         
         return cached.response
     }
-
+    
     /**
      * Stores weather data in cache with current timestamp.
      */
@@ -59,12 +59,20 @@ open class WeatherCache @Inject constructor(
         val key = createKey(latitude, longitude)
         cache[key] = CachedWeather(response, timeProvider())
     }
-
+    
+    /**
+     * Removes the cached entry for the given coordinates, if present.
+     */
+    fun evict(latitude: Double, longitude: Double) {
+        val key = createKey(latitude, longitude)
+        cache.remove(key)
+    }
+    
     /** Optional: Clear all cached data */
     fun clear() {
         cache.clear()
     }
-
+    
     private data class CachedWeather(val response: WeatherResponse, val timestamp: Long)
 }
 

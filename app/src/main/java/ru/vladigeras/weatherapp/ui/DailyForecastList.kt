@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
@@ -51,55 +53,57 @@ private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) 
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .height(72.dp),
+            .height(110.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = MaterialTheme.shapes.medium
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.Center
         ) {
-            // Day name and date
-            Column(
-                modifier = Modifier.weight(1f, fill = false),
-                horizontalAlignment = Alignment.Start
+            // First row: Day info, icon, temperature
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = forecast.dayName,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = forecast.date,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+                // Day name and date
+                Column(
+                    modifier = Modifier.weight(1f, fill = false),
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    Text(
+                        text = forecast.dayName,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = forecast.date,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-            // Weather icon
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .padding(4.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                val weatherIcon = getWeatherIconForCode(forecast.weatherCode, isDay = 1)
-                Icon(
-                    imageVector = weatherIcon,
-                    contentDescription = "Weather condition",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+                // Weather icon
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val weatherCode = forecast.weatherCode ?: 0
+                    val weatherIcon = getWeatherIconForCode(weatherCode, isDay = 1)
+                    Icon(
+                        imageVector = weatherIcon,
+                        contentDescription = "Weather condition",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
 
-            // Temperature range
-            Column(
-                modifier = Modifier.weight(1f, fill = false),
-                horizontalAlignment = Alignment.End
-            ) {
+                // Temperature range
                 Text(
                     text = "${forecast.temperatureMin.toInt()}$temperatureUnit/${forecast.temperatureMax.toInt()}$temperatureUnit",
                     style = MaterialTheme.typography.titleMedium,
@@ -107,26 +111,92 @@ private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) 
                 )
             }
 
-            // Precipitation info
-            Column(
-                modifier = Modifier.weight(1f, fill = false),
-                horizontalAlignment = Alignment.End
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Second row: Precipitation, UV, Sunrise, Sunset
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (forecast.precipitationSum > 0) {
-                    val precipitationIcon = getPrecipitationIconForCode(forecast.weatherCode)
-                    if (precipitationIcon != null) {
-                        Icon(
-                            imageVector = precipitationIcon,
-                            contentDescription = "Precipitation",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                // Precipitation info
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val precipitationSum = forecast.precipitationSum ?: 0.0
+                    if (precipitationSum > 0) {
+                        val weatherCode = forecast.weatherCode ?: 0
+                        val precipitationIcon = getPrecipitationIconForCode(weatherCode)
+                        if (precipitationIcon != null) {
+                            Icon(
+                                imageVector = precipitationIcon,
+                                contentDescription = "Precipitation",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Text(
+                            text = "${precipitationSum.toInt()} mm",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
-                    Text(
-                        text = "${forecast.precipitationSum.toInt()} mm",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                }
+
+                // UV Index
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val uvIndex = forecast.uvIndexMax
+                    if (uvIndex != null) {
+                        val uvColor = when (uvIndex) {
+                            in 0.0..2.0 -> Color(0xFF4CAF50) // Green - Low
+                            in 2.1..5.0 -> Color(0xFFFFEB3B) // Yellow - Moderate
+                            in 5.1..7.0 -> Color(0xFFFF9800) // Orange - High
+                            else -> Color(0xFFF44336) // Red - Very High
+                        }
+                        Text(
+                            text = "UV",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${uvIndex.toInt()}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = uvColor,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                    }
+                }
+
+                // Sunrise
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    forecast.sunrise?.let { sunriseTime ->
+                        Text(
+                            text = "↑$sunriseTime",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Sunset
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    forecast.sunset?.let { sunsetTime ->
+                        Text(
+                            text = "↓$sunsetTime",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }

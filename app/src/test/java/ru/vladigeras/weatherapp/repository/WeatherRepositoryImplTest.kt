@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.vladigeras.weatherapp.data.Current
+import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.data.WeatherResponse
 import ru.vladigeras.weatherapp.network.WeatherApiService
 import java.util.concurrent.TimeUnit
@@ -35,6 +36,7 @@ class WeatherRepositoryImplTest {
     private lateinit var mockWeatherApiService: TestWeatherApiService
     private lateinit var weatherCache: WeatherCache
     private var fakeTime: Long = 0
+    private val defaultPrefs = WeatherDisplayPrefs()
     
     @Before
     fun setup() {
@@ -49,7 +51,7 @@ class WeatherRepositoryImplTest {
         val mockResponse = createMockWeatherResponse()
         mockWeatherApiService.setResponse(mockResponse)
         
-        val result = weatherRepository.getWeather(55.7558, 37.6173)
+        val result = weatherRepository.getWeather(55.7558, 37.6173, defaultPrefs)
         
         assertTrue(result.isSuccess)
         assertEquals(9.3, result.getOrNull()!!.current?.temperature ?: 0.0, 0.001)
@@ -144,31 +146,17 @@ class WeatherRepositoryImplTest {
         assertEquals(2, mockWeatherApiService.callCount)
     }
     
-    private fun createMockWeatherResponse() = WeatherResponse(
-        latitude = 55.7558,
-        longitude = 37.6173,
-        generationtimeMs = 0.1,
-        utcOffsetSeconds = 0,
-        timezone = "GMT",
-        elevation = 149.0,
-        current = Current(
-            time = "2026-04-25T16:00",
-            interval = 900,
-            temperature = 9.3, // temperature_2m
-            apparentTemperature = null,
-            windSpeed = 2.5, // windspeed_10m
-            windDirection = 225, // winddirection_10m
-            weatherCode = 3,
-            isDay = 1
-        )
-    )
-    
     /** Mock WeatherApiService that tracks calls and allows setting responses/exceptions */
     private class TestWeatherApiService : WeatherApiService {
         var callCount: Int = 0
         private var responses: List<WeatherResponse> = emptyList()
         private var exceptionToThrow: Exception? = null
         private var responseIndex: Int = 0
+        // Capture last parameters
+        var lastCurrentParams: String? = null
+        var lastHourlyParams: String? = null
+        var lastDailyParams: String? = null
+        var lastForecastDays: Int? = null
         
         fun setResponse(response: WeatherResponse) {
             responses = listOf(response)
@@ -188,8 +176,19 @@ class WeatherRepositoryImplTest {
             responseIndex = 0
         }
         
-        override suspend fun getCurrentWeather(latitude: Double, longitude: Double): WeatherResponse {
+        override suspend fun getWeather(
+            latitude: Double,
+            longitude: Double,
+            currentParams: String,
+            hourlyParams: String,
+            dailyParams: String,
+            forecastDays: Int
+        ): WeatherResponse {
             callCount++
+            lastCurrentParams = currentParams
+            lastHourlyParams = hourlyParams
+            lastDailyParams = dailyParams
+            lastForecastDays = forecastDays
             
             if (exceptionToThrow != null) {
                 throw exceptionToThrow!!
@@ -201,4 +200,42 @@ class WeatherRepositoryImplTest {
             } ?: createMockWeatherResponse()
         }
     }
+
+    @Test
+    fun `getWeather with prefs builds correct parameters`() = runTest {
+        // Given prefs with only humidity disabled
+        val prefs = WeatherDisplayPrefs(
+            showHumidity = false,
+            showWind = true,
+            showPrecipitation = true,
+            showCondition = false,
+            showSunTimes = false,
+            showUvIndex = false,
+            showForecast = true,
+            forecastDays = 5
+        )
+        val mockResponse = createMockWeatherResponse()
+        mockWeatherApiService.setResponse(mockResponse)
+
+        // When
+        val result = weatherRepository.getWeather(55.7558, 37.6173, prefs)
+
+        // Then
+        assertTrue(result.isSuccess)
+        // Check that the service was called with correct parameters
+        // currentParams should contain temperature_2m and windspeed_10m, winddirection_10m (since showWind true)
+        // but not relativehumidity_2m (since showHumidity false)
+        // dailyParams should contain precipitation_sum (since showPrecipitation true)
+        // and forecastDays should be 5
+        assertEquals(5, mockWeatherApiService.lastForecastDays)
+        // Check that currentParams contains expected strings
+        assertTrue(mockWeatherApiService.lastCurrentParams?.contains("temperature_2m") == true)
+        assertTrue(mockWeatherApiService.lastCurrentParams?.contains("windspeed_10m") == true)
+        assertTrue(mockWeatherApiService.lastCurrentParams?.contains("winddirection_10m") == true)
+        // relativehumidity_2m should not be in hourlyParams because showHumidity false
+        assertTrue(mockWeatherApiService.lastHourlyParams?.contains("relativehumidity_2m") == false)
+        // dailyParams should contain precipitation_sum
+        assertTrue(mockWeatherApiService.lastDailyParams?.contains("precipitation_sum") == true)
+    }
+
 }

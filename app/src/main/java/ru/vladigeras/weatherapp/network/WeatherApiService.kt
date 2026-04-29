@@ -8,21 +8,34 @@ import ru.vladigeras.weatherapp.BuildConfig
 import ru.vladigeras.weatherapp.data.WeatherResponse
 
 interface WeatherApiService {
-    suspend fun getCurrentWeather(latitude: Double, longitude: Double): WeatherResponse
+    suspend fun getWeather(
+        latitude: Double,
+        longitude: Double,
+        currentParams: String,
+        hourlyParams: String,
+        dailyParams: String,
+        forecastDays: Int
+    ): WeatherResponse
 }
 
 class WeatherApiServiceImpl(
     private val httpClient: HttpClient
 ) : WeatherApiService {
-    
-    override suspend fun getCurrentWeather(latitude: Double, longitude: Double): WeatherResponse {
+    override suspend fun getWeather(
+        latitude: Double,
+        longitude: Double,
+        currentParams: String,
+        hourlyParams: String,
+        dailyParams: String,
+        forecastDays: Int
+    ): WeatherResponse {
         return httpClient.get(BuildConfig.API_URL) {
             parameter("latitude", latitude)
             parameter("longitude", longitude)
-            parameter("current", "temperature_2m,windspeed_10m,winddirection_10m,weathercode,is_day,apparent_temperature")
-            parameter("hourly", "temperature_2m,relativehumidity_2m,windspeed_10m")
-            parameter("daily", "weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset,windspeed_10m_max,winddirection_10m_dominant,uv_index_max")
-            parameter("forecast_days", "16")
+            parameter("current", currentParams)
+            parameter("hourly", hourlyParams)
+            parameter("daily", dailyParams)
+            parameter("forecast_days", forecastDays.toString())
             parameter("timezone", "auto")
         }.body()
     }

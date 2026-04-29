@@ -1,6 +1,7 @@
 package ru.vladigeras.weatherapp.ui
 
 import android.Manifest
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Button
@@ -70,14 +72,14 @@ fun WeatherScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentState = uiState
     val context = LocalContext.current
-    
+
     val savedLatitude = savedStateHandle.get<Double>("latitude")
     val savedLongitude = savedStateHandle.get<Double>("longitude")
     val hasSavedLocation = savedLatitude != null && savedLongitude != null
-    
+
     var hasLocationPermission by remember { mutableStateOf(false) }
     var showPermissionError by remember { mutableStateOf(false) }
-    
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -89,7 +91,7 @@ fun WeatherScreen(
             showPermissionError = true
         }
     }
-    
+
     fun requestLocationPermission() {
         permissionLauncher.launch(
             arrayOf(
@@ -98,10 +100,10 @@ fun WeatherScreen(
             )
         )
     }
-    
+
     val onSelectLocation = onNavigateToLocationSelection
     val onRequestPermission = ::requestLocationPermission
-    
+
     LaunchedEffect(savedLatitude, savedLongitude) {
         if (savedLatitude != null && savedLongitude != null) {
             viewModel.loadWeather(savedLatitude, savedLongitude)
@@ -109,23 +111,24 @@ fun WeatherScreen(
             viewModel.loadSavedLocation()
         }
     }
-    
+
     val pullToRefreshState = rememberPullToRefreshState()
     val isRefreshing = currentState is WeatherUiState.Loading
-    
+
     LaunchedEffect(currentState) {
         if (currentState is WeatherUiState.Success) {
             Toast.makeText(context, "Weather data updated successfully", Toast.LENGTH_SHORT).show()
         }
     }
-    
+
     LaunchedEffect(currentState) {
         if (currentState is WeatherUiState.Error) {
             val errorMessage = currentState.message
+            Log.e("WeatherScreen", "Weather error: $errorMessage")
             Toast.makeText(context, "Failed to update weather data: $errorMessage", Toast.LENGTH_LONG).show()
         }
     }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -138,6 +141,16 @@ fun WeatherScreen(
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
+                    IconButton(onClick = {
+                        val intent = android.content.Intent(context, SettingsActivity::class.java)
+                        context.startActivity(intent)
+                    }) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Settings",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -147,7 +160,7 @@ fun WeatherScreen(
         }
     ) { paddingValues ->
         val isActuallyLoading = currentState is WeatherUiState.Loading
-        
+
         PullToRefreshBox(
             isRefreshing = isActuallyLoading,
             onRefresh = {
@@ -179,7 +192,7 @@ fun WeatherScreen(
 
             AnimatedVisibility(
                 visible = !hasSavedLocation && !hasLocationPermission
-                    && currentState is WeatherUiState.Empty,
+                        && currentState is WeatherUiState.Empty,
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
@@ -233,39 +246,51 @@ private fun SuccessContent(state: WeatherUiState.Success) {
     ) {
         WeatherMainCard(temperature = state.temperature, weatherCode = state.weatherCode, isDay = state.isDay, timezone = state.timezone, temperatureUnit = state.temperatureUnit)
         Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            if (state.feelsLike != null) {
-                DetailCard(
-                    icon = Icons.Filled.Thermostat,
-                    label = "Feels like",
-                    value = "${state.feelsLike.toInt()}${state.temperatureUnit}",
-                    modifier = Modifier.weight(1f)
-                )
+        
+        // Show detail cards based on user preferences
+        if (state.prefs.showCondition || state.prefs.showHumidity || state.prefs.showWind) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (state.prefs.showCondition && state.feelsLike != null) {
+                    DetailCard(
+                        icon = Icons.Filled.Thermostat,
+                        label = "Feels like",
+                        value = "${state.feelsLike.toInt()}${state.temperatureUnit}",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (state.prefs.showHumidity) {
+                    DetailCard(
+                        icon = Icons.Filled.WaterDrop,
+                        label = "Humidity",
+                        value = "${state.humidity}%",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (state.prefs.showWind) {
+                    DetailCard(
+                        icon = Icons.Filled.Air,
+                        label = "Wind Speed",
+                        value = "${state.windSpeed.toInt()} km/h",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
-            DetailCard(
-                icon = Icons.Filled.WaterDrop,
-                label = "Humidity",
-                value = "${state.humidity}%",
-                modifier = Modifier.weight(1f)
-            )
-            DetailCard(
-                icon = Icons.Filled.Air,
-                label = "Wind Speed",
-                value = "${state.windSpeed.toInt()} km/h",
-                modifier = Modifier.weight(1f)
-            )
+            Spacer(modifier = Modifier.height(24.dp))
         }
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = "Daily Forecast",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        DailyForecastList(dailyForecast = state.dailyForecast, temperatureUnit = state.temperatureUnit)
+        
+        // Show daily forecast if enabled
+        if (state.prefs.showForecast) {
+            Text(
+                text = "Daily Forecast",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            DailyForecastList(dailyForecast = state.dailyForecast, temperatureUnit = state.temperatureUnit)
+        }
     }
 }
 
@@ -277,8 +302,7 @@ private fun WeatherMainCard(temperature: Double, weatherCode: Int, isDay: Int, t
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            // Weather icon instead of text description
-            val weatherIcon = ru.vladigeras.weatherapp.ui.getWeatherIconForCode(weatherCode, isDay)
+            val weatherIcon = getWeatherIconForCode(weatherCode, isDay)
             Icon(
                 imageVector = weatherIcon,
                 contentDescription = getWeatherCondition(weatherCode),
@@ -327,7 +351,7 @@ private fun ErrorContent(
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = state.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f), textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(24.dp))
-        
+
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(onClick = onSelectLocation) {
                 Text("Select City")
@@ -369,13 +393,13 @@ private fun EmptyStateContent(
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         Button(onClick = onSelectLocation) {
             Text("Select City")
         }
-        
+
         Spacer(modifier = Modifier.height(12.dp))
-        
+
         OutlinedButton(onClick = onRequestPermission) {
             Text("Use GPS")
         }

@@ -110,7 +110,7 @@ class LocationSelectionViewModel @Inject constructor(
         }
     }
 
-    fun useAutoLocation() {
+    fun useAutoLocation(onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             val autoLocation = _uiState.value.autoLocation
             if (autoLocation != null) {
@@ -120,10 +120,11 @@ class LocationSelectionViewModel @Inject constructor(
                 isManualMode = false,
                 activeLocation = autoLocation
             )
+            onComplete()
         }
     }
 
-    fun selectLocation(location: Location) {
+    fun selectLocation(location: Location, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             val manualLocation = location.copy(isAutoDetected = false)
             selectedLocationRepository.saveSelectedLocation(manualLocation)
@@ -133,6 +134,7 @@ class LocationSelectionViewModel @Inject constructor(
                 searchResults = emptyList()
             )
             _searchQuery.value = ""
+            onComplete()
         }
     }
 

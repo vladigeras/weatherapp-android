@@ -105,21 +105,24 @@ fun LocationSelectionScreen(
                 autoLocationLoading = uiState.autoLocationLoading,
                 locationPermissionGranted = uiState.locationPermissionGranted,
                 onUseLocation = { location ->
-                    viewModel.selectLocation(location)
-                    onNavigateBack()
+                    viewModel.selectLocation(location) {
+                        onNavigateBack()
+                    }
                 },
                 onSwitchToAuto = {
-                    val autoLocation = uiState.autoLocation
-                    if (autoLocation != null) {
-                        navController.previousBackStackEntry
-                            ?.savedStateHandle
-                            ?.set("latitude", autoLocation.latitude)
-                        navController.previousBackStackEntry
-                            ?.savedStateHandle
-                            ?.set("longitude", autoLocation.longitude)
+                    viewModel.useAutoLocation {
+                        // This runs after save is complete
+                        val autoLocation = uiState.autoLocation
+                        if (autoLocation != null) {
+                            navController.previousBackStackEntry?.
+                                savedStateHandle?.
+                                set("latitude", autoLocation.latitude)
+                            navController.previousBackStackEntry?.
+                                savedStateHandle?.
+                                set("longitude", autoLocation.longitude)
+                        }
+                        onNavigateBack()
                     }
-                    viewModel.useAutoLocation()
-                    onNavigateBack()
                 },
                 onRefreshAuto = { viewModel.refreshAutoLocation() }
             )
@@ -137,14 +140,13 @@ fun LocationSelectionScreen(
                         result.country?.let { append(", $it") }
                     }
                     val location = Location(result.latitude, result.longitude, fullName)
-                    viewModel.selectLocation(location)
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("latitude", result.latitude)
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("longitude", result.longitude)
-                    onNavigateBack()
+                    // Save location and wait for completion before navigating back
+                    viewModel.selectLocation(location) {
+                        val entry = navController.previousBackStackEntry
+                        entry?.savedStateHandle?.set("latitude", result.latitude)
+                        entry?.savedStateHandle?.set("longitude", result.longitude)
+                        onNavigateBack()
+                    }
                 }
             )
         }

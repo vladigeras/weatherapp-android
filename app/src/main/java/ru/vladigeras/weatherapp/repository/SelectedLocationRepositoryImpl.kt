@@ -31,19 +31,23 @@ class SelectedLocationRepositoryImpl @Inject constructor(
 
     override fun getSelectedLocation(): Flow<Location?> {
         return context.dataStore.data.map { preferences ->
-            val latitude = preferences[PreferencesKeys.LATITUDE]
-            val longitude = preferences[PreferencesKeys.LONGITUDE]
-            val name = preferences[PreferencesKeys.NAME]
-            val isAutoDetected = preferences[PreferencesKeys.IS_AUTO_DETECTED] ?: false
+            try {
+                val latitude = preferences[PreferencesKeys.LATITUDE]
+                val longitude = preferences[PreferencesKeys.LONGITUDE]
+                val name = preferences[PreferencesKeys.NAME]
+                val isAutoDetected = preferences[PreferencesKeys.IS_AUTO_DETECTED] ?: false
 
-            if (latitude != null && longitude != null) {
-                Location(
-                    latitude = latitude,
-                    longitude = longitude,
-                    name = name,
-                    isAutoDetected = isAutoDetected
-                )
-            } else {
+                if (latitude != null && longitude != null) {
+                    Location(
+                        latitude = latitude,
+                        longitude = longitude,
+                        name = name,
+                        isAutoDetected = isAutoDetected
+                    )
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
                 null
             }
         }
