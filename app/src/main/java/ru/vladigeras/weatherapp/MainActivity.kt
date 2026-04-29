@@ -1,5 +1,8 @@
 package ru.vladigeras.weatherapp
 
+import android.content.Context
+import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,6 +22,42 @@ import ru.vladigeras.weatherapp.ui.theme.WeatherAppTheme
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    
+    override fun attachBaseContext(base: Context) {
+        val locale = getSavedLocale(base)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val config = Configuration(base.resources.configuration)
+            config.setLocale(locale)
+            val newContext = base.createConfigurationContext(config)
+            super.attachBaseContext(newContext)
+        } else {
+            @Suppress("DEPRECATION")
+            val legacyConfig = base.resources.configuration
+            legacyConfig.setLocale(locale)
+            @Suppress("DEPRECATION")
+            base.resources.updateConfiguration(legacyConfig, base.resources.displayMetrics)
+            super.attachBaseContext(base)
+        }
+    }
+    
+    private fun getSavedLocale(context: Context): java.util.Locale {
+        val prefs = context.getSharedPreferences("weatherapp_prefs", Context.MODE_PRIVATE)
+        val ordinal = prefs.getInt("language_preference", -1)
+
+        return when (ordinal) {
+            1 -> java.util.Locale("ru", "RU")
+            2 -> java.util.Locale.ENGLISH
+            else -> {
+                val deviceLang = java.util.Locale.getDefault()
+                if (deviceLang.language == "ru") {
+                    java.util.Locale("ru", "RU")
+                } else {
+                    java.util.Locale.ENGLISH
+                }
+            }
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -1,6 +1,5 @@
 package ru.vladigeras.weatherapp.ui
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,15 +13,15 @@ import kotlinx.coroutines.launch
 import ru.vladigeras.weatherapp.data.DailyWeather
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
+import ru.vladigeras.weatherapp.repository.CityNameResolver
+import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.LocationRepository
 import ru.vladigeras.weatherapp.repository.SelectedLocationRepository
 import ru.vladigeras.weatherapp.repository.WeatherCache
 import ru.vladigeras.weatherapp.repository.WeatherDisplayPrefsRepository
 import ru.vladigeras.weatherapp.repository.WeatherRepository
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.TextStyle
-import java.util.Locale
 import javax.inject.Inject
 
 sealed interface WeatherUiState {
@@ -36,6 +35,7 @@ sealed interface WeatherUiState {
         val weatherCode: Int,
         val isDay: Int,
         val timezone: String,
+        val cityName: String,
         val temperatureUnit: String,
         val dailyForecast: List<DailyForecast> = emptyList(),
         val prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()
@@ -49,7 +49,9 @@ class WeatherViewModel @Inject constructor(
     private val locationRepository: LocationRepository,
     private val selectedLocationRepository: SelectedLocationRepository,
     private val weatherDisplayPrefsRepository: WeatherDisplayPrefsRepository,
-    private val weatherCache: WeatherCache
+    private val weatherCache: WeatherCache,
+    private val languagePreferenceRepository: LanguagePreferenceRepository,
+    private val cityNameResolver: CityNameResolver
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<WeatherUiState>(WeatherUiState.Loading)
@@ -58,6 +60,9 @@ class WeatherViewModel @Inject constructor(
     private var currentJob: Job? = null
     private var currentLatitude: Double = 0.0
     private var currentLongitude: Double = 0.0
+
+    private data class CityNameCacheKey(val latitude: Double, val longitude: Double, val locale: String)
+    private val cityNameCache = mutableMapOf<CityNameCacheKey, String>()
 
     init {
         viewModelScope.launch {
@@ -119,6 +124,7 @@ class WeatherViewModel @Inject constructor(
         currentJob?.cancel()
         _uiState.value = WeatherUiState.Loading
         currentJob = viewModelScope.launch {
+            val savedLocation = selectedLocationRepository.getSelectedLocation().first()
             weatherRepository.getWeather(latitude, longitude, prefs)
                 .onSuccess { response ->
                     val current = response.current
@@ -127,6 +133,7 @@ class WeatherViewModel @Inject constructor(
                     val feelsLike = current?.apparentTemperature
                     val humidity = hourly?.relativehumidity2m?.firstOrNull { it != null } ?: 0
                     val dailyForecast = processDailyForecast(daily, response.utcOffsetSeconds)
+                    val cityName = cityNameResolver.resolveCityName(latitude, longitude, savedLocation?.name, response.timezone)
                     _uiState.value = WeatherUiState.Success(
                         temperature = current?.temperature ?: 0.0,
                         feelsLike = feelsLike,
@@ -135,13 +142,13 @@ class WeatherViewModel @Inject constructor(
                         weatherCode = current?.weatherCode ?: 0,
                         isDay = current?.isDay ?: 1,
                         timezone = response.timezone,
+                        cityName = cityName,
                         temperatureUnit = response.currentUnits?.temperatureUnit ?: "°C",
                         dailyForecast = dailyForecast,
                         prefs = prefs
                     )
                 }
                 .onFailure { error ->
-                    Log.e("WeatherViewModel", "Failed to load weather", error)
                     _uiState.value = WeatherUiState.Error(
                         error.message ?: "Unknown error occurred"
                     )
@@ -184,16 +191,10 @@ class WeatherViewModel @Inject constructor(
     private fun getDayName(isoDate: String): String {
         return try {
             val date = LocalDate.parse(isoDate)
-            when (date.dayOfWeek) {
-                DayOfWeek.SUNDAY -> "Sun"
-                DayOfWeek.MONDAY -> "Mon"
-                DayOfWeek.TUESDAY -> "Tue"
-                DayOfWeek.WEDNESDAY -> "Wed"
-                DayOfWeek.THURSDAY -> "Thu"
-                DayOfWeek.FRIDAY -> "Fri"
-                DayOfWeek.SATURDAY -> "Sat"
-                else -> "?"
-            }
+            // Use app locale for day name formatting with capitalization
+            val currentLocale = languagePreferenceRepository.getAppLocale()
+            val dayName = date.dayOfWeek.getDisplayName(TextStyle.SHORT, currentLocale)
+            dayName.replaceFirstChar { it.uppercaseChar() }
         } catch (e: Exception) {
             "?"
         }
@@ -203,8 +204,10 @@ class WeatherViewModel @Inject constructor(
         return try {
             val date = LocalDate.parse(isoDate)
             val day = date.dayOfMonth
-            val monthName = date.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
-            "$day $monthName"
+            // Use app locale for month name formatting with capitalization
+            val currentLocale = languagePreferenceRepository.getAppLocale()
+            val monthName = date.month.getDisplayName(TextStyle.SHORT, currentLocale)
+            "$day ${monthName.replaceFirstChar { it.uppercaseChar() }}"
         } catch (e: Exception) {
             isoDate
         }

@@ -1,5 +1,6 @@
 package ru.vladigeras.weatherapp.ui
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +20,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import ru.vladigeras.weatherapp.R
+import ru.vladigeras.weatherapp.util.WeatherCodeTranslator
 
 /**
  * Displays a list of daily weather forecasts using a Column (not LazyColumn)
@@ -29,6 +34,8 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun DailyForecastList(dailyForecast: List<DailyForecast>, temperatureUnit: String) {
+    val context = LocalContext.current
+    
     if (dailyForecast.isEmpty()) {
         return
     }
@@ -37,7 +44,7 @@ fun DailyForecastList(dailyForecast: List<DailyForecast>, temperatureUnit: Strin
         modifier = Modifier.fillMaxWidth()
     ) {
         dailyForecast.forEach { forecast ->
-            DailyForecastItem(forecast = forecast, temperatureUnit = temperatureUnit)
+            DailyForecastItem(forecast = forecast, temperatureUnit = temperatureUnit, context = context)
         }
     }
 }
@@ -48,7 +55,7 @@ fun DailyForecastList(dailyForecast: List<DailyForecast>, temperatureUnit: Strin
  * @param forecast The [DailyForecast] to display.
  */
 @Composable
-private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) {
+private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, context: Context) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -97,7 +104,7 @@ private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) 
                     val weatherIcon = getWeatherIconForCode(weatherCode, isDay = 1)
                     Icon(
                         imageVector = weatherIcon,
-                        contentDescription = "Weather condition",
+                        contentDescription = WeatherCodeTranslator.translate(context, weatherCode),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
@@ -125,19 +132,20 @@ private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) 
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     val precipitationSum = forecast.precipitationSum ?: 0.0
-                    if (precipitationSum > 0) {
-                        val weatherCode = forecast.weatherCode ?: 0
-                        val precipitationIcon = getPrecipitationIconForCode(weatherCode)
-                        if (precipitationIcon != null) {
-                            Icon(
-                                imageVector = precipitationIcon,
-                                contentDescription = "Precipitation",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        Text(
-                            text = "${precipitationSum.toInt()} mm",
+                    val context = LocalContext.current
+                        if (precipitationSum > 0) {
+                            val weatherCode = forecast.weatherCode ?: 0
+                            val precipitationIcon = getPrecipitationIconForCode(weatherCode)
+                            if (precipitationIcon != null) {
+                                Icon(
+                                    imageVector = precipitationIcon,
+                                    contentDescription = "Precipitation",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Text(
+                                text = "${precipitationSum.toInt()} ${context.getString(R.string.precipitation_unit)}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -158,7 +166,7 @@ private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) 
                             else -> Color(0xFFF44336) // Red - Very High
                         }
                         Text(
-                            text = "UV",
+                            text = stringResource(R.string.uv_label),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

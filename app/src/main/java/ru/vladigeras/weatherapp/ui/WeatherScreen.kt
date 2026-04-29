@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
+import ru.vladigeras.weatherapp.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,7 +118,7 @@ fun WeatherScreen(
 
     LaunchedEffect(currentState) {
         if (currentState is WeatherUiState.Success) {
-            Toast.makeText(context, "Weather data updated successfully", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.weather_updated), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -125,7 +126,7 @@ fun WeatherScreen(
         if (currentState is WeatherUiState.Error) {
             val errorMessage = currentState.message
             Log.e("WeatherScreen", "Weather error: $errorMessage")
-            Toast.makeText(context, "Failed to update weather data: $errorMessage", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, context.getString(R.string.weather_error, errorMessage), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -238,13 +239,15 @@ private fun SkeletonCard(modifier: Modifier = Modifier) {
 
 @Composable
 private fun SuccessContent(state: WeatherUiState.Success) {
+    val context = LocalContext.current
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        WeatherMainCard(temperature = state.temperature, weatherCode = state.weatherCode, isDay = state.isDay, timezone = state.timezone, temperatureUnit = state.temperatureUnit)
+        WeatherMainCard(temperature = state.temperature, weatherCode = state.weatherCode, isDay = state.isDay, cityName = state.cityName, temperatureUnit = state.temperatureUnit)
         Spacer(modifier = Modifier.height(16.dp))
         
         // Show detail cards based on user preferences
@@ -256,7 +259,7 @@ private fun SuccessContent(state: WeatherUiState.Success) {
                 if (state.prefs.showCondition && state.feelsLike != null) {
                     DetailCard(
                         icon = Icons.Filled.Thermostat,
-                        label = "Feels like",
+                        label = context.getString(R.string.feels_like),
                         value = "${state.feelsLike.toInt()}${state.temperatureUnit}",
                         modifier = Modifier.weight(1f)
                     )
@@ -264,7 +267,7 @@ private fun SuccessContent(state: WeatherUiState.Success) {
                 if (state.prefs.showHumidity) {
                     DetailCard(
                         icon = Icons.Filled.WaterDrop,
-                        label = "Humidity",
+                        label = context.getString(R.string.humidity),
                         value = "${state.humidity}%",
                         modifier = Modifier.weight(1f)
                     )
@@ -272,8 +275,8 @@ private fun SuccessContent(state: WeatherUiState.Success) {
                 if (state.prefs.showWind) {
                     DetailCard(
                         icon = Icons.Filled.Air,
-                        label = "Wind Speed",
-                        value = "${state.windSpeed.toInt()} km/h",
+                        label = context.getString(R.string.wind_speed),
+                        value = "${state.windSpeed.toInt()} ${context.getString(R.string.wind_speed_unit)}",
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -283,19 +286,13 @@ private fun SuccessContent(state: WeatherUiState.Success) {
         
         // Show daily forecast if enabled
         if (state.prefs.showForecast) {
-            Text(
-                text = "Daily Forecast",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(8.dp))
             DailyForecastList(dailyForecast = state.dailyForecast, temperatureUnit = state.temperatureUnit)
         }
     }
 }
 
 @Composable
-private fun WeatherMainCard(temperature: Double, weatherCode: Int, isDay: Int, timezone: String, temperatureUnit: String) {
+private fun WeatherMainCard(temperature: Double, weatherCode: Int, isDay: Int, cityName: String, temperatureUnit: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
@@ -303,15 +300,16 @@ private fun WeatherMainCard(temperature: Double, weatherCode: Int, isDay: Int, t
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             val weatherIcon = getWeatherIconForCode(weatherCode, isDay)
+            val context = LocalContext.current
             Icon(
                 imageVector = weatherIcon,
-                contentDescription = getWeatherCondition(weatherCode),
+                contentDescription = getWeatherCondition(weatherCode, context),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(64.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = "${temperature.toInt()}$temperatureUnit", fontSize = 80.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-            Text(text = timezone, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
+            Text(text = cityName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
         }
     }
 }
@@ -340,6 +338,8 @@ private fun ErrorContent(
     onRetry: () -> Unit,
     onSelectLocation: () -> Unit
 ) {
+    val context = LocalContext.current
+    
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,
@@ -347,17 +347,17 @@ private fun ErrorContent(
     ) {
         Icon(imageVector = Icons.Filled.Cloud, contentDescription = "Error", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(64.dp))
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Something went wrong", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Text(text = context.getString(R.string.something_went_wrong), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = state.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f), textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(24.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(onClick = onSelectLocation) {
-                Text("Select City")
+                Text(context.getString(R.string.select_city))
             }
             Button(onClick = onRetry) {
-                Text("Use GPS")
+                Text(context.getString(R.string.use_gps))
             }
         }
     }
@@ -368,6 +368,8 @@ private fun EmptyStateContent(
     onSelectLocation: () -> Unit,
     onRequestPermission: () -> Unit
 ) {
+    val context = LocalContext.current
+    
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,
@@ -381,13 +383,13 @@ private fun EmptyStateContent(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Select Location",
+            text = context.getString(R.string.select_location),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Choose a city manually or grant location permission to use GPS",
+            text = context.getString(R.string.choose_city),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
             textAlign = TextAlign.Center
@@ -395,30 +397,17 @@ private fun EmptyStateContent(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(onClick = onSelectLocation) {
-            Text("Select City")
+            Text(context.getString(R.string.select_city))
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedButton(onClick = onRequestPermission) {
-            Text("Use GPS")
+            Text(context.getString(R.string.use_gps))
         }
     }
 }
 
-private fun getWeatherCondition(code: Int): String = when (code) {
-    0 -> "Clear sky"
-    1, 2, 3 -> "Partly cloudy"
-    45, 48 -> "Foggy"
-    51, 53, 55 -> "Drizzle"
-    56, 57 -> "Freezing drizzle"
-    61, 63, 65 -> "Rain"
-    66, 67 -> "Freezing rain"
-    71, 73, 75 -> "Snow"
-    77 -> "Snow grains"
-    80, 81, 82 -> "Rain showers"
-    85, 86 -> "Snow showers"
-    95 -> "Thunderstorm"
-    96, 99 -> "Thunderstorm with hail"
-    else -> "Unknown"
+private fun getWeatherCondition(code: Int, context: android.content.Context): String {
+    return ru.vladigeras.weatherapp.util.WeatherCodeTranslator.translate(context, code)
 }

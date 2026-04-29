@@ -16,6 +16,7 @@ import ru.vladigeras.weatherapp.network.GeocodingService
 import ru.vladigeras.weatherapp.network.WeatherApiService
 import ru.vladigeras.weatherapp.network.WeatherApiServiceImpl
 import ru.vladigeras.weatherapp.repository.CitySearchCache
+import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import javax.inject.Singleton
 
 @Module
@@ -56,8 +57,11 @@ object NetworkModule {
     
     @Provides
     @Singleton
-    fun provideGeocodingService(httpClient: HttpClient): GeocodingService {
-        return GeocodingService(httpClient)
+    fun provideGeocodingService(
+        httpClient: HttpClient,
+        languagePreferenceRepository: LanguagePreferenceRepository
+    ): GeocodingService {
+        return GeocodingService(httpClient, languagePreferenceRepository)
     }
     
     @Provides

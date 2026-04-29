@@ -1,0 +1,32 @@
+<resources>
+    <string-array name="weather_codes">
+        <item>0|Clear sky</item>
+        <item>1|Mainly clear</item>
+        <item>2|Partly cloudy</item>
+        <item>3|Overcast</item>
+        <item>45|Fog</item>
+        <item>48|Depositing rime fog</item>
+        <item>51|Light drizzle</item>
+        <item>53|Moderate drizzle</item>
+        <item>55|Dense drizzle</item>
+        <item>56|Light freezing drizzle</item>
+        <item>57|Dense freezing drizzle</item>
+        <item>61|Slight rain</item>
+        <item>63|Moderate rain</item>
+        <item>65|Heavy rain</item>
+        <item>66|Light freezing rain</item>
+        <item>67|Heavy freezing rain</item>
+        <item>71|Slight snow fall</item>
+        <item>73|Moderate snow fall</item>
+        <item>75|Heavy snow fall</item>
+        <item>77|Snow grains</item>
+        <item>80|Slight rain shower</item>
+        <item>81|Moderate rain shower</item>
+        <item>82|Violent rain shower</item>
+        <item>85|Slight snow shower</item>
+        <item>86|Heavy snow shower</item>
+        <item>95|Thunderstorm</item>
+        <item>96|Slight hail thunderstorm</item>
+        <item>99|Heavy hail thunderstorm</item>
+    </string-array>
+</resources>

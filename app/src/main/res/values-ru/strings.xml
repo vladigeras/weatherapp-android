@@ -1,0 +1,80 @@
+<resources>
+    <string name="app_name">Weatherapp</string>
+    
+    <!-- Settings -->
+    <string name="settings">Настройки</string>
+    <string name="back">Назад</string>
+    <string name="save">Сохранить</string>
+    
+    <!-- Language settings -->
+    <string name="language">Язык</string>
+    <string name="language_system">Как в системе</string>
+    <string name="language_russian">Русский</string>
+    <string name="language_english">English</string>
+    <string name="language_change_title">Требуется выход</string>
+    <string name="language_change_message">Приложение закроется. Перезапустите вручную для применения языка.</string>
+    <string name="exit_app">Выйти</string>
+    
+    <!-- Weather display options -->
+    <string name="condition">Температура</string>
+    <string name="humidity">Влажность</string>
+    <string name="wind">Ветер</string>
+    <string name="precipitation">Осадки</string>
+    <string name="sun_times">Восход и закат</string>
+    <string name="uv_index">УФ-индекс</string>
+    <string name="forecast">Прогноз</string>
+    <string name="forecast_days">Дней прогноза</string>
+    <string name="unknown_weather">Неизвестно</string>
+    <string name="daily_forecast">Прогноз на день</string>
+    
+    <!-- Descriptions -->
+    <string name="condition_description">Показать температуру</string>
+    <string name="humidity_description">Показать относительную влажность</string>
+    <string name="wind_description">Показать скорость и направление ветра</string>
+    <string name="precipitation_description">Показать сумму осадков</string>
+    <string name="sun_times_description">Показать время восхода и заката</string>
+    <string name="uv_index_description">Показать максимальный УФ-индекс</string>
+    <string name="forecast_description">Включить блок прогноза</string>
+    
+    <!-- Weather labels -->
+    <string name="feels_like">Ощущается как</string>
+    <string name="wind_speed">Скорость ветра</string>
+    
+    <!-- Loading/Messages -->
+    <string name="weather_updated">Данные о погоде успешно обновлены</string>
+    <string name="weather_error">Не удалось обновить данные о погоде: %1$s</string>
+    <string name="select_location">Выбрать местоположение</string>
+    <string name="choose_city">Выберите город вручную или предоставьте разрешение на использование GPS</string>
+    <string name="use_gps">Использовать GPS</string>
+    <string name="select_city">Выбрать город</string>
+    <string name="something_went_wrong">Что-то пошло не так</string>
+    
+    <!-- Location Selection Screen -->
+    <string name="location_select_title">Выбор местоположения</string>
+    <string name="location_close">Закрыть</string>
+    <string name="location_auto_detected">Определённое местоположение</string>
+    <string name="location_selected">Выбранное местоположение</string>
+    <string name="location_unknown">Неизвестное местоположение</string>
+    <string name="location_refresh">Обновить</string>
+    <string name="location_permission_required">Требуется разрешение на местоположение</string>
+    <string name="location_permission_description">Включите доступ к местоположению для использования автоопределения</string>
+    <string name="location_use_auto_detected">Использовать определённое</string>
+    <string name="location_detecting">Определение местоположения...</string>
+    <string name="location_error">Не удалось определить местоположение</string>
+    <string name="location_retry">Повторить</string>
+    <string name="location_search_hint">Поиск города</string>
+    <string name="location_clear">Очистить</string>
+    
+    <!-- Date/Time -->
+    <string name="day_one">день</string>
+    <string name="day_few">дня</string>
+    <string name="day_many">дней</string>
+    
+    <!-- Notifications/Messages -->
+    <string name="location_error_generic">Ошибка местоположения</string>
+    
+    <!-- Units -->
+    <string name="wind_speed_unit">км/ч</string>
+    <string name="precipitation_unit">мм</string>
+    <string name="uv_label">УФ</string>
+</resources>

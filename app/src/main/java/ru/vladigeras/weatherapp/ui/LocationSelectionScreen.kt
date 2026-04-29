@@ -1,6 +1,7 @@
 package ru.vladigeras.weatherapp.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -43,9 +44,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
+import ru.vladigeras.weatherapp.R
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.network.GeocodingResult
 
@@ -54,7 +58,7 @@ import ru.vladigeras.weatherapp.network.GeocodingResult
 fun LocationSelectionScreen(
     onLocationChosen: (latitude: Double, longitude: Double) -> Unit,
     onNavigateBack: () -> Unit,
-    navController: androidx.navigation.NavHostController,
+    navController: NavHostController,
     viewModel: LocationSelectionViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -68,10 +72,8 @@ fun LocationSelectionScreen(
         }
     }
 
-    // Request permission refresh when needed
     LaunchedEffect(uiState.locationPermissionGranted) {
         if (!uiState.locationPermissionGranted && uiState.isManualMode) {
-            // Try to refresh permission status periodically
             viewModel.refreshLocationPermission()
         }
     }
@@ -79,10 +81,10 @@ fun LocationSelectionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Select Location") },
+                title = { Text(stringResource(R.string.location_select_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.location_close))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -111,7 +113,6 @@ fun LocationSelectionScreen(
                 },
                 onSwitchToAuto = {
                     viewModel.useAutoLocation {
-                        // This runs after save is complete
                         val autoLocation = uiState.autoLocation
                         if (autoLocation != null) {
                             navController.previousBackStackEntry?.
@@ -140,7 +141,6 @@ fun LocationSelectionScreen(
                         result.country?.let { append(", $it") }
                     }
                     val location = Location(result.latitude, result.longitude, fullName)
-                    // Save location and wait for completion before navigating back
                     viewModel.selectLocation(location) {
                         val entry = navController.previousBackStackEntry
                         entry?.savedStateHandle?.set("latitude", result.latitude)
@@ -216,12 +216,15 @@ private fun LocationCard(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (location.isAutoDetected) "Auto-detected location" else "Selected location",
+                        text = if (location.isAutoDetected) 
+                            stringResource(R.string.location_auto_detected) 
+                        else 
+                            stringResource(R.string.location_selected),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                     )
                     Text(
-                        text = location.name ?: "Unknown location",
+                        text = location.name ?: stringResource(R.string.location_unknown),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -235,7 +238,7 @@ private fun LocationCard(
                     IconButton(onClick = onRefresh) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
+                            contentDescription = stringResource(R.string.location_refresh),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -244,7 +247,6 @@ private fun LocationCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Show permission status when in manual mode and permission is not granted
             if (isManualMode && !locationPermissionGranted) {
                 Row(
                     modifier = Modifier
@@ -254,13 +256,13 @@ private fun LocationCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Warning,
-                        contentDescription = "Location permission required",
+                        contentDescription = stringResource(R.string.location_permission_required),
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Enable location access to use auto-detection",
+                        text = stringResource(R.string.location_permission_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -268,16 +270,11 @@ private fun LocationCard(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Always show button to switch to auto-detected when manual is active
-            // Disable it when location permission is not granted
             if (isManualMode) {
                 OutlinedButton(
                     onClick = {
                         if (locationPermissionGranted) {
                             onSwitchToAuto()
-                        } else {
-                            // Show snackbar or dialog to guide user to settings
-                            // This will be handled by the ViewModel or a separate dialog
                         }
                     },
                     enabled = locationPermissionGranted,
@@ -289,7 +286,7 @@ private fun LocationCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Use auto-detected")
+                    Text(stringResource(R.string.location_use_auto_detected))
                 }
             }
         }
@@ -308,12 +305,12 @@ private fun LoadingCard() {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
             CircularProgressIndicator(modifier = Modifier.size(24.dp))
             Spacer(modifier = Modifier.width(16.dp))
-            Text("Detecting your location...")
+            Text(stringResource(R.string.location_detecting))
         }
     }
 }
@@ -333,13 +330,13 @@ private fun ErrorCard(onRetry: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Could not get your location",
+                text = stringResource(R.string.location_error),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onErrorContainer
             )
             Spacer(modifier = Modifier.height(12.dp))
             Button(onClick = onRetry) {
-                Text("Retry")
+                Text(stringResource(R.string.location_retry))
             }
         }
     }
@@ -355,14 +352,14 @@ private fun SearchSection(
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        label = { Text("Search city") },
+        label = { Text(stringResource(R.string.location_search_hint)) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
         trailingIcon = {
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Default.Close, contentDescription = "Clear")
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.location_clear))
                 }
             }
         }

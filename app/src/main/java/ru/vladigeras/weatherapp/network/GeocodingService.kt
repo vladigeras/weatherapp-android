@@ -6,18 +6,21 @@ import io.ktor.client.request.get
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.vladigeras.weatherapp.BuildConfig
+import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import javax.inject.Inject
 
 class GeocodingService @Inject constructor(
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
+    private val languagePreferenceRepository: LanguagePreferenceRepository
 ) {
     suspend fun searchCity(query: String): Result<GeocodingResponse> {
         return try {
+            val languageCode = languagePreferenceRepository.getEffectiveLocaleCode()
             val response = httpClient.get("${BuildConfig.GEOCODING_API_URL}/search") {
                 url {
                     parameters.append("name", query)
                     parameters.append("count", "5")
-                    parameters.append("language", "en")
+                    parameters.append("language", languageCode)
                     parameters.append("format", "json")
                 }
             }.body<GeocodingResponse>()

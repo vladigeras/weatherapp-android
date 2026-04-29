@@ -1,3 +1,80 @@
 <resources>
     <string name="app_name">Weatherapp</string>
+    
+    <!-- Settings -->
+    <string name="settings">Settings</string>
+    <string name="back">Back</string>
+    <string name="save">Save</string>
+    
+    <!-- Language settings -->
+    <string name="language">Language</string>
+    <string name="language_system">System</string>
+    <string name="language_russian">Russian</string>
+    <string name="language_english">English</string>
+    <string name="language_change_title">Exit Required</string>
+    <string name="language_change_message">App will close to apply new language. Please restart manually.</string>
+    <string name="exit_app">Exit</string>
+    
+    <!-- Weather display options -->
+    <string name="condition">Condition</string>
+    <string name="humidity">Humidity</string>
+    <string name="wind">Wind</string>
+    <string name="precipitation">Precipitation</string>
+    <string name="sun_times">Sunrise &amp; Sunset</string>
+    <string name="uv_index">UV Index</string>
+    <string name="forecast">Forecast</string>
+    <string name="forecast_days">Forecast Days</string>
+    <string name="unknown_weather">Unknown</string>
+    <string name="daily_forecast">Daily Forecast</string>
+    
+    <!-- Descriptions -->
+    <string name="condition_description">Show weather condition</string>
+    <string name="humidity_description">Show relative humidity</string>
+    <string name="wind_description">Show wind speed and direction</string>
+    <string name="precipitation_description">Show precipitation sum</string>
+    <string name="sun_times_description">Show sunrise and sunset times</string>
+    <string name="uv_index_description">Show maximum UV index</string>
+    <string name="forecast_description">Enable forecast block</string>
+    
+    <!-- Weather labels -->
+    <string name="feels_like">Feels like</string>
+    <string name="wind_speed">Wind Speed</string>
+    
+    <!-- Loading/Messages -->
+    <string name="weather_updated">Weather data updated successfully</string>
+    <string name="weather_error">Failed to update weather data: %1$s</string>
+    <string name="select_location">Select Location</string>
+    <string name="choose_city">Choose a city manually or grant location permission to use GPS</string>
+    <string name="use_gps">Use GPS</string>
+    <string name="select_city">Select City</string>
+    <string name="something_went_wrong">Something went wrong</string>
+    
+    <!-- Location Selection Screen -->
+    <string name="location_select_title">Select Location</string>
+    <string name="location_close">Close</string>
+    <string name="location_auto_detected">Auto-detected location</string>
+    <string name="location_selected">Selected location</string>
+    <string name="location_unknown">Unknown location</string>
+    <string name="location_refresh">Refresh</string>
+    <string name="location_permission_required">Location permission required</string>
+    <string name="location_permission_description">Enable location access to use auto-detection</string>
+    <string name="location_use_auto_detected">Use auto-detected</string>
+    <string name="location_detecting">Detecting your location...</string>
+    <string name="location_error">Could not get your location</string>
+    <string name="location_retry">Retry</string>
+    <string name="location_search_hint">Search city</string>
+    <string name="location_clear">Clear</string>
+    
+    <!-- Date/Time -->
+    <string name="day_one">day</string>
+    <string name="day_few">days</string>
+    <string name="day_many">days</string>
+    
+    <!-- Notifications/Messages -->
+    <string name="location_error_generic">Location error</string>
+    
+    <!-- Units -->
+    <string name="wind_speed_unit">km/h</string>
+    <string name="precipitation_unit">mm</string>
+    <string name="uv_label">UV</string>
 </resources>

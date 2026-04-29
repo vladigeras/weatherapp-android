@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.vladigeras.weatherapp.data.Current
@@ -23,6 +24,8 @@ import ru.vladigeras.weatherapp.data.HourlyWeather
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.data.WeatherResponse
+import ru.vladigeras.weatherapp.repository.CityNameResolver
+import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.LocationRepository
 import ru.vladigeras.weatherapp.repository.SelectedLocationRepository
 import ru.vladigeras.weatherapp.repository.WeatherCache
@@ -37,6 +40,8 @@ class WeatherViewModelTest {
     private lateinit var selectedLocationRepository: SelectedLocationRepository
     private lateinit var weatherDisplayPrefsRepository: WeatherDisplayPrefsRepository
     private lateinit var weatherCache: WeatherCache
+    private lateinit var languagePreferenceRepository: LanguagePreferenceRepository
+    private lateinit var cityNameResolver: CityNameResolver
     private lateinit var weatherViewModel: WeatherViewModel
 
     private val mockLocation = Location(55.7558, 37.6173, "Moscow")
@@ -121,14 +126,22 @@ class WeatherViewModelTest {
     fun setup() {
         weatherRepository = mockk()
         locationRepository = mockk()
-        selectedLocationRepository = mockk()
+        selectedLocationRepository = mockk {
+            every { getSelectedLocation() } returns flowOf(null)
+        }
         weatherDisplayPrefsRepository = mockk {
             every { getPrefs() } returns flowOf(WeatherDisplayPrefs())
         }
         weatherCache = mockk {
             coEvery { evict(any(), any()) } returns Unit
         }
-        weatherViewModel = WeatherViewModel(weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, weatherCache)
+        languagePreferenceRepository = mockk {
+            every { getAppLocale() } returns java.util.Locale.ENGLISH
+        }
+        cityNameResolver = mockk {
+            every { resolveCityName(any(), any(), any(), any()) } returns "Test City"
+        }
+        weatherViewModel = WeatherViewModel(weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, weatherCache, languagePreferenceRepository, cityNameResolver)
 
         Dispatchers.setMain(Dispatchers.Unconfined)
         ArchTaskExecutor.getInstance().setDelegate(object : TaskExecutor() {
@@ -202,12 +215,17 @@ class WeatherViewModelTest {
     
     @Test
     fun `should handle rapid location changes correctly`() = runTest {
+        // Override the selectedLocationRepository mock for this test
+        every { selectedLocationRepository.getSelectedLocation() } returns flowOf(null)
+        
         coEvery { weatherRepository.getWeather(55.7558, 37.6173) } returns Result.success(mockResponse)
         coEvery { weatherRepository.getWeather(51.5074, -0.1278) } returns Result.success(mockResponse2)
         coEvery { weatherRepository.getWeather(40.7128, -74.0060) } returns Result.success(mockResponse)
         
         weatherViewModel.loadWeather(55.7558, 37.6173)    // Moscow
+        kotlinx.coroutines.yield() // Give time for the first request to start
         weatherViewModel.loadWeather(51.5074, -0.1278)  // London
+        kotlinx.coroutines.yield() // Give time for the second request to start
         weatherViewModel.loadWeather(40.7128, -74.0060) // New York
         
         // Wait specifically for Success state with New York temperature (20.5)
@@ -316,5 +334,43 @@ class WeatherViewModelTest {
         assertEquals(12.0, day2.windSpeedMax ?: 0.0, 0.001)
         assertEquals(200, day2.windDirectionDominant ?: 0)
         assertEquals(3.0, day2.uvIndexMax ?: 0.0, 0.001)
+    }
+
+    @Test
+    fun `should format day names with English locale by default`() = runTest {
+        every { languagePreferenceRepository.getAppLocale() } returns java.util.Locale.ENGLISH
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173) } returns Result.success(mockResponse)
+
+        weatherViewModel.loadWeather(55.7558, 37.6173)
+
+        val successState = weatherViewModel.uiState
+            .first { it is WeatherUiState.Success } as WeatherUiState.Success
+
+        // April 27, 2026 is Monday, short form in English is "Mon"
+        assertEquals("Mon", successState.dailyForecast[0].dayName)
+        // April 28, 2026 is Tuesday, short form in English is "Tue"
+        assertEquals("Tue", successState.dailyForecast[1].dayName)
+        // Month should contain "apr" in English (case insensitive check for robustness)
+        assertTrue(successState.dailyForecast[0].date.lowercase().contains("apr"))
+        assertTrue(successState.dailyForecast[1].date.lowercase().contains("apr"))
+    }
+
+    @Test
+    fun `should format day names with Russian locale when set`() = runTest {
+        every { languagePreferenceRepository.getAppLocale() } returns java.util.Locale("ru", "RU")
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173) } returns Result.success(mockResponse)
+
+        weatherViewModel.loadWeather(55.7558, 37.6173)
+
+        val successState = weatherViewModel.uiState
+            .first { it is WeatherUiState.Success } as WeatherUiState.Success
+
+        // April 27, 2026 is Monday, short form in Russian is "пн"
+        assertEquals("Пн", successState.dailyForecast[0].dayName)
+        // April 28, 2026 is Tuesday, short form in Russian is "вт"
+        assertEquals("Вт", successState.dailyForecast[1].dayName)
+        // Month should contain "апр" in Russian (case insensitive check for robustness)
+        assertTrue(successState.dailyForecast[0].date.lowercase().contains("апр"))
+        assertTrue(successState.dailyForecast[1].date.lowercase().contains("апр"))
     }
 }
