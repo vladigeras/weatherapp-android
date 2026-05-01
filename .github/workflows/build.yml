@@ -39,5 +39,5 @@ jobs:
         uses: dorny/test-reporter@v1
         with:
           name: JUnit Tests
-          path: build/test-results/test/*.xml
+          path: "app/build/test-results/**/TEST-*.xml"
           reporter: java-junit
