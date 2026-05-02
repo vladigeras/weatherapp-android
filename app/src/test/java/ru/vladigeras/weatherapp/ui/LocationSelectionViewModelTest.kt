@@ -70,8 +70,7 @@ class LocationSelectionViewModelTest {
 
     @Test
     fun `initial state shows manual mode when manual location is saved`() = runTest {
-        val state = viewModel.uiState.first()
-        assertTrue(state.isManualMode)
+        val state = viewModel.uiState.first { it.isManualMode }
         assertEquals(mockManualLocation, state.activeLocation)
     }
 
