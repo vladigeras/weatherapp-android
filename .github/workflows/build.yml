@@ -36,7 +36,7 @@ jobs:
         
       - name: Publish Test Report
         if: always()
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v3
         with:
           name: JUnit Tests
           path: "app/build/test-results/**/TEST-*.xml"
