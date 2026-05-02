@@ -1,28 +1,31 @@
 package ru.vladigeras.weatherapp.repository
 
 import androidx.annotation.VisibleForTesting
-import dagger.Module
-import dagger.Provides
-import dagger.hilt.InstallIn
-import dagger.hilt.components.SingletonComponent
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.flow.first
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import ru.vladigeras.weatherapp.data.WeatherResponse
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.roundToInt
 
 /**
- * Cache for weather responses with TTL-based expiration.
+ * Persistent cache for weather responses with TTL-based expiration.
  * Uses rounded coordinates as keys to group nearby locations.
+ * Persisted using DataStore Preferences.
  */
 @Singleton
-open class WeatherCache @Inject constructor(
-    private val timeProvider: () -> Long = { System.currentTimeMillis() }
+class WeatherCache @Inject constructor(
+    private val dataStore: DataStore<Preferences>
 ) {
     private val CACHE_TTL_MS = 30 * 60 * 1000L // 30 minutes
-    
-    private val cache = ConcurrentHashMap<String, CachedWeather>()
-    
+
     /**
      * Creates a cache key from coordinates by rounding to 3 decimal places.
      * This groups nearby locations (within ~110 meters) under the same key.
@@ -33,54 +36,54 @@ open class WeatherCache @Inject constructor(
         val lngRounded = (longitude * 1000).roundToInt() / 1000.0
         return "${latRounded}_${lngRounded}"
     }
-    
+
     /**
      * Retrieves cached weather data if it exists and hasn't expired.
      * @return cached WeatherResponse or null if not found/expired
      */
-    fun getWeather(latitude: Double, longitude: Double): WeatherResponse? {
+    suspend fun getWeather(latitude: Double, longitude: Double): WeatherResponse? {
         val key = createKey(latitude, longitude)
-        val cached = cache[key] ?: return null
-        
-        // Check if expired
-        if (timeProvider() - cached.timestamp > CACHE_TTL_MS) {
-            // Remove expired entry
-            cache.remove(key)
-            return null
+        val prefsKey = stringPreferencesKey("weather_cache_$key")
+        val prefs = dataStore.data.first()
+        val jsonString = prefs[prefsKey] ?: return null
+
+        return try {
+            val cached = Json.decodeFromString<CachedWeatherData>(jsonString)
+            // Check if expired
+            if (System.currentTimeMillis() - cached.timestamp > CACHE_TTL_MS) {
+                // Remove expired entry
+                dataStore.edit { it.remove(prefsKey) }
+                null
+            } else {
+                cached.response
+            }
+        } catch (e: Exception) {
+            // If deserialization fails, remove the corrupted entry
+            dataStore.edit { it.remove(prefsKey) }
+            null
         }
-        
-        return cached.response
     }
-    
+
     /**
      * Stores weather data in cache with current timestamp.
      */
-    fun putWeather(latitude: Double, longitude: Double, response: WeatherResponse) {
+    suspend fun putWeather(latitude: Double, longitude: Double, response: WeatherResponse) {
         val key = createKey(latitude, longitude)
-        cache[key] = CachedWeather(response, timeProvider())
+        val prefsKey = stringPreferencesKey("weather_cache_$key")
+        val cached = CachedWeatherData(response, System.currentTimeMillis())
+        val jsonString = Json.encodeToString(cached)
+        dataStore.edit { it[prefsKey] = jsonString }
     }
-    
+
     /**
      * Removes the cached entry for the given coordinates, if present.
      */
-    fun evict(latitude: Double, longitude: Double) {
+    suspend fun evict(latitude: Double, longitude: Double) {
         val key = createKey(latitude, longitude)
-        cache.remove(key)
+        val prefsKey = stringPreferencesKey("weather_cache_$key")
+        dataStore.edit { it.remove(prefsKey) }
     }
-    
-    /** Optional: Clear all cached data */
-    fun clear() {
-        cache.clear()
-    }
-    
-    private data class CachedWeather(val response: WeatherResponse, val timestamp: Long)
-}
 
-/** Hilt module for WeatherCache */
-@Module
-@InstallIn(SingletonComponent::class)
-object WeatherCacheModule {
-    @Provides
-    @Singleton
-    fun provideWeatherCache(): WeatherCache = WeatherCache()
+    @Serializable
+    private data class CachedWeatherData(val response: WeatherResponse, val timestamp: Long)
 }

@@ -55,6 +55,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -74,8 +76,8 @@ fun WeatherScreen(
     val currentState = uiState
     val context = LocalContext.current
 
-    val savedLatitude = savedStateHandle.get<Double>("latitude")
-    val savedLongitude = savedStateHandle.get<Double>("longitude")
+    val savedLatitude by savedStateHandle.getStateFlow<Double?>("latitude", null).collectAsState(initial = null)
+    val savedLongitude by savedStateHandle.getStateFlow<Double?>("longitude", null).collectAsState(initial = null)
     val hasSavedLocation = savedLatitude != null && savedLongitude != null
 
     var hasLocationPermission by remember { mutableStateOf(false) }
@@ -106,8 +108,10 @@ fun WeatherScreen(
     val onRequestPermission = ::requestLocationPermission
 
     LaunchedEffect(savedLatitude, savedLongitude) {
-        if (savedLatitude != null && savedLongitude != null) {
-            viewModel.loadWeather(savedLatitude, savedLongitude)
+        val lat = savedLatitude
+        val lon = savedLongitude
+        if (lat != null && lon != null) {
+            viewModel.loadWeather(lat, lon)
         } else {
             viewModel.loadSavedLocation()
         }
@@ -115,10 +119,13 @@ fun WeatherScreen(
 
     val pullToRefreshState = rememberPullToRefreshState()
     val isRefreshing = currentState is WeatherUiState.Loading
-
+    
+    val weatherUpdatedText = stringResource(R.string.weather_updated)
+    val weatherErrorText = stringResource(R.string.weather_error)
+    
     LaunchedEffect(currentState) {
         if (currentState is WeatherUiState.Success) {
-            Toast.makeText(context, context.getString(R.string.weather_updated), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, weatherUpdatedText, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -126,7 +133,7 @@ fun WeatherScreen(
         if (currentState is WeatherUiState.Error) {
             val errorMessage = currentState.message
             Log.e("WeatherScreen", "Weather error: $errorMessage")
-            Toast.makeText(context, context.getString(R.string.weather_error, errorMessage), Toast.LENGTH_LONG).show()
+            Toast.makeText(context, weatherErrorText.format(errorMessage), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -165,11 +172,7 @@ fun WeatherScreen(
         PullToRefreshBox(
             isRefreshing = isActuallyLoading,
             onRefresh = {
-                when {
-                    savedLatitude != null && savedLongitude != null -> viewModel.loadWeather(savedLatitude, savedLongitude)
-                    hasLocationPermission -> viewModel.loadWeatherForCurrentLocation()
-                    else -> { /* User must select location first */ }
-                }
+                viewModel.refreshActiveLocation()
             },
             state = pullToRefreshState,
             modifier = Modifier
@@ -188,7 +191,21 @@ fun WeatherScreen(
 
             AnimatedVisibility(visible = currentState is WeatherUiState.Error, enter = fadeIn(), exit = fadeOut()) {
                 val state = currentState as? WeatherUiState.Error
-                state?.let { ErrorContent(it, onRequestPermission, onSelectLocation) }
+                state?.let {
+                    ErrorContent(
+                        state = it,
+                        onRetry = {
+                            val lat = savedLatitude
+                            val lon = savedLongitude
+                            when {
+                                lat != null && lon != null -> viewModel.loadWeather(lat, lon, forceRefresh = true)
+                                hasLocationPermission -> viewModel.loadWeatherForCurrentLocation(forceRefresh = true)
+                                else -> onNavigateToLocationSelection()
+                            }
+                        },
+                        onSelectLocation = onNavigateToLocationSelection
+                    )
+                }
             }
 
             AnimatedVisibility(
@@ -259,7 +276,7 @@ private fun SuccessContent(state: WeatherUiState.Success) {
                 if (state.prefs.showCondition && state.feelsLike != null) {
                     DetailCard(
                         icon = Icons.Filled.Thermostat,
-                        label = context.getString(R.string.feels_like),
+                        label = stringResource(R.string.feels_like),
                         value = "${state.feelsLike.toInt()}${state.temperatureUnit}",
                         modifier = Modifier.weight(1f)
                     )
@@ -267,7 +284,7 @@ private fun SuccessContent(state: WeatherUiState.Success) {
                 if (state.prefs.showHumidity) {
                     DetailCard(
                         icon = Icons.Filled.WaterDrop,
-                        label = context.getString(R.string.humidity),
+                        label = stringResource(R.string.humidity),
                         value = "${state.humidity}%",
                         modifier = Modifier.weight(1f)
                     )
@@ -275,8 +292,8 @@ private fun SuccessContent(state: WeatherUiState.Success) {
                 if (state.prefs.showWind) {
                     DetailCard(
                         icon = Icons.Filled.Air,
-                        label = context.getString(R.string.wind_speed),
-                        value = "${state.windSpeed.toInt()} ${context.getString(R.string.wind_speed_unit)}",
+                        label = stringResource(R.string.wind_speed),
+                        value = "${state.windSpeed.toInt()} ${stringResource(R.string.wind_speed_unit)}",
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -300,10 +317,15 @@ private fun WeatherMainCard(temperature: Double, weatherCode: Int, isDay: Int, c
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             val weatherIcon = getWeatherIconForCode(weatherCode, isDay)
-            val context = LocalContext.current
+            val weatherEntries = stringArrayResource(R.array.weather_codes)
+            val unknownWeather = stringResource(R.string.unknown_weather)
+            val weatherDesc = remember(weatherCode, weatherEntries) {
+                weatherEntries.find { it.split("|").firstOrNull()?.toIntOrNull() == weatherCode }
+                    ?.let { it.split("|")[1] } ?: unknownWeather
+            }
             Icon(
                 imageVector = weatherIcon,
-                contentDescription = getWeatherCondition(weatherCode, context),
+                contentDescription = weatherDesc,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(64.dp)
             )
@@ -338,26 +360,41 @@ private fun ErrorContent(
     onRetry: () -> Unit,
     onSelectLocation: () -> Unit
 ) {
-    val context = LocalContext.current
-    
     Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(imageVector = Icons.Filled.Cloud, contentDescription = "Error", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(64.dp))
+        Icon(
+            imageVector = Icons.Filled.Cloud,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(64.dp)
+        )
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = context.getString(R.string.something_went_wrong), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Text(
+            text = stringResource(R.string.something_went_wrong),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = state.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f), textAlign = TextAlign.Center)
+        Text(
+            text = state.message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            textAlign = TextAlign.Center
+        )
         Spacer(modifier = Modifier.height(24.dp))
-
+        
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(onClick = onSelectLocation) {
-                Text(context.getString(R.string.select_city))
+                Text(stringResource(R.string.select_city))
             }
             Button(onClick = onRetry) {
-                Text(context.getString(R.string.use_gps))
+                Text(stringResource(R.string.use_gps)) // Или добавить строку R.string.retry
             }
         }
     }
@@ -383,13 +420,13 @@ private fun EmptyStateContent(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = context.getString(R.string.select_location),
+            text = stringResource(R.string.select_location),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = context.getString(R.string.choose_city),
+            text = stringResource(R.string.choose_city),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
             textAlign = TextAlign.Center
@@ -397,17 +434,13 @@ private fun EmptyStateContent(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(onClick = onSelectLocation) {
-            Text(context.getString(R.string.select_city))
+            Text(stringResource(R.string.select_city))
         }
-
+        
         Spacer(modifier = Modifier.height(12.dp))
-
+        
         OutlinedButton(onClick = onRequestPermission) {
-            Text(context.getString(R.string.use_gps))
+            Text(stringResource(R.string.use_gps))
         }
     }
-}
-
-private fun getWeatherCondition(code: Int, context: android.content.Context): String {
-    return ru.vladigeras.weatherapp.util.WeatherCodeTranslator.translate(context, code)
 }

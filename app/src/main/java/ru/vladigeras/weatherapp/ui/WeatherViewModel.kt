@@ -113,19 +113,58 @@ class WeatherViewModel @Inject constructor(
         }
     }
 
-    fun loadWeather(latitude: Double, longitude: Double) {
+    fun loadWeather(latitude: Double, longitude: Double, forceRefresh: Boolean = false) {
+        currentLatitude = latitude
+        currentLongitude = longitude
+
         viewModelScope.launch {
             val prefs = weatherDisplayPrefsRepository.getPrefs().first()
-            loadWeatherInternal(latitude, longitude, prefs)
+            loadWeatherInternal(latitude, longitude, prefs, forceRefresh)
         }
     }
 
-    private fun loadWeatherInternal(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs) {
+    fun refreshActiveLocation() {
+        viewModelScope.launch {
+            if (currentLatitude != 0.0 && currentLongitude != 0.0) {
+                loadWeather(currentLatitude, currentLongitude, forceRefresh = true)
+            } else {
+                loadWeatherForCurrentLocation(forceRefresh = true)
+            }
+        }
+    }
+
+    fun loadWeatherForCurrentLocation(forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            _uiState.value = WeatherUiState.Loading
+            val locationResult = locationRepository.getLocation()
+            if (locationResult.isFailure) {
+                _uiState.value = WeatherUiState.Error(
+                    locationResult.exceptionOrNull()?.message ?: "Unable to get location"
+                )
+                return@launch
+            }
+            val loc = locationResult.getOrThrow()
+            selectedLocationRepository.saveSelectedLocation(
+                Location(
+                    latitude = loc.latitude,
+                    longitude = loc.longitude,
+                    name = loc.name,
+                    isAutoDetected = true
+                )
+            )
+            currentLatitude = loc.latitude
+            currentLongitude = loc.longitude
+            val prefs = weatherDisplayPrefsRepository.getPrefs().first()
+            loadWeatherInternal(loc.latitude, loc.longitude, prefs, forceRefresh)
+        }
+    }
+
+    private fun loadWeatherInternal(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs, forceRefresh: Boolean = false) {
         currentJob?.cancel()
         _uiState.value = WeatherUiState.Loading
         currentJob = viewModelScope.launch {
             val savedLocation = selectedLocationRepository.getSelectedLocation().first()
-            weatherRepository.getWeather(latitude, longitude, prefs)
+            weatherRepository.getWeather(latitude, longitude, prefs, forceRefresh)
                 .onSuccess { response ->
                     val current = response.current
                     val hourly = response.hourly

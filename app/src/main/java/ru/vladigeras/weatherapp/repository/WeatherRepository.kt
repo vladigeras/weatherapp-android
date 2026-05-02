@@ -11,7 +11,8 @@ interface WeatherRepository {
     suspend fun getWeather(
         latitude: Double,
         longitude: Double,
-        prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()
+        prefs: WeatherDisplayPrefs = WeatherDisplayPrefs(),
+        forceRefresh: Boolean = false
     ): Result<WeatherResponse>
 }
 
@@ -24,15 +25,18 @@ class WeatherRepositoryImpl @Inject constructor(
     override suspend fun getWeather(
         latitude: Double,
         longitude: Double,
-        prefs: WeatherDisplayPrefs
+        prefs: WeatherDisplayPrefs,
+        forceRefresh: Boolean
     ): Result<WeatherResponse> {
-        // First check cache
-        val cachedResponse = weatherCache.getWeather(latitude, longitude)
-        if (cachedResponse != null) {
-            return Result.success(cachedResponse)
+        // Check cache only if NOT force refresh
+        if (!forceRefresh) {
+            val cachedResponse = weatherCache.getWeather(latitude, longitude)
+            if (cachedResponse != null) {
+                return Result.success(cachedResponse)
+            }
         }
 
-        // If not in cache, make API call with dynamic parameters
+        // If not in cache or force refresh, make API call with dynamic parameters
         return try {
             val (currentParams, hourlyParams, dailyParams) = buildParams(prefs)
             val response = weatherApiService.getWeather(

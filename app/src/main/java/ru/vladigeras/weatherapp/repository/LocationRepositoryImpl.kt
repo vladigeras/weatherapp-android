@@ -23,7 +23,7 @@ class LocationRepositoryImpl @Inject constructor(
 ) : LocationRepository {
 
     private val cache = MutableStateFlow<CachedLocation?>(null)
-    private val cacheValidity = 30.minutes
+    private val cacheValidity = 10.minutes
 
     override suspend fun getLocation(): Result<Location> {
         if (!hasLocationPermission()) {

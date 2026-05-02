@@ -37,7 +37,7 @@ class LanguagePreferenceRepositoryImpl @Inject constructor(
             LanguagePreference.ENGLISH -> 2
         }
         val prefs = context.getSharedPreferences("weatherapp_prefs", Context.MODE_PRIVATE)
-        prefs.edit().putInt(langKey, ordinal).commit()
+        prefs.edit().putInt(langKey, ordinal).apply()
     }
 
     override suspend fun getEffectiveLocaleCode(): String {

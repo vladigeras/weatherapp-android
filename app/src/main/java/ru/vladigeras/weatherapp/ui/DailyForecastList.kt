@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.vladigeras.weatherapp.R
@@ -44,7 +45,7 @@ fun DailyForecastList(dailyForecast: List<DailyForecast>, temperatureUnit: Strin
         modifier = Modifier.fillMaxWidth()
     ) {
         dailyForecast.forEach { forecast ->
-            DailyForecastItem(forecast = forecast, temperatureUnit = temperatureUnit, context = context)
+            DailyForecastItem(forecast = forecast, temperatureUnit = temperatureUnit)
         }
     }
 }
@@ -55,7 +56,7 @@ fun DailyForecastList(dailyForecast: List<DailyForecast>, temperatureUnit: Strin
  * @param forecast The [DailyForecast] to display.
  */
 @Composable
-private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, context: Context) {
+private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -102,9 +103,10 @@ private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, 
                 ) {
                     val weatherCode = forecast.weatherCode ?: 0
                     val weatherIcon = getWeatherIconForCode(weatherCode, isDay = 1)
+                    val weatherDesc = getWeatherDescription(weatherCode)
                     Icon(
                         imageVector = weatherIcon,
-                        contentDescription = WeatherCodeTranslator.translate(context, weatherCode),
+                        contentDescription = weatherDesc,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
@@ -145,7 +147,7 @@ private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, 
                                 )
                             }
                             Text(
-                                text = "${precipitationSum.toInt()} ${context.getString(R.string.precipitation_unit)}",
+                                text = "${precipitationSum.toInt()} ${stringResource(R.string.precipitation_unit)}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -209,4 +211,23 @@ private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, 
             }
         }
     }
+}
+
+/**
+ * Composable function to get weather description from weather code.
+ * Uses stringArrayResource to avoid using Context directly.
+ */
+@Composable
+fun getWeatherDescription(weatherCode: Int): String {
+    val weatherEntries = stringArrayResource(R.array.weather_codes)
+    for (entry in weatherEntries) {
+        val parts = entry.split("|")
+        if (parts.size == 2) {
+            val code = parts[0].toIntOrNull()
+            if (code == weatherCode) {
+                return parts[1]
+            }
+        }
+    }
+    return stringResource(R.string.unknown_weather)
 }

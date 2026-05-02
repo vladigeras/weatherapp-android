@@ -378,13 +378,13 @@ fun SettingsForecastDaysItem(
             onDismissRequest = { expanded = false }
         ) {
             availableDays.forEach { day ->
-                val dayText = when (day) {
-                    1 -> context.getString(R.string.day_one)
-                    2, 3, 4 -> context.getString(R.string.day_few)
-                    else -> context.getString(R.string.day_many)
+                val dayTextRes = when (day) {
+                    1 -> R.string.day_one
+                    2, 3, 4 -> R.string.day_few
+                    else -> R.string.day_many
                 }
                 DropdownMenuItem(
-                    text = { Text("$day $dayText") },
+                    text = { Text("$day ${stringResource(dayTextRes)}") },
                     onClick = {
                         onDaysChanged(day)
                         expanded = false
