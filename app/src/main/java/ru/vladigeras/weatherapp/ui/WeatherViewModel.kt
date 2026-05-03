@@ -1,13 +1,16 @@
 package ru.vladigeras.weatherapp.ui
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.vladigeras.weatherapp.data.DailyWeather
@@ -20,6 +23,8 @@ import ru.vladigeras.weatherapp.repository.SelectedLocationRepository
 import ru.vladigeras.weatherapp.repository.WeatherCache
 import ru.vladigeras.weatherapp.repository.WeatherDisplayPrefsRepository
 import ru.vladigeras.weatherapp.repository.WeatherRepository
+import ru.vladigeras.weatherapp.widget.WeatherWidgetProvider
+import ru.vladigeras.weatherapp.widget.WidgetPrefsManager
 import java.time.LocalDate
 import java.time.format.TextStyle
 import javax.inject.Inject
@@ -45,6 +50,7 @@ sealed interface WeatherUiState {
 
 @HiltViewModel
 class WeatherViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val weatherRepository: WeatherRepository,
     private val locationRepository: LocationRepository,
     private val selectedLocationRepository: SelectedLocationRepository,
@@ -66,12 +72,15 @@ class WeatherViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            weatherDisplayPrefsRepository.getPrefs().collectLatest { prefs ->
-                if (currentLatitude != 0.0 || currentLongitude != 0.0) {
-                    weatherCache.evict(currentLatitude, currentLongitude)
-                    loadWeatherInternal(currentLatitude, currentLongitude, prefs)
+            weatherDisplayPrefsRepository.getPrefs()
+                .distinctUntilChanged()
+                .collectLatest { prefs ->
+                    if (currentJob?.isActive == true) return@collectLatest
+                    if (currentLatitude != 0.0 || currentLongitude != 0.0) {
+                        weatherCache.evict(currentLatitude, currentLongitude)
+                        loadWeatherInternal(currentLatitude, currentLongitude, prefs)
+                    }
                 }
-            }
         }
     }
 
@@ -160,6 +169,7 @@ class WeatherViewModel @Inject constructor(
     }
 
     private fun loadWeatherInternal(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs, forceRefresh: Boolean = false) {
+        if (latitude == 0.0 && longitude == 0.0) return
         currentJob?.cancel()
         _uiState.value = WeatherUiState.Loading
         currentJob = viewModelScope.launch {
@@ -186,6 +196,16 @@ class WeatherViewModel @Inject constructor(
                         dailyForecast = dailyForecast,
                         prefs = prefs
                     )
+                    WidgetPrefsManager.save(
+                        context,
+                        cityName,
+                        current?.temperature ?: 0.0,
+                        feelsLike,
+                        current?.weatherCode ?: 0,
+                        current?.isDay ?: 1,
+                        response.currentUnits?.temperatureUnit ?: "°C"
+                    )
+                    WeatherWidgetProvider.updateAllWidgets(context)
                 }
                 .onFailure { error ->
                     _uiState.value = WeatherUiState.Error(

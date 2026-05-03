@@ -113,14 +113,11 @@ fun LocationSelectionScreen(
                 },
                 onSwitchToAuto = {
                     viewModel.useAutoLocation {
-                        val autoLocation = uiState.autoLocation
+                        val autoLocation = viewModel.uiState.value.autoLocation
                         if (autoLocation != null) {
-                            navController.previousBackStackEntry?.
-                                savedStateHandle?.
-                                set("latitude", autoLocation.latitude)
-                            navController.previousBackStackEntry?.
-                                savedStateHandle?.
-                                set("longitude", autoLocation.longitude)
+                            navController.previousBackStackEntry?.savedStateHandle?.set("latitude", autoLocation.latitude)
+                            navController.previousBackStackEntry?.savedStateHandle?.set("longitude", autoLocation.longitude)
+                            navController.previousBackStackEntry?.savedStateHandle?.set("location_update_trigger", System.currentTimeMillis())
                         }
                         onNavigateBack()
                     }

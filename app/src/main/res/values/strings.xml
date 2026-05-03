@@ -70,6 +70,10 @@
     <string name="day_few">days</string>
     <string name="day_many">days</string>
     
+    <!-- Widget -->
+    <string name="widget_weather_icon">Weather icon</string>
+    <string name="widget_no_data">No data</string>
+
     <!-- Notifications/Messages -->
     <string name="location_error_generic">Location error</string>
     

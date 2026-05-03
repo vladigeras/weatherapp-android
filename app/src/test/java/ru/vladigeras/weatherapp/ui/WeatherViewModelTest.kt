@@ -1,12 +1,12 @@
 package ru.vladigeras.weatherapp.ui
 
+import android.content.Context
 import androidx.arch.core.executor.ArchTaskExecutor
 import androidx.arch.core.executor.TaskExecutor
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -19,6 +19,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
 import ru.vladigeras.weatherapp.data.Current
 import ru.vladigeras.weatherapp.data.CurrentUnits
 import ru.vladigeras.weatherapp.data.DailyWeather
@@ -34,6 +38,8 @@ import ru.vladigeras.weatherapp.repository.WeatherCache
 import ru.vladigeras.weatherapp.repository.WeatherDisplayPrefsRepository
 import ru.vladigeras.weatherapp.repository.WeatherRepository
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 @OptIn(ExperimentalCoroutinesApi::class)
 class WeatherViewModelTest {
 
@@ -45,6 +51,7 @@ class WeatherViewModelTest {
     private lateinit var languagePreferenceRepository: LanguagePreferenceRepository
     private lateinit var cityNameResolver: CityNameResolver
     private lateinit var weatherViewModel: WeatherViewModel
+    private val context: Context get() = RuntimeEnvironment.getApplication()
 
     private val mockLocation = Location(55.7558, 37.6173, "Moscow")
     
@@ -144,7 +151,7 @@ class WeatherViewModelTest {
         cityNameResolver = mockk {
             every { resolveCityName(any(), any(), any(), any()) } returns "Test City"
         }
-        weatherViewModel = WeatherViewModel(weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, weatherCache, languagePreferenceRepository, cityNameResolver)
+        weatherViewModel = WeatherViewModel(context, weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, weatherCache, languagePreferenceRepository, cityNameResolver)
 
         Dispatchers.setMain(Dispatchers.Unconfined)
         ArchTaskExecutor.getInstance().setDelegate(object : TaskExecutor() {

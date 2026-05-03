@@ -78,6 +78,7 @@ fun WeatherScreen(
 
     val savedLatitude by savedStateHandle.getStateFlow<Double?>("latitude", null).collectAsState(initial = null)
     val savedLongitude by savedStateHandle.getStateFlow<Double?>("longitude", null).collectAsState(initial = null)
+    val updateTrigger by savedStateHandle.getStateFlow<Long?>("location_update_trigger", null).collectAsState(initial = null)
     val hasSavedLocation = savedLatitude != null && savedLongitude != null
 
     var hasLocationPermission by remember { mutableStateOf(false) }
@@ -107,7 +108,7 @@ fun WeatherScreen(
     val onSelectLocation = onNavigateToLocationSelection
     val onRequestPermission = ::requestLocationPermission
 
-    LaunchedEffect(savedLatitude, savedLongitude) {
+    LaunchedEffect(updateTrigger, savedLatitude, savedLongitude) {
         val lat = savedLatitude
         val lon = savedLongitude
         if (lat != null && lon != null) {
