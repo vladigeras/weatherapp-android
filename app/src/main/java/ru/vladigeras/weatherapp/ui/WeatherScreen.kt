@@ -318,12 +318,7 @@ private fun WeatherMainCard(temperature: Double, weatherCode: Int, isDay: Int, c
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             val weatherIcon = getWeatherIconForCode(weatherCode, isDay)
-            val weatherEntries = stringArrayResource(R.array.weather_codes)
-            val unknownWeather = stringResource(R.string.unknown_weather)
-            val weatherDesc = remember(weatherCode, weatherEntries) {
-                weatherEntries.find { it.split("|").firstOrNull()?.toIntOrNull() == weatherCode }
-                    ?.let { it.split("|")[1] } ?: unknownWeather
-            }
+            val weatherDesc = stringResource(getWeatherCodeStringResId(weatherCode))
             Icon(
                 imageVector = weatherIcon,
                 contentDescription = weatherDesc,

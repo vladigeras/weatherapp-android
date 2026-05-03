@@ -1,66 +1,47 @@
 package ru.vladigeras.weatherapp.ui
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AcUnit
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Grain
-import androidx.compose.material.icons.filled.Hail
-import androidx.compose.material.icons.filled.NightsStay
-import androidx.compose.material.icons.filled.Thunderstorm
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.WaterDrop
-import androidx.compose.material.icons.filled.WbCloudy
-import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.ui.graphics.vector.ImageVector
+import ru.vladigeras.weatherapp.R
+import ru.vladigeras.weatherapp.util.WeatherCodeMapper
 
 fun getWeatherIconForCode(weatherCode: Int, isDay: Int = 1): ImageVector {
-    val isDaytime = isDay == 1
-    return when (weatherCode) {
-        // Clear sky
-        0 -> if (isDaytime) Icons.Filled.WbSunny else Icons.Filled.NightsStay
-        // Partly cloudy (WbCloudy = sun behind cloud)
-        1 -> if (isDaytime) Icons.Filled.WbCloudy else Icons.Filled.NightsStay
-        // Cloudy / Overcast
-        2, 3 -> Icons.Filled.Cloud
-        // Fog (no Foggy icon, use Cloud as closest alternative)
-        45, 48 -> Icons.Filled.Cloud
-        // Drizzle (light rain)
-        51, 53, 55 -> Icons.Filled.WaterDrop
-        // Freezing drizzle
-        56, 57 -> Icons.Filled.AcUnit
-        // Rain
-        61, 63, 65 -> Icons.Filled.WaterDrop
-        // Freezing rain (hail icon available!)
-        66, 67 -> Icons.Filled.Hail
-        // Snow
-        71, 73, 75 -> Icons.Filled.AcUnit
-        // Snow grains (Grain icon available!)
-        77 -> Icons.Filled.Grain
-        // Rain showers
-        80, 81, 82 -> Icons.Filled.WaterDrop
-        // Snow showers
-        85, 86 -> Icons.Filled.Grain
-        // Thunderstorm
-        95, 96, 99 -> Icons.Filled.Thunderstorm
-        // Unknown
-        else -> Icons.Filled.Warning
-    }
+    return WeatherCodeMapper.getIconVector(weatherCode, isDay)
 }
 
 fun getPrecipitationIconForCode(weatherCode: Int): ImageVector? {
+    return WeatherCodeMapper.getPrecipitationIconVector(weatherCode)
+}
+
+fun getWeatherCodeStringResId(weatherCode: Int): Int {
     return when (weatherCode) {
-        // Drizzle and rain (liquid precipitation)
-        51, 53, 55, 61, 63, 65, 80, 81, 82 -> Icons.Filled.WaterDrop
-        // Freezing drizzle and freezing rain (ice)
-        56, 57, 66, 67 -> Icons.Filled.Hail
-        // Snow (solid precipitation)
-        71, 73, 75, 85, 86 -> Icons.Filled.Grain
-        // Snow grains
-        77 -> Icons.Filled.Grain
-        // Thunderstorm (usually rain, with hail if code 96/99)
-        95 -> Icons.Filled.WaterDrop
-        96, 99 -> Icons.Filled.Hail
-        // Unknown precipitation code
-        else -> null
+        0 -> R.string.weather_code_0
+        1 -> R.string.weather_code_1
+        2 -> R.string.weather_code_2
+        3 -> R.string.weather_code_3
+        45 -> R.string.weather_code_45
+        48 -> R.string.weather_code_48
+        51 -> R.string.weather_code_51
+        53 -> R.string.weather_code_53
+        55 -> R.string.weather_code_55
+        56 -> R.string.weather_code_56
+        57 -> R.string.weather_code_57
+        61 -> R.string.weather_code_61
+        63 -> R.string.weather_code_63
+        65 -> R.string.weather_code_65
+        66 -> R.string.weather_code_66
+        67 -> R.string.weather_code_67
+        71 -> R.string.weather_code_71
+        73 -> R.string.weather_code_73
+        75 -> R.string.weather_code_75
+        77 -> R.string.weather_code_77
+        80 -> R.string.weather_code_80
+        81 -> R.string.weather_code_81
+        82 -> R.string.weather_code_82
+        85 -> R.string.weather_code_85
+        86 -> R.string.weather_code_86
+        95 -> R.string.weather_code_95
+        96 -> R.string.weather_code_96
+        99 -> R.string.weather_code_99
+        else -> R.string.unknown_weather
     }
 }

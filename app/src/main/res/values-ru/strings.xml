@@ -11,9 +11,36 @@
     <string name="language_system">Как в системе</string>
     <string name="language_russian">Русский</string>
     <string name="language_english">English</string>
-    <string name="language_change_title">Требуется выход</string>
-    <string name="language_change_message">Приложение закроется. Перезапустите вручную для применения языка.</string>
-    <string name="exit_app">Выйти</string>
+    
+    <!-- Weather codes -->
+    <string name="weather_code_0">Ясное небо</string>
+    <string name="weather_code_1">Преимущественно ясно</string>
+    <string name="weather_code_2">Переменная облачность</string>
+    <string name="weather_code_3">Пасмурно</string>
+    <string name="weather_code_45">Туман</string>
+    <string name="weather_code_48">Иней отлагающийся</string>
+    <string name="weather_code_51">Лёгкая морось</string>
+    <string name="weather_code_53">Умеренная морось</string>
+    <string name="weather_code_55">Густая морось</string>
+    <string name="weather_code_56">Лёгкий ледяной дождь</string>
+    <string name="weather_code_57">Густой ледяной дождь</string>
+    <string name="weather_code_61">Небольшой дождь</string>
+    <string name="weather_code_63">Умеренный дождь</string>
+    <string name="weather_code_65">Сильный дождь</string>
+    <string name="weather_code_66">Лёгкий ледяной дождь</string>
+    <string name="weather_code_67">Сильный ледяной дождь</string>
+    <string name="weather_code_71">Небольшой снегопад</string>
+    <string name="weather_code_73">Умеренный снегопад</string>
+    <string name="weather_code_75">Сильный снегопад</string>
+    <string name="weather_code_77">Снежная крупа</string>
+    <string name="weather_code_80">Небольшой ливень</string>
+    <string name="weather_code_81">Умеренный ливень</string>
+    <string name="weather_code_82">Сильный ливень</string>
+    <string name="weather_code_85">Небольшой снегопад</string>
+    <string name="weather_code_86">Сильный снегопад</string>
+    <string name="weather_code_95">Гроза</string>
+    <string name="weather_code_96">Гроза с небольшим градом</string>
+    <string name="weather_code_99">Гроза с сильным градом</string>
     
     <!-- Weather display options -->
     <string name="condition">Температура</string>

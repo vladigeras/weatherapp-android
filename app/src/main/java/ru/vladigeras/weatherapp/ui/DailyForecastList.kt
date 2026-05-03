@@ -25,7 +25,7 @@ import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.vladigeras.weatherapp.R
-import ru.vladigeras.weatherapp.util.WeatherCodeTranslator
+import ru.vladigeras.weatherapp.util.WeatherCodeMapper
 
 /**
  * Displays a list of daily weather forecasts using a Column (not LazyColumn)
@@ -102,7 +102,7 @@ private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) 
                     contentAlignment = Alignment.Center
                 ) {
                     val weatherCode = forecast.weatherCode ?: 0
-                    val weatherIcon = getWeatherIconForCode(weatherCode, isDay = 1)
+                    val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay = 1)
                     val weatherDesc = getWeatherDescription(weatherCode)
                     Icon(
                         imageVector = weatherIcon,
@@ -137,7 +137,7 @@ private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) 
                     val context = LocalContext.current
                         if (precipitationSum > 0) {
                             val weatherCode = forecast.weatherCode ?: 0
-                            val precipitationIcon = getPrecipitationIconForCode(weatherCode)
+                            val precipitationIcon = WeatherCodeMapper.getPrecipitationIconVector(weatherCode)
                             if (precipitationIcon != null) {
                                 Icon(
                                     imageVector = precipitationIcon,
@@ -219,15 +219,36 @@ private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) 
  */
 @Composable
 fun getWeatherDescription(weatherCode: Int): String {
-    val weatherEntries = stringArrayResource(R.array.weather_codes)
-    for (entry in weatherEntries) {
-        val parts = entry.split("|")
-        if (parts.size == 2) {
-            val code = parts[0].toIntOrNull()
-            if (code == weatherCode) {
-                return parts[1]
-            }
-        }
+    val resId = when (weatherCode) {
+        0 -> R.string.weather_code_0
+        1 -> R.string.weather_code_1
+        2 -> R.string.weather_code_2
+        3 -> R.string.weather_code_3
+        45 -> R.string.weather_code_45
+        48 -> R.string.weather_code_48
+        51 -> R.string.weather_code_51
+        53 -> R.string.weather_code_53
+        55 -> R.string.weather_code_55
+        56 -> R.string.weather_code_56
+        57 -> R.string.weather_code_57
+        61 -> R.string.weather_code_61
+        63 -> R.string.weather_code_63
+        65 -> R.string.weather_code_65
+        66 -> R.string.weather_code_66
+        67 -> R.string.weather_code_67
+        71 -> R.string.weather_code_71
+        73 -> R.string.weather_code_73
+        75 -> R.string.weather_code_75
+        77 -> R.string.weather_code_77
+        80 -> R.string.weather_code_80
+        81 -> R.string.weather_code_81
+        82 -> R.string.weather_code_82
+        85 -> R.string.weather_code_85
+        86 -> R.string.weather_code_86
+        95 -> R.string.weather_code_95
+        96 -> R.string.weather_code_96
+        99 -> R.string.weather_code_99
+        else -> 0
     }
-    return stringResource(R.string.unknown_weather)
+    return if (resId != 0) stringResource(resId) else stringResource(R.string.unknown_weather)
 }

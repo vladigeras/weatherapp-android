@@ -1,11 +1,10 @@
 package ru.vladigeras.weatherapp.ui
 
-import android.content.Context
-import android.content.res.Configuration
-import android.os.Build
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,8 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Air
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Settings
@@ -50,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import androidx.core.os.LocaleListCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -58,6 +58,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import ru.vladigeras.weatherapp.MainActivity
 import ru.vladigeras.weatherapp.R
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.repository.LanguagePreference
@@ -69,26 +70,12 @@ import javax.inject.Inject
 class SettingsActivity : ComponentActivity() {
     @Inject
     lateinit var prefsRepository: WeatherDisplayPrefsRepository
-    
-    override fun onCreate(savedInstanceState: Bundle?) {
-        // IMPORTANT: Apply locale BEFORE setContent!
-        super.onCreate(savedInstanceState)  // ← THIS WAS MISSING!
-        val locale = getSavedLocale(this)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val config = Configuration(resources.configuration)
-            config.setLocale(locale)
-            val newContext = createConfigurationContext(config)
-            // Apply the new context's configuration to our resources
-            resources.updateConfiguration(newContext.resources.configuration, newContext.resources.displayMetrics)
-        } else {
-            @Suppress("DEPRECATION")
-            val legacyConfig = resources.configuration
-            legacyConfig.setLocale(locale)
-            @Suppress("DEPRECATION")
-            resources.updateConfiguration(legacyConfig, resources.displayMetrics)
-        }
-        
+    @Inject
+    lateinit var languagePreferenceRepository: LanguagePreferenceRepository
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             MaterialTheme {
@@ -97,24 +84,6 @@ class SettingsActivity : ComponentActivity() {
                     onBack = { finish() },
                     onRecreate = { recreate() }
                 )
-            }
-        }
-    }
-    
-    private fun getSavedLocale(context: Context): java.util.Locale {
-        val prefs = context.getSharedPreferences("weatherapp_prefs", Context.MODE_PRIVATE)
-        val ordinal = prefs.getInt("language_preference", -1)
-        
-        return when (ordinal) {
-            1 -> java.util.Locale("ru", "RU")
-            2 -> java.util.Locale.ENGLISH
-            else -> {
-                val deviceLang = java.util.Locale.getDefault()
-                if (deviceLang.language == "ru") {
-                    java.util.Locale("ru", "RU")
-                } else {
-                    java.util.Locale.ENGLISH
-                }
             }
         }
     }
@@ -130,7 +99,6 @@ fun SettingsScreen(
     val prefs by viewModel.localPrefs.collectAsState(WeatherDisplayPrefs())
     val hasChanges by viewModel.hasChanges.collectAsState(false)
     val languagePreference by viewModel.languagePreference.collectAsState(LanguagePreference.SYSTEM)
-    var showRestartDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -140,19 +108,18 @@ fun SettingsScreen(
                 title = { Text(stringResource(R.string.settings)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
                     }
                 },
                 actions = {
                     TextButton(
                         onClick = {
                             scope.launch {
-                                val langChanged = viewModel.savePrefsAndCheckLanguage()
-                                if (langChanged) {
-                                    showRestartDialog = true
-                                } else {
-                                    onBack()
-                                }
+                                viewModel.savePrefsAndCheckLanguage()
+                                onBack()
                             }
                         },
                         enabled = hasChanges
@@ -179,19 +146,21 @@ fun SettingsScreen(
                                 onPreferenceChanged = { viewModel.setLanguagePreference(it) }
                             )
                         }
+
                         is SettingsItem.Toggle -> {
                             SettingsToggleItem(
-                                title = getStringResource(item.title),
-                                description = item.description?.let { getStringResource(it) },
+                                title = stringResource(item.titleRes),
+                                description = item.descriptionRes?.let { stringResource(it) },
                                 checked = item.checked,
                                 icon = item.icon,
                                 enabled = item.enabled,
                                 onCheckedChange = { viewModel.toggleItem(item.key, it) }
                             )
                         }
+
                         is SettingsItem.ForecastDays -> {
                             SettingsForecastDaysItem(
-                                title = getStringResource(item.title),
+                                title = stringResource(item.titleRes),
                                 days = item.days,
                                 onDaysChanged = { viewModel.setForecastDays(it) }
                             )
@@ -200,24 +169,7 @@ fun SettingsScreen(
                 }
             }
         }
-        
-         if (showRestartDialog) {
-             AlertDialog(
-                 onDismissRequest = { },
-                 title = { Text(stringResource(R.string.language_change_title)) },
-                 text = { Text(stringResource(R.string.language_change_message)) },
-                 confirmButton = {
-                     TextButton(onClick = {
-                         showRestartDialog = false
-                         val activity = context as? android.app.Activity
-                         activity?.finishAndRemoveTask()
-                         System.exit(0)
-                     }) {
-                         Text(stringResource(R.string.exit_app))
-                     }
-                 }
-             )
-         }
+
     }
 }
 
@@ -227,7 +179,7 @@ private fun SettingsLanguageItem(
     onPreferenceChanged: (LanguagePreference) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    
+
     Box {
         Row(
             modifier = Modifier
@@ -254,7 +206,7 @@ private fun SettingsLanguageItem(
                 )
             }
         }
-        
+
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
@@ -281,32 +233,6 @@ private fun SettingsLanguageItem(
                 }
             )
         }
-    }
-}
-
-@Composable
-private fun getStringResource(name: String): String {
-    // Map the setting keys to string resources
-    return when (name) {
-        // Titles
-        "condition" -> stringResource(R.string.condition)
-        "humidity" -> stringResource(R.string.humidity)
-        "wind" -> stringResource(R.string.wind)
-        "precipitation" -> stringResource(R.string.precipitation)
-        "sun_times" -> stringResource(R.string.sun_times)
-        "uv_index" -> stringResource(R.string.uv_index)
-        "forecast" -> stringResource(R.string.forecast)
-        "forecast_days" -> stringResource(R.string.forecast_days)
-        "language" -> stringResource(R.string.language)
-        // Descriptions
-        "condition_description" -> stringResource(R.string.condition_description)
-        "humidity_description" -> stringResource(R.string.humidity_description)
-        "wind_description" -> stringResource(R.string.wind_description)
-        "precipitation_description" -> stringResource(R.string.precipitation_description)
-        "sun_times_description" -> stringResource(R.string.sun_times_description)
-        "uv_index_description" -> stringResource(R.string.uv_index_description)
-        "forecast_description" -> stringResource(R.string.forecast_description)
-        else -> name // fallback
     }
 }
 
@@ -398,81 +324,85 @@ fun SettingsForecastDaysItem(
 sealed interface SettingsItem {
     data class Toggle(
         val key: String,
-        val title: String,
-        val description: String?,
+        val titleRes: Int,
+        val descriptionRes: Int?,
         val checked: Boolean,
         val icon: @Composable () -> Unit,
         val enabled: Boolean = true
     ) : SettingsItem
+
     data class ForecastDays(
-        val title: String,
+        val titleRes: Int,
         val days: Int
     ) : SettingsItem
+
     data class LanguageSelector(
-        val title: String,
+        val titleRes: Int,
         val currentPreference: LanguagePreference
     ) : SettingsItem
 }
 
-private fun settingsItems(prefs: WeatherDisplayPrefs, languagePreference: LanguagePreference): List<SettingsItem> {
+private fun settingsItems(
+    prefs: WeatherDisplayPrefs,
+    languagePreference: LanguagePreference
+): List<SettingsItem> {
     return listOf(
         SettingsItem.LanguageSelector(
-            title = "language",
+            titleRes = R.string.language,
             currentPreference = languagePreference
         ),
-        // Condition - first, required, cannot be toggled off
         SettingsItem.Toggle(
             key = "condition",
-            title = "condition",
-            description = "condition_description",
+            titleRes = R.string.condition,
+            descriptionRes = R.string.condition_description,
             checked = true,
             icon = { Icon(Icons.Filled.Thermostat, contentDescription = null) },
             enabled = false
         ),
         SettingsItem.Toggle(
             key = "humidity",
-            title = "humidity",
-            description = "humidity_description",
+            titleRes = R.string.humidity,
+            descriptionRes = R.string.humidity_description,
             checked = prefs.showHumidity,
             icon = { Icon(Icons.Filled.WaterDrop, contentDescription = null) }
         ),
         SettingsItem.Toggle(
             key = "wind",
-            title = "wind",
-            description = "wind_description",
+            titleRes = R.string.wind,
+            descriptionRes = R.string.wind_description,
             checked = prefs.showWind,
             icon = { Icon(Icons.Filled.Air, contentDescription = null) }
         ),
         SettingsItem.Toggle(
             key = "precipitation",
-            title = "precipitation",
-            description = "precipitation_description",
+            titleRes = R.string.precipitation,
+            descriptionRes = R.string.precipitation_description,
             checked = prefs.showPrecipitation,
             icon = { Icon(Icons.Filled.Cloud, contentDescription = null) }
         ),
         SettingsItem.Toggle(
             key = "sun_times",
-            title = "sun_times",
-            description = "sun_times_description",
+            titleRes = R.string.sun_times,
+            descriptionRes = R.string.sun_times_description,
             checked = prefs.showSunTimes,
             icon = { Icon(Icons.Filled.Settings, contentDescription = null) }
         ),
         SettingsItem.Toggle(
             key = "uv_index",
-            title = "uv_index",
-            description = "uv_index_description",
+            titleRes = R.string.uv_index,
+            descriptionRes = R.string.uv_index_description,
             checked = prefs.showUvIndex,
             icon = { Icon(Icons.Filled.Settings, contentDescription = null) }
         ),
         SettingsItem.Toggle(
             key = "forecast",
-            title = "forecast",
-            description = "forecast_description",
+            titleRes = R.string.forecast,
+            descriptionRes = R.string.forecast_description,
             checked = prefs.showForecast,
             icon = { Icon(Icons.Filled.Cloud, contentDescription = null) }
         ),
         SettingsItem.ForecastDays(
-            title = "forecast_days",
+            titleRes = R.string.forecast_days,
             days = prefs.forecastDays
         )
     )
@@ -498,12 +428,12 @@ class SettingsViewModel @Inject constructor(
             val prefs = prefsRepository.getPrefs().first()
             _originalPrefs.value = prefs
             localPrefs.value = prefs
-            
+
             // Initialize language preference
             val languagePref = languagePreferenceRepository.getLanguagePreference()
             originalLanguagePreference.value = languagePref
             languagePreference.value = languagePref
-            
+
             updateHasChanges()
         }
     }
@@ -536,6 +466,16 @@ class SettingsViewModel @Inject constructor(
 
     fun setLanguagePreference(preference: LanguagePreference) {
         languagePreference.value = preference
+        val localeTag = when (preference) {
+            LanguagePreference.SYSTEM -> ""
+            LanguagePreference.RUSSIAN -> "ru"
+            LanguagePreference.ENGLISH -> "en"
+        }
+        if (localeTag.isEmpty()) {
+            AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList())
+        } else {
+            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(localeTag))
+        }
         updateHasChanges()
     }
 
@@ -546,14 +486,14 @@ class SettingsViewModel @Inject constructor(
         val prefsToSave = localPrefs.value
         prefsRepository.updatePrefs(prefsToSave)
         _originalPrefs.value = prefsToSave
-        
+
         // Save language preference
         val languagePrefToSave = languagePreference.value
         languagePreferenceRepository.saveLanguagePreference(languagePrefToSave)
         originalLanguagePreference.value = languagePrefToSave
-        
+
         updateHasChanges()
-        
+
         return languagePrefChanged
     }
 

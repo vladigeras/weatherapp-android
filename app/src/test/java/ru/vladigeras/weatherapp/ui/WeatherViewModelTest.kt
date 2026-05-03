@@ -149,7 +149,7 @@ class WeatherViewModelTest {
             every { getAppLocale() } returns java.util.Locale.ENGLISH
         }
         cityNameResolver = mockk {
-            every { resolveCityName(any(), any(), any(), any()) } returns "Test City"
+            coEvery { resolveCityName(any(), any(), any(), any()) } returns "Test City"
         }
         weatherViewModel = WeatherViewModel(context, weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, weatherCache, languagePreferenceRepository, cityNameResolver)
 

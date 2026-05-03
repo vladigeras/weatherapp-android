@@ -1,8 +1,6 @@
 package ru.vladigeras.weatherapp
 
-import android.content.Context
 import android.content.res.Configuration
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,7 +8,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -22,54 +25,30 @@ import ru.vladigeras.weatherapp.ui.theme.WeatherAppTheme
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    
-    override fun attachBaseContext(base: Context) {
-        val locale = getSavedLocale(base)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val config = Configuration(base.resources.configuration)
-            config.setLocale(locale)
-            val newContext = base.createConfigurationContext(config)
-            super.attachBaseContext(newContext)
-        } else {
-            @Suppress("DEPRECATION")
-            val legacyConfig = base.resources.configuration
-            legacyConfig.setLocale(locale)
-            @Suppress("DEPRECATION")
-            base.resources.updateConfiguration(legacyConfig, base.resources.displayMetrics)
-            super.attachBaseContext(base)
-        }
-    }
-    
-    private fun getSavedLocale(context: Context): java.util.Locale {
-        val prefs = context.getSharedPreferences("weatherapp_prefs", Context.MODE_PRIVATE)
-        val ordinal = prefs.getInt("language_preference", -1)
+    private var composeContext by mutableStateOf<ComponentActivity?>(null)
 
-        return when (ordinal) {
-            1 -> java.util.Locale("ru", "RU")
-            2 -> java.util.Locale.ENGLISH
-            else -> {
-                val deviceLang = java.util.Locale.getDefault()
-                if (deviceLang.language == "ru") {
-                    java.util.Locale("ru", "RU")
-                } else {
-                    java.util.Locale.ENGLISH
-                }
-            }
-        }
-    }
-    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        composeContext = this
         setContent {
-            WeatherAppTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    val navController = rememberNavController()
-                    WeatherAppNavHost(navController = navController)
+            composeContext?.let { ctx ->
+                CompositionLocalProvider(LocalContext provides ctx) {
+                    WeatherAppTheme {
+                        Surface(modifier = Modifier.fillMaxSize()) {
+                            val navController = rememberNavController()
+                            WeatherAppNavHost(navController = navController)
+                        }
+                    }
                 }
             }
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        composeContext = this
     }
 }
 

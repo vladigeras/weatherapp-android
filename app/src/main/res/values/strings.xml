@@ -11,9 +11,36 @@
     <string name="language_system">System</string>
     <string name="language_russian">Russian</string>
     <string name="language_english">English</string>
-    <string name="language_change_title">Exit Required</string>
-    <string name="language_change_message">App will close to apply new language. Please restart manually.</string>
-    <string name="exit_app">Exit</string>
+    
+    <!-- Weather codes -->
+    <string name="weather_code_0">Clear sky</string>
+    <string name="weather_code_1">Mainly clear</string>
+    <string name="weather_code_2">Partly cloudy</string>
+    <string name="weather_code_3">Overcast</string>
+    <string name="weather_code_45">Fog</string>
+    <string name="weather_code_48">Depositing rime fog</string>
+    <string name="weather_code_51">Light drizzle</string>
+    <string name="weather_code_53">Moderate drizzle</string>
+    <string name="weather_code_55">Dense drizzle</string>
+    <string name="weather_code_56">Light freezing drizzle</string>
+    <string name="weather_code_57">Dense freezing drizzle</string>
+    <string name="weather_code_61">Slight rain</string>
+    <string name="weather_code_63">Moderate rain</string>
+    <string name="weather_code_65">Heavy rain</string>
+    <string name="weather_code_66">Light freezing rain</string>
+    <string name="weather_code_67">Heavy freezing rain</string>
+    <string name="weather_code_71">Slight snow fall</string>
+    <string name="weather_code_73">Moderate snow fall</string>
+    <string name="weather_code_75">Heavy snow fall</string>
+    <string name="weather_code_77">Snow grains</string>
+    <string name="weather_code_80">Slight rain shower</string>
+    <string name="weather_code_81">Moderate rain shower</string>
+    <string name="weather_code_82">Violent rain shower</string>
+    <string name="weather_code_85">Slight snow shower</string>
+    <string name="weather_code_86">Heavy snow shower</string>
+    <string name="weather_code_95">Thunderstorm</string>
+    <string name="weather_code_96">Slight hail thunderstorm</string>
+    <string name="weather_code_99">Heavy hail thunderstorm</string>
     
     <!-- Weather display options -->
     <string name="condition">Condition</string>

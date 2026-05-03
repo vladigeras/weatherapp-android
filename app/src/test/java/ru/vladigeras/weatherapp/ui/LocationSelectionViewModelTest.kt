@@ -9,6 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -20,6 +22,7 @@ import org.junit.Test
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.network.GeocodingService
 import ru.vladigeras.weatherapp.repository.CitySearchCache
+import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.LocationRepository
 import ru.vladigeras.weatherapp.repository.SelectedLocationRepository
 
@@ -30,6 +33,7 @@ class LocationSelectionViewModelTest {
     private lateinit var geocodingService: GeocodingService
     private lateinit var citySearchCache: CitySearchCache
     private lateinit var selectedLocationRepository: SelectedLocationRepository
+    private lateinit var languagePreferenceRepository: LanguagePreferenceRepository
     private lateinit var viewModel: LocationSelectionViewModel
 
     private val mockManualLocation = Location(40.7128, -74.0060, "New York", isAutoDetected = false)
@@ -37,23 +41,28 @@ class LocationSelectionViewModelTest {
 
     @Before
     fun setup() {
+        val testDispatcher = StandardTestDispatcher()
+        Dispatchers.setMain(testDispatcher)
+
         locationRepository = mockk(relaxed = true)
         geocodingService = mockk(relaxed = true)
         citySearchCache = mockk(relaxed = true)
         selectedLocationRepository = mockk(relaxed = true)
+        languagePreferenceRepository = mockk(relaxed = true)
 
         coEvery { selectedLocationRepository.getSelectedLocation() } returns flowOf(mockManualLocation)
         coEvery { selectedLocationRepository.clearSelectedLocation() } returns Unit
         coEvery { locationRepository.getLocation() } returns Result.success(mockAutoLocation)
+        coEvery { languagePreferenceRepository.getEffectiveLocaleCode() } returns "en"
 
         viewModel = LocationSelectionViewModel(
             locationRepository = locationRepository,
             geocodingService = geocodingService,
             citySearchCache = citySearchCache,
-            selectedLocationRepository = selectedLocationRepository
+            selectedLocationRepository = selectedLocationRepository,
+            languagePreferenceRepository = languagePreferenceRepository
         )
 
-        Dispatchers.setMain(Dispatchers.Unconfined)
         ArchTaskExecutor.getInstance().setDelegate(object : TaskExecutor() {
             override fun executeOnDiskIO(runnable: Runnable) = runnable.run()
             override fun executeOnMainThread(runnable: Runnable) = runnable.run()
@@ -70,6 +79,7 @@ class LocationSelectionViewModelTest {
 
     @Test
     fun `initial state shows manual mode when manual location is saved`() = runTest {
+        advanceUntilIdle()
         val state = viewModel.uiState.first { it.isManualMode }
         assertEquals(mockManualLocation, state.activeLocation)
     }
@@ -77,6 +87,7 @@ class LocationSelectionViewModelTest {
     @Test
     fun `updateSearchQuery updates query state`() = runTest {
         viewModel.updateSearchQuery("Moscow")
+        advanceUntilIdle()
 
         val query = viewModel.searchQuery.first()
         assertEquals("Moscow", query)
@@ -85,18 +96,17 @@ class LocationSelectionViewModelTest {
     @Test
     fun `selectLocation saves manual location and switches to manual mode`() = runTest {
         val newLocation = Location(60.0, 30.0, "Saint Petersburg", isAutoDetected = false)
-        
+
         coEvery { selectedLocationRepository.saveSelectedLocation(any()) } returns Unit
-        
+
         viewModel.selectLocation(newLocation)
-        
-        // Wait for state to update to manual mode with new location
+        advanceUntilIdle()
+
         viewModel.uiState
             .first { it.isManualMode && it.activeLocation?.name == "Saint Petersburg" }
-        
+
         coVerify { selectedLocationRepository.saveSelectedLocation(match { it.name == "Saint Petersburg" && !it.isAutoDetected }) }
-        
-        // Get final state for assertions
+
         val finalState = viewModel.uiState.first()
         assertTrue(finalState.isManualMode)
         assertEquals("Saint Petersburg", finalState.activeLocation?.name)
@@ -105,14 +115,13 @@ class LocationSelectionViewModelTest {
     @Test
     fun `useAutoLocation switches to auto mode and saves auto location`() = runTest {
         viewModel.useAutoLocation()
-        
-        // Wait for mode switch to auto
+        advanceUntilIdle()
+
         viewModel.uiState
             .first { !it.isManualMode && it.activeLocation == mockAutoLocation }
-        
+
         coVerify { selectedLocationRepository.saveSelectedLocation(mockAutoLocation) }
-        
-        // Get final state for assertions
+
         val finalState = viewModel.uiState.first()
         assertTrue(!finalState.isManualMode)
         assertEquals(mockAutoLocation, finalState.activeLocation)
@@ -123,12 +132,11 @@ class LocationSelectionViewModelTest {
         val newLocation = Location(60.0, 30.0, "Saint Petersburg", isAutoDetected = false)
 
         viewModel.selectLocation(newLocation)
+        advanceUntilIdle()
 
-        // Wait for search results to be cleared
         viewModel.uiState
             .first { it.searchResults.isEmpty() }
 
-        // Get final state for assertions
         val finalState = viewModel.uiState.first()
         assertTrue(finalState.searchResults.isEmpty())
     }

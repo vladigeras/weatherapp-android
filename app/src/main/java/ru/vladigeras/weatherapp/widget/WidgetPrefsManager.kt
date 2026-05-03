@@ -28,9 +28,9 @@ object WidgetPrefsManager {
         val prefs = getPrefs(context)
         prefs.edit().apply {
             putString(KEY_CITY_NAME, cityName)
-            putString(KEY_TEMP, String.format("%.1f%s", temperature, tempUnit))
+            putString(KEY_TEMP, "${temperature.toInt()}$tempUnit")
             if (feelsLike != null) {
-                putString(KEY_FEELS_LIKE, String.format("%.1f%s", feelsLike, tempUnit))
+                putString(KEY_FEELS_LIKE, "${feelsLike.toInt()}$tempUnit")
             } else {
                 remove(KEY_FEELS_LIKE)
             }

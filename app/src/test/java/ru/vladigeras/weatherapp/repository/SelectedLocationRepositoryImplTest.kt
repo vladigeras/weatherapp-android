@@ -6,6 +6,8 @@ import app.cash.turbine.test
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -39,6 +41,9 @@ class SelectedLocationRepositoryImplTest {
 
     @After
     fun tearDown() {
+        runBlocking {
+            delay(100)
+        }
         if (tempFile.exists()) {
             tempFile.delete()
         }

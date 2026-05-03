@@ -67,9 +67,6 @@ class WeatherViewModel @Inject constructor(
     private var currentLatitude: Double = 0.0
     private var currentLongitude: Double = 0.0
 
-    private data class CityNameCacheKey(val latitude: Double, val longitude: Double, val locale: String)
-    private val cityNameCache = mutableMapOf<CityNameCacheKey, String>()
-
     init {
         viewModelScope.launch {
             weatherDisplayPrefsRepository.getPrefs()
@@ -93,32 +90,6 @@ class WeatherViewModel @Inject constructor(
             loadWeatherInternal(savedLocation.latitude, savedLocation.longitude, prefs)
         } else {
             _uiState.value = WeatherUiState.Empty
-        }
-    }
-
-    fun loadWeatherForCurrentLocation() {
-        viewModelScope.launch {
-            _uiState.value = WeatherUiState.Loading
-            val locationResult = locationRepository.getLocation()
-            if (locationResult.isFailure) {
-                _uiState.value = WeatherUiState.Error(
-                    locationResult.exceptionOrNull()?.message ?: "Unable to get location"
-                )
-                return@launch
-            }
-            val loc = locationResult.getOrThrow()
-            selectedLocationRepository.saveSelectedLocation(
-                Location(
-                    latitude = loc.latitude,
-                    longitude = loc.longitude,
-                    name = loc.name,
-                    isAutoDetected = true
-                )
-            )
-            currentLatitude = loc.latitude
-            currentLongitude = loc.longitude
-            val prefs = weatherDisplayPrefsRepository.getPrefs().first()
-            loadWeatherInternal(loc.latitude, loc.longitude, prefs)
         }
     }
 

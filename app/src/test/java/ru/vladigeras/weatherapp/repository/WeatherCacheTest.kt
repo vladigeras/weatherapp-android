@@ -4,6 +4,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -37,6 +39,9 @@ class WeatherCacheTest {
 
     @After
     fun tearDown() {
+        runBlocking {
+            delay(100)
+        }
         if (tempFile.exists()) {
             tempFile.delete()
         }

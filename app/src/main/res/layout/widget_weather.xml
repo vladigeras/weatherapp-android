@@ -3,10 +3,11 @@
     android:id="@+id/root_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/selectableItemBackgroundBorderless"
+    android:background="#CC000000"
     android:gravity="center"
     android:orientation="horizontal"
     android:padding="12dp">
+    <requestFocus />
 
     <ImageView
         android:id="@+id/widget_icon"

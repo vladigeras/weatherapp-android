@@ -9,15 +9,19 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Named
 import javax.inject.Singleton
 
-private val Context.weatherCacheDataStore: DataStore<Preferences> by preferencesDataStore(name = "weather_cache")
+private val Context.languageDataStore: DataStore<Preferences> by preferencesDataStore(name = "language_prefs")
 
 @Module
 @InstallIn(SingletonComponent::class)
-object WeatherCacheModule {
+object LanguageModule {
+
     @Provides
     @Singleton
-    fun provideWeatherCacheDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
-        context.weatherCacheDataStore
+    @Named("language")
+    fun provideLanguageDataStore(
+        @ApplicationContext context: Context
+    ): DataStore<Preferences> = context.languageDataStore
 }

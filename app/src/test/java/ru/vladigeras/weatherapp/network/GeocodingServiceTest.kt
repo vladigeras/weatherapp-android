@@ -8,28 +8,22 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import java.io.IOException
 
 class GeocodingServiceTest {
 
-    private fun createService(
-        mockEngine: MockEngine,
-        languagePreferenceRepository: LanguagePreferenceRepository = mockk { every { runBlocking { getEffectiveLocaleCode() } } returns "en" }
-    ): GeocodingService {
+    private fun createService(mockEngine: MockEngine): GeocodingService {
         val httpClient = HttpClient(mockEngine) {
             install(ContentNegotiation) {
                 json(Json { ignoreUnknownKeys = true })
             }
         }
-        return GeocodingService(httpClient, languagePreferenceRepository)
+        return GeocodingService(httpClient)
     }
 
     @Test
@@ -48,7 +42,7 @@ class GeocodingServiceTest {
         }
         
         val service = createService(mockEngine)
-        val result = service.searchCity("Moscow")
+        val result = service.searchCity("Moscow", "en")
         
         assertTrue(result.isSuccess)
         val response = result.getOrNull()
@@ -66,7 +60,7 @@ class GeocodingServiceTest {
         }
         
         val service = createService(mockEngine)
-        val result = service.searchCity("UnknownCity")
+        val result = service.searchCity("UnknownCity", "en")
         
         assertTrue(result.isSuccess)
         val response = result.getOrNull()
@@ -80,7 +74,7 @@ class GeocodingServiceTest {
         }
         
         val service = createService(mockEngine)
-        val result = service.searchCity("Moscow")
+        val result = service.searchCity("Moscow", "en")
         
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is IOException)

@@ -36,8 +36,8 @@ class WidgetPrefsManagerTest {
         )
 
         assertEquals("Moscow", WidgetPrefsManager.getCityName(context))
-        assertEquals("25.5°C", WidgetPrefsManager.getTemperature(context))
-        assertEquals("24.0°C", WidgetPrefsManager.getFeelsLike(context))
+        assertEquals("25°C", WidgetPrefsManager.getTemperature(context))
+        assertEquals("24°C", WidgetPrefsManager.getFeelsLike(context))
         assertEquals(0, WidgetPrefsManager.getWeatherCode(context))
         assertEquals(1, WidgetPrefsManager.getIsDay(context))
         assertTrue(WidgetPrefsManager.hasData(context))

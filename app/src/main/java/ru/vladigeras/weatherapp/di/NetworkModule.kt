@@ -57,11 +57,8 @@ object NetworkModule {
     
     @Provides
     @Singleton
-    fun provideGeocodingService(
-        httpClient: HttpClient,
-        languagePreferenceRepository: LanguagePreferenceRepository
-    ): GeocodingService {
-        return GeocodingService(httpClient, languagePreferenceRepository)
+    fun provideGeocodingService(httpClient: HttpClient): GeocodingService {
+        return GeocodingService(httpClient)
     }
     
     @Provides

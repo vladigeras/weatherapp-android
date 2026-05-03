@@ -6,14 +6,15 @@ import android.content.pm.PackageManager
 import android.location.Geocoder
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.suspendCancellableCoroutine
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.location.LocationService
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration.Companion.minutes
 
 @Singleton
@@ -37,10 +38,10 @@ class LocationRepositoryImpl @Inject constructor(
         }
 
         return try {
-            val loc = locationService.getCurrentLocation().first()
+            val loc = locationService.getCurrentLocation().getOrNull()
                 ?: return Result.failure(IllegalStateException("Location unavailable"))
 
-            val locationName = getLocationName(loc.latitude, loc.longitude)
+            val locationName = getLocationNameAsync(loc.latitude, loc.longitude)
             val locationWithName = loc.copy(name = locationName)
 
             cache.value = CachedLocation(locationWithName, System.currentTimeMillis())
@@ -50,11 +51,9 @@ class LocationRepositoryImpl @Inject constructor(
         }
     }
 
-    @Suppress("DEPRECATION")
-    private fun getLocationName(latitude: Double, longitude: Double): String? {
+    private suspend fun getLocationNameAsync(latitude: Double, longitude: Double): String? {
         return try {
-            val geocoder = Geocoder(context, Locale.getDefault())
-            val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+            val addresses = getFromLocationAsync(latitude, longitude, 1)
             addresses?.firstOrNull()?.let { address ->
                 buildString {
                     address.locality?.let { append(it) }
@@ -68,7 +67,24 @@ class LocationRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getLocationFlow(): Flow<Location?> = locationService.getCurrentLocation()
+    private suspend fun getFromLocationAsync(
+        latitude: Double,
+        longitude: Double,
+        maxResults: Int
+    ): List<android.location.Address>? = suspendCancellableCoroutine { continuation ->
+        val geocoder = Geocoder(context, Locale.getDefault())
+        try {
+            geocoder.getFromLocation(latitude, longitude, maxResults) { addresses ->
+                if (continuation.isActive) {
+                    continuation.resume(addresses)
+                }
+            }
+        } catch (e: Exception) {
+            if (continuation.isActive) {
+                continuation.resumeWithException(e)
+            }
+        }
+    }
 
     override fun hasLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(

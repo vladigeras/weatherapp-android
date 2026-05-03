@@ -16,7 +16,9 @@ object TestDataStoreFactory {
 
         return PreferenceDataStoreFactory.create(
             scope = scope,
-            produceFile = { tempFile }
+            produceFile = { tempFile },
+            corruptionHandler = null,
+            migrations = emptyList()
         )
     }
 

@@ -3,25 +3,33 @@ package ru.vladigeras.weatherapp.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.network.GeocodingResult
 import ru.vladigeras.weatherapp.network.GeocodingService
 import ru.vladigeras.weatherapp.repository.CitySearchCache
+import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.LocationRepository
 import ru.vladigeras.weatherapp.repository.SelectedLocationRepository
 import javax.inject.Inject
 
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class LocationSelectionViewModel @Inject constructor(
     private val locationRepository: LocationRepository,
     private val geocodingService: GeocodingService,
     private val citySearchCache: CitySearchCache,
-    private val selectedLocationRepository: SelectedLocationRepository
+    private val selectedLocationRepository: SelectedLocationRepository,
+    private val languagePreferenceRepository: LanguagePreferenceRepository
 ) : ViewModel() {
 
     data class UiState(
@@ -43,6 +51,13 @@ class LocationSelectionViewModel @Inject constructor(
 
     init {
         loadInitialState()
+        viewModelScope.launch {
+            searchQuery
+                .filter { it.length >= 2 }
+                .debounce(300)
+                .distinctUntilChanged()
+                .collectLatest { query -> performSearch(query) }
+        }
     }
 
     private fun loadInitialState() {
@@ -140,33 +155,30 @@ class LocationSelectionViewModel @Inject constructor(
 
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
-        if (query.length >= 2) {
-            searchCity(query)
-        } else {
+        if (query.length < 2) {
             _uiState.value = _uiState.value.copy(searchResults = emptyList())
         }
     }
 
-    private fun searchCity(query: String) {
+    private suspend fun performSearch(query: String) {
         val cached = citySearchCache.get(query)
         if (cached != null) {
             _uiState.value = _uiState.value.copy(searchResults = cached)
             return
         }
 
-        viewModelScope.launch {
-            geocodingService.searchCity(query)
-                .onSuccess { response ->
-                    val results = response.results ?: emptyList()
-                    if (results.isNotEmpty()) {
-                        citySearchCache.put(query, results)
-                    }
-                    _uiState.value = _uiState.value.copy(searchResults = results)
+        val languageCode = languagePreferenceRepository.getEffectiveLocaleCode()
+        geocodingService.searchCity(query, languageCode)
+            .onSuccess { response ->
+                val results = response.results ?: emptyList()
+                if (results.isNotEmpty()) {
+                    citySearchCache.put(query, results)
                 }
-                .onFailure {
-                    _uiState.value = _uiState.value.copy(error = "Search failed")
-                }
-        }
+                _uiState.value = _uiState.value.copy(searchResults = results)
+            }
+            .onFailure {
+                _uiState.value = _uiState.value.copy(error = "Search failed")
+            }
     }
 
     fun clearError() {

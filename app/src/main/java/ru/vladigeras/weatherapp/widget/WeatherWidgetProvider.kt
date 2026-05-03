@@ -12,6 +12,7 @@ import android.view.View
 import android.widget.RemoteViews
 import ru.vladigeras.weatherapp.MainActivity
 import ru.vladigeras.weatherapp.R
+import ru.vladigeras.weatherapp.util.WeatherCodeMapper
 
 class WeatherWidgetProvider : AppWidgetProvider() {
 
@@ -122,16 +123,7 @@ class WeatherWidgetProvider : AppWidgetProvider() {
     }
 
     private fun getWeatherIcon(weatherCode: Int, isDay: Int): Int {
-        return when (weatherCode) {
-            0 -> R.drawable.ic_weather_clear
-            1, 2, 3 -> R.drawable.ic_weather_cloud
-            45, 48 -> R.drawable.ic_weather_cloud
-            51, 53, 55, 61, 63, 65, 80, 81, 82 -> R.drawable.ic_weather_rain
-            56, 57, 66, 67 -> R.drawable.ic_weather_rain
-            71, 73, 75, 77, 85, 86 -> R.drawable.ic_weather_snow
-            95, 96, 99 -> R.drawable.ic_weather_rain
-            else -> R.drawable.ic_weather_cloud
-        }
+        return WeatherCodeMapper.getIconRes(weatherCode, isDay)
     }
 
     private enum class WidgetSizeCategory {

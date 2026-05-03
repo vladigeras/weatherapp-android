@@ -1,39 +1,52 @@
 package ru.vladigeras.weatherapp.repository
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import ru.vladigeras.weatherapp.util.TestDataStoreFactory
+import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class LanguagePreferenceRepositoryImplTest {
 
     private lateinit var repository: LanguagePreferenceRepositoryImpl
-    private val context get() = RuntimeEnvironment.getApplication()
+    private lateinit var dataStore: androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences>
+    private lateinit var tempFile: File
 
     @Before
     fun setUp() {
-        repository = LanguagePreferenceRepositoryImpl(context)
-        // Clear preferences before each test
-        val prefs = context.getSharedPreferences("weatherapp_prefs", android.content.Context.MODE_PRIVATE)
-        prefs.edit().clear().commit()
+        tempFile = TestDataStoreFactory.createTempFile("test_language_prefs")
+        dataStore = TestDataStoreFactory.createInMemoryDataStore(
+            scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined),
+            tempFile = tempFile
+        )
+        repository = LanguagePreferenceRepositoryImpl(dataStore)
+    }
+
+    @After
+    fun tearDown() {
+        runBlocking {
+            delay(100)
+        }
     }
 
     @Test
-    fun saveAndGetPreference_roundTripSystem() = kotlinx.coroutines.runBlocking {
+    fun saveAndGetPreference_roundTripSystem() = runBlocking {
         repository.saveLanguagePreference(LanguagePreference.SYSTEM)
         val result = repository.getLanguagePreference()
         assertEquals(LanguagePreference.SYSTEM, result)
     }
 
     @Test
-    fun saveAndGetPreference_roundTripRussian() = kotlinx.coroutines.runBlocking {
+    fun saveAndGetPreference_roundTripRussian() = runBlocking {
         repository.saveLanguagePreference(LanguagePreference.RUSSIAN)
         val result = repository.getLanguagePreference()
         assertEquals(LanguagePreference.RUSSIAN, result)
@@ -42,14 +55,12 @@ class LanguagePreferenceRepositoryImplTest {
     @Test
     fun getEffectiveLocaleCode_systemEnglishReturnsEn() = runBlocking {
         repository.saveLanguagePreference(LanguagePreference.SYSTEM)
-        // Need to mock default locale, but for now just check it returns something
         val result = repository.getEffectiveLocaleCode()
-        // Since device locale might not be English, we just check it's not null
         assertTrue(result.isNotEmpty())
     }
 
     @Test
-    fun getAppLocale_russianReturnsCorrectLocale() = kotlinx.coroutines.runBlocking {
+    fun getAppLocale_russianReturnsCorrectLocale() = runBlocking {
         repository.saveLanguagePreference(LanguagePreference.RUSSIAN)
         val result = repository.getAppLocale()
         assertEquals("ru", result.language)
