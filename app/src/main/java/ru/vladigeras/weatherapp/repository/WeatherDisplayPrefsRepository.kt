@@ -1,6 +1,5 @@
 package ru.vladigeras.weatherapp.repository
 
-import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -13,15 +12,19 @@ import kotlinx.coroutines.flow.map
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import javax.inject.Inject
 import javax.inject.Singleton
+import android.content.Context
 
 @Singleton
 class WeatherDisplayPrefsRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val testDataStore: DataStore<Preferences>? = null
 ) {
 
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
         name = "weather_display_prefs"
     )
+
+    private fun getDataStore(): DataStore<Preferences> = testDataStore ?: context.dataStore
 
     private object Keys {
         val SHOW_HUMIDITY = booleanPreferencesKey("show_humidity")
@@ -35,7 +38,7 @@ class WeatherDisplayPrefsRepository @Inject constructor(
     }
 
     fun getPrefs(): Flow<WeatherDisplayPrefs> =
-        context.dataStore.data.map { prefs ->
+        getDataStore().data.map { prefs ->
             WeatherDisplayPrefs(
                 showHumidity = prefs[Keys.SHOW_HUMIDITY] ?: true,
                 showWind = prefs[Keys.SHOW_WIND] ?: true,
@@ -49,7 +52,7 @@ class WeatherDisplayPrefsRepository @Inject constructor(
         }
 
     suspend fun updatePrefs(prefs: WeatherDisplayPrefs) {
-        context.dataStore.edit { it ->
+        getDataStore().edit { it ->
             it[Keys.SHOW_HUMIDITY] = prefs.showHumidity
             it[Keys.SHOW_WIND] = prefs.showWind
             it[Keys.SHOW_PRECIPITATION] = prefs.showPrecipitation

@@ -19,8 +19,11 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 
 @Singleton
 class SelectedLocationRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val testDataStore: DataStore<Preferences>? = null
 ) : SelectedLocationRepository {
+
+    private fun getDataStore(): DataStore<Preferences> = testDataStore ?: context.dataStore
 
     private object PreferencesKeys {
         val LATITUDE = doublePreferencesKey("latitude")
@@ -30,7 +33,7 @@ class SelectedLocationRepositoryImpl @Inject constructor(
     }
 
     override fun getSelectedLocation(): Flow<Location?> {
-        return context.dataStore.data.map { preferences ->
+        return getDataStore().data.map { preferences ->
             try {
                 val latitude = preferences[PreferencesKeys.LATITUDE]
                 val longitude = preferences[PreferencesKeys.LONGITUDE]
@@ -54,7 +57,7 @@ class SelectedLocationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveSelectedLocation(location: Location) {
-        context.dataStore.edit { preferences ->
+        getDataStore().edit { preferences ->
             preferences[PreferencesKeys.LATITUDE] = location.latitude
             preferences[PreferencesKeys.LONGITUDE] = location.longitude
             location.name?.let { preferences[PreferencesKeys.NAME] = it }
@@ -63,6 +66,6 @@ class SelectedLocationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun clearSelectedLocation() {
-        context.dataStore.edit { it.clear() }
+        getDataStore().edit { it.clear() }
     }
 }

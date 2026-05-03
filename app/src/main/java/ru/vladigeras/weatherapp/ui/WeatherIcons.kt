@@ -41,9 +41,7 @@ fun getWeatherIconForCode(weatherCode: Int, isDay: Int = 1): ImageVector {
         // Snow showers
         85, 86 -> Icons.Filled.Grain
         // Thunderstorm
-        95 -> Icons.Filled.Thunderstorm
-        // Thunderstorm with hail
-        96, 99 -> Icons.Filled.Hail
+        95, 96, 99 -> Icons.Filled.Thunderstorm
         // Unknown
         else -> Icons.Filled.Warning
     }

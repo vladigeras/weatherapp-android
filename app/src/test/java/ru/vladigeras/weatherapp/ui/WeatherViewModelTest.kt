@@ -6,6 +6,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -131,6 +132,7 @@ class WeatherViewModelTest {
             every { getSelectedLocation() } returns flowOf(null)
         }
         weatherDisplayPrefsRepository = mockk {
+            
             every { getPrefs() } returns flowOf(WeatherDisplayPrefs())
         }
         weatherCache = mockk {
@@ -388,14 +390,63 @@ class WeatherViewModelTest {
 
     @Test
     fun `refreshActiveLocation uses saved coordinates when available`() = runTest {
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
-        every { selectedLocationRepository.getSelectedLocation() } returns flowOf(mockLocation)
-
+        coEvery { weatherRepository.getWeather(any(), any(), any(), any()) } returns Result.success(mockResponse)
+        coEvery { selectedLocationRepository.getSelectedLocation() } returns flowOf(mockLocation)
+        
         weatherViewModel.loadSavedLocation()
         kotlinx.coroutines.yield()
-
+        
         weatherViewModel.refreshActiveLocation()
-
+        
         coVerify { weatherRepository.getWeather(55.7558, 37.6173, any(), forceRefresh = true) }
+    }
+
+    @Test
+    fun `loadWeather_nullCurrentFields_handlesGracefully`() = runTest {
+        // Given a response with null current fields
+        val responseWithNulls = mockResponse.copy(
+            current = mockResponse.current?.copy(
+                temperature = null,
+                weatherCode = null
+            )
+        )
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(responseWithNulls)
+        
+        weatherViewModel.loadWeather(55.7558, 37.6173)
+        
+        val successState = weatherViewModel.uiState
+            .first { it is WeatherUiState.Success } as WeatherUiState.Success
+        
+        // Should use defaults when fields are null
+        assertEquals(0.0, successState.temperature, 0.001)
+        assertEquals(0, successState.weatherCode)
+    }
+
+    @Test
+    fun `loadWeather_apiCancellation_updatesStateToError`() = runTest {
+        // Given a cancellation exception
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns 
+            Result.failure(kotlinx.coroutines.CancellationException("Job was cancelled"))
+        
+        weatherViewModel.loadWeather(55.7558, 37.6173)
+        
+        val errorState = weatherViewModel.uiState
+            .first { it is WeatherUiState.Error } as WeatherUiState.Error
+        
+        assertTrue(errorState is WeatherUiState.Error)
+    }
+
+    @Test
+    fun `loadWeather_repositoryFailure_mapsToUiError`() = runTest {
+        // Given a repository failure
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns 
+            Result.failure(Exception("timeout"))
+        
+        weatherViewModel.loadWeather(55.7558, 37.6173)
+        
+        val errorState = weatherViewModel.uiState
+            .first { it is WeatherUiState.Error } as WeatherUiState.Error
+        
+        assertEquals("timeout", errorState.message)
     }
 }
