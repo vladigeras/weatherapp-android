@@ -10,10 +10,10 @@ import io.mockk.mockkStatic
 import io.mockk.spyk
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -23,7 +23,7 @@ import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.location.LocationService
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [35])
 class LocationRepositoryImplTest {
 
     private lateinit var context: Context
