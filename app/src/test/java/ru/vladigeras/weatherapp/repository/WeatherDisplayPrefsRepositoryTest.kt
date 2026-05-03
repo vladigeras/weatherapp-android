@@ -1,10 +1,11 @@
 package ru.vladigeras.weatherapp.repository
 
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import app.cash.turbine.test
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -12,6 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
+import ru.vladigeras.weatherapp.util.TestDataStoreFactory
 import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -23,13 +25,13 @@ class WeatherDisplayPrefsRepositoryTest {
 
     @Before
     fun setUp() {
-        tempFile = File.createTempFile("test_datastore", ".preferences_pb")
-        tempFile.deleteOnExit()
-        
-        dataStore = PreferenceDataStoreFactory.create(
-            produceFile = { tempFile }
+        tempFile = TestDataStoreFactory.createTempFile("test_weather_display_prefs")
+
+        dataStore = TestDataStoreFactory.createInMemoryDataStore(
+            scope = CoroutineScope(Dispatchers.Unconfined),
+            tempFile = tempFile
         )
-        
+
         repository = WeatherDisplayPrefsRepository(
             context = mockk(relaxed = true),
             testDataStore = dataStore
@@ -38,7 +40,9 @@ class WeatherDisplayPrefsRepositoryTest {
 
     @After
     fun tearDown() {
-        tempFile.delete()
+        if (tempFile.exists()) {
+            tempFile.delete()
+        }
     }
 
     @Test

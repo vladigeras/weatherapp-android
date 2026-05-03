@@ -367,13 +367,14 @@ class WeatherViewModelTest {
 
     @Test
     fun `should format day names with Russian locale when set`() = runTest {
-        every { languagePreferenceRepository.getAppLocale() } returns java.util.Locale("ru", "RU")
+        every { languagePreferenceRepository.getAppLocale() } returns java.util.Locale.Builder().setLanguage("ru").setRegion("RU").build()
         coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
 
         weatherViewModel.loadWeather(55.7558, 37.6173)
 
         val successState = weatherViewModel.uiState
-            .first { it is WeatherUiState.Success } as WeatherUiState.Success
+            .first { it is WeatherUiState.Success }
+            .let { it as WeatherUiState.Success }
 
         // April 27, 2026 is Monday, short form in Russian is "пн"
         assertEquals("Пн", successState.dailyForecast[0].dayName)
@@ -432,15 +433,16 @@ class WeatherViewModelTest {
     @Test
     fun `loadWeather_apiCancellation_updatesStateToError`() = runTest {
         // Given a cancellation exception
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns 
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns
             Result.failure(kotlinx.coroutines.CancellationException("Job was cancelled"))
-        
+
         weatherViewModel.loadWeather(55.7558, 37.6173)
-        
+
         val errorState = weatherViewModel.uiState
-            .first { it is WeatherUiState.Error } as WeatherUiState.Error
-        
-        assertTrue(errorState is WeatherUiState.Error)
+            .first { it is WeatherUiState.Error }
+            .let { it as WeatherUiState.Error }
+
+        assertEquals("Job was cancelled", errorState.message)
     }
 
     @Test

@@ -2,18 +2,18 @@ package ru.vladigeras.weatherapp.repository
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import ru.vladigeras.weatherapp.data.Current
 import ru.vladigeras.weatherapp.data.WeatherResponse
+import ru.vladigeras.weatherapp.util.TestDataStoreFactory
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 class WeatherCacheTest {
 
@@ -25,12 +25,21 @@ class WeatherCacheTest {
 
     @Before
     fun setup() {
-        tempFile = File.createTempFile("test_weather_cache", ".preferences_pb")
-        dataStore = PreferenceDataStoreFactory.create(
+        tempFile = TestDataStoreFactory.createTempFile("test_weather_cache")
+
+        dataStore = TestDataStoreFactory.createInMemoryDataStore(
             scope = CoroutineScope(Dispatchers.Unconfined),
-            produceFile = { tempFile }
+            tempFile = tempFile
         )
+
         cache = WeatherCache(dataStore)
+    }
+
+    @After
+    fun tearDown() {
+        if (tempFile.exists()) {
+            tempFile.delete()
+        }
     }
 
     private fun createTestWeatherResponse(): WeatherResponse {

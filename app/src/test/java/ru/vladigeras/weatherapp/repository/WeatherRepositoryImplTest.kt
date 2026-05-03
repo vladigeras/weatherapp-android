@@ -1,10 +1,11 @@
 package ru.vladigeras.weatherapp.repository
 
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -50,6 +51,7 @@ private fun createMockWeatherResponse() = WeatherResponse(
     )
 )
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class WeatherRepositoryImplTest {
 
     private lateinit var weatherRepository: WeatherRepositoryImpl
@@ -77,6 +79,8 @@ class WeatherRepositoryImplTest {
 
         val result = weatherRepository.getWeather(55.7558, 37.6173, defaultPrefs)
 
+        advanceUntilIdle()
+
         assertTrue(result.isSuccess)
         assertEquals(9.3, result.getOrNull()!!.current?.temperature ?: 0.0, 0.001)
         assertEquals(1, mockWeatherApiService.callCount)
@@ -91,6 +95,8 @@ class WeatherRepositoryImplTest {
         val result1 = weatherRepository.getWeather(55.7558, 37.6173)
         assertTrue(result1.isSuccess)
         assertEquals(1, mockWeatherApiService.callCount)
+
+        advanceUntilIdle()
 
         // Second call immediately - should hit cache
         val result2 = weatherRepository.getWeather(55.7558, 37.6173)
@@ -138,38 +144,41 @@ class WeatherRepositoryImplTest {
             current = createMockWeatherResponse().current?.copy(temperature = 20.0)
         )
 
-        // Setup API to return different responses based on call count
         mockWeatherApiService.setResponses(listOf(mockResponse1, mockResponse2, mockResponse1, mockResponse2))
 
         // First location
         val result1a = weatherRepository.getWeather(55.7558, 37.6173)
         assertTrue(result1a.isSuccess)
         assertEquals(10.0, result1a.getOrNull()?.current?.temperature ?: 0.0, 0.001)
+        advanceUntilIdle()
 
         // Second location
         val result2a = weatherRepository.getWeather(56.0, 38.0)
         assertTrue(result2a.isSuccess)
         assertEquals(20.0, result2a.getOrNull()?.current?.temperature ?: 0.0, 0.001)
+        advanceUntilIdle()
 
         // First location again (should hit cache)
         val result1b = weatherRepository.getWeather(55.7558, 37.6173)
         assertTrue(result1b.isSuccess)
         assertEquals(10.0, result1b.getOrNull()?.current?.temperature ?: 0.0, 0.001)
+        advanceUntilIdle()
 
         // Second location again (should hit cache)
         val result2b = weatherRepository.getWeather(56.0, 38.0)
         assertTrue(result2b.isSuccess)
         assertEquals(20.0, result2b.getOrNull()?.current?.temperature ?: 0.0, 0.001)
+        advanceUntilIdle()
 
         // Should have made only 2 API calls (one for each unique location)
         assertEquals(2, mockWeatherApiService.callCount)
     }
 
     private class TestWeatherApiService : WeatherApiService {
-        var callCount: Int = 0
+        @Volatile var callCount: Int = 0
         private var responses: List<WeatherResponse> = emptyList()
         private var exceptionToThrow: Exception? = null
-        private var responseIndex: Int = 0
+        @Volatile private var responseIndex: Int = 0
 
         fun setResponse(response: WeatherResponse) {
             responses = listOf(response)
@@ -201,9 +210,11 @@ class WeatherRepositoryImplTest {
             if (exceptionToThrow != null) {
                 throw exceptionToThrow!!
             }
-            val idx = if (responseIndex > responses.lastIndex) responses.lastIndex else responseIndex
+            val idx = synchronized(this) {
+                if (responseIndex > responses.lastIndex) responses.lastIndex else responseIndex++
+            }
             return responses.getOrNull(idx)?.also {
-                responseIndex++
+                // responseIndex already incremented above
             } ?: createMockWeatherResponse()
         }
     }
