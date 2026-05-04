@@ -83,4 +83,27 @@ class SettingsViewModelTest {
         assert(!viewModel.hasChanges.value)
         assert(viewModel.localPrefs.value.showHumidity)
     }
+
+    @Test
+    fun `savePrefsAndCheckLanguage should return true when language changed`() = runTest {
+        advanceUntilIdle()
+        viewModel.setLanguagePreference(LanguagePreference.RUSSIAN)
+        val result = viewModel.savePrefsAndCheckLanguage()
+        assert(result)
+        io.mockk.coVerify { languagePreferenceRepository.saveLanguagePreference(LanguagePreference.RUSSIAN) }
+    }
+
+    @Test
+    fun `savePrefsAndCheckLanguage should return false when language not changed`() = runTest {
+        advanceUntilIdle()
+        val result = viewModel.savePrefsAndCheckLanguage()
+        assert(!result)
+    }
+
+    @Test
+    fun `setLanguagePreference should update language preference flow`() = runTest {
+        advanceUntilIdle()
+        viewModel.setLanguagePreference(LanguagePreference.ENGLISH)
+        assert(viewModel.languagePreference.value == LanguagePreference.ENGLISH)
+    }
 }

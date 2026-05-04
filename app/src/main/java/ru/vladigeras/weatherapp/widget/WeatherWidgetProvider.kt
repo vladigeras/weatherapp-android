@@ -42,6 +42,13 @@ class WeatherWidgetProvider : AppWidgetProvider() {
         updateWidgetWithSize(context, appWidgetManager, appWidgetId, sizeCategory, heightDp)
     }
 
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        if (intent.action == "ru.vladigeras.weatherapp.UPDATE_WIDGETS_ON_LANGUAGE_CHANGE") {
+            updateAllWidgets(context)
+        }
+    }
+
     private fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int) {
         val views = RemoteViews(context.packageName, R.layout.widget_weather)
 

@@ -34,6 +34,7 @@
         <receiver android:name=".widget.WeatherWidgetProvider" android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="ru.vladigeras.weatherapp.UPDATE_WIDGETS_ON_LANGUAGE_CHANGE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

@@ -2,7 +2,7 @@ package ru.vladigeras.weatherapp.ui
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.clickable
@@ -64,10 +64,11 @@ import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.repository.LanguagePreference
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.WeatherDisplayPrefsRepository
+import ru.vladigeras.weatherapp.widget.WeatherWidgetProvider
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class SettingsActivity : ComponentActivity() {
+class SettingsActivity : AppCompatActivity() {
     @Inject
     lateinit var prefsRepository: WeatherDisplayPrefsRepository
 
@@ -82,7 +83,12 @@ class SettingsActivity : ComponentActivity() {
                 SettingsScreen(
                     viewModel = hiltViewModel<SettingsViewModel>(),
                     onBack = { finish() },
-                    onRecreate = { recreate() }
+                    onLanguageChanged = { changed ->
+                        if (changed) {
+                            setResult(RESULT_OK, Intent().putExtra("LANGUAGE_CHANGED", true))
+                        }
+                        finish()
+                    }
                 )
             }
         }
@@ -94,7 +100,7 @@ class SettingsActivity : ComponentActivity() {
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBack: () -> Unit = {},
-    onRecreate: () -> Unit = {}
+    onLanguageChanged: (Boolean) -> Unit = {}
 ) {
     val prefs by viewModel.localPrefs.collectAsState(WeatherDisplayPrefs())
     val hasChanges by viewModel.hasChanges.collectAsState(false)
@@ -118,8 +124,14 @@ fun SettingsScreen(
                     TextButton(
                         onClick = {
                             scope.launch {
-                                viewModel.savePrefsAndCheckLanguage()
-                                onBack()
+                                val languageChanged = viewModel.savePrefsAndCheckLanguage()
+                                if (languageChanged) {
+                                    val widgetIntent = Intent(context, WeatherWidgetProvider::class.java).apply {
+                                        action = "ru.vladigeras.weatherapp.UPDATE_WIDGETS_ON_LANGUAGE_CHANGE"
+                                    }
+                                    context.sendBroadcast(widgetIntent)
+                                }
+                                onLanguageChanged(languageChanged)
                             }
                         },
                         enabled = hasChanges

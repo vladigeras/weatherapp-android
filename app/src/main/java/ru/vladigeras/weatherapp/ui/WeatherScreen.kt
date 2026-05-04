@@ -70,6 +70,7 @@ import ru.vladigeras.weatherapp.R
 fun WeatherScreen(
     savedStateHandle: SavedStateHandle,
     onNavigateToLocationSelection: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     viewModel: WeatherViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -150,10 +151,7 @@ fun WeatherScreen(
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
-                    IconButton(onClick = {
-                        val intent = android.content.Intent(context, SettingsActivity::class.java)
-                        context.startActivity(intent)
-                    }) {
+                    IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Filled.Settings,
                             contentDescription = "Settings",
