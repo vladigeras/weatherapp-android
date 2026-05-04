@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,7 +48,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
-import androidx.core.os.LocaleListCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -60,6 +58,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.vladigeras.weatherapp.MainActivity
 import ru.vladigeras.weatherapp.R
+import ru.vladigeras.weatherapp.core.locale.LanguageManager
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.repository.LanguagePreference
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
@@ -478,16 +477,7 @@ class SettingsViewModel @Inject constructor(
 
     fun setLanguagePreference(preference: LanguagePreference) {
         languagePreference.value = preference
-        val localeTag = when (preference) {
-            LanguagePreference.SYSTEM -> ""
-            LanguagePreference.RUSSIAN -> "ru"
-            LanguagePreference.ENGLISH -> "en"
-        }
-        if (localeTag.isEmpty()) {
-            AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList())
-        } else {
-            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(localeTag))
-        }
+        LanguageManager.applyLocale(preference)
         updateHasChanges()
     }
 

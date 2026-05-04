@@ -5,9 +5,10 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -55,7 +58,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -64,6 +66,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import ru.vladigeras.weatherapp.R
+import ru.vladigeras.weatherapp.util.WeatherCodeMapper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -179,20 +182,16 @@ fun WeatherScreen(
                 .padding(paddingValues)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            AnimatedVisibility(visible = currentState is WeatherUiState.Loading, enter = fadeIn(), exit = fadeOut()) {
-                SkeletonLoader()
-            }
-
-            AnimatedVisibility(visible = currentState is WeatherUiState.Success, enter = fadeIn(), exit = fadeOut()) {
-                val state = currentState as? WeatherUiState.Success
-                state?.let { SuccessContent(it) }
-            }
-
-            AnimatedVisibility(visible = currentState is WeatherUiState.Error, enter = fadeIn(), exit = fadeOut()) {
-                val state = currentState as? WeatherUiState.Error
-                state?.let {
-                    ErrorContent(
-                        state = it,
+            AnimatedContent(
+                targetState = currentState,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "weather_state"
+            ) { targetState ->
+                when (targetState) {
+                    is WeatherUiState.Loading -> SkeletonLoader()
+                    is WeatherUiState.Success -> SuccessContent(targetState)
+                    is WeatherUiState.Error -> ErrorContent(
+                        state = targetState,
                         onRetry = {
                             val lat = savedLatitude
                             val lon = savedLongitude
@@ -204,19 +203,17 @@ fun WeatherScreen(
                         },
                         onSelectLocation = onNavigateToLocationSelection
                     )
+                    is WeatherUiState.Empty -> {
+                        if (!hasSavedLocation && !hasLocationPermission) {
+                            EmptyStateContent(
+                                onSelectLocation = onSelectLocation,
+                                onRequestPermission = onRequestPermission
+                            )
+                        } else {
+                            SkeletonLoader()
+                        }
+                    }
                 }
-            }
-
-            AnimatedVisibility(
-                visible = !hasSavedLocation && !hasLocationPermission
-                        && currentState is WeatherUiState.Empty,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                EmptyStateContent(
-                    onSelectLocation = onSelectLocation,
-                    onRequestPermission = onRequestPermission
-                )
             }
         }
     }
@@ -256,53 +253,64 @@ private fun SkeletonCard(modifier: Modifier = Modifier) {
 @Composable
 private fun SuccessContent(state: WeatherUiState.Success) {
     val context = LocalContext.current
-    
-    Column(
+
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        WeatherMainCard(temperature = state.temperature, weatherCode = state.weatherCode, isDay = state.isDay, cityName = state.cityName, temperatureUnit = state.temperatureUnit)
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Show detail cards based on user preferences
+        item {
+            WeatherMainCard(
+                temperature = state.temperature,
+                weatherCode = state.weatherCode,
+                isDay = state.isDay,
+                cityName = state.cityName,
+                temperatureUnit = state.temperatureUnit
+            )
+        }
+
+        item { Spacer(modifier = Modifier.height(16.dp)) }
+
         if (state.prefs.showCondition || state.prefs.showHumidity || state.prefs.showWind) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (state.prefs.showCondition && state.feelsLike != null) {
-                    DetailCard(
-                        icon = Icons.Filled.Thermostat,
-                        label = stringResource(R.string.feels_like),
-                        value = "${state.feelsLike.toInt()}${state.temperatureUnit}",
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                if (state.prefs.showHumidity) {
-                    DetailCard(
-                        icon = Icons.Filled.WaterDrop,
-                        label = stringResource(R.string.humidity),
-                        value = "${state.humidity}%",
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                if (state.prefs.showWind) {
-                    DetailCard(
-                        icon = Icons.Filled.Air,
-                        label = stringResource(R.string.wind_speed),
-                        value = "${state.windSpeed.toInt()} ${stringResource(R.string.wind_speed_unit)}",
-                        modifier = Modifier.weight(1f)
-                    )
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    if (state.prefs.showCondition && state.feelsLike != null) {
+                        DetailCard(
+                            icon = Icons.Filled.Thermostat,
+                            label = stringResource(R.string.feels_like),
+                            value = "${state.feelsLike.toInt()}${state.temperatureUnit}",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (state.prefs.showHumidity) {
+                        DetailCard(
+                            icon = Icons.Filled.WaterDrop,
+                            label = stringResource(R.string.humidity),
+                            value = "${state.humidity}%",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (state.prefs.showWind) {
+                        DetailCard(
+                            icon = Icons.Filled.Air,
+                            label = stringResource(R.string.wind_speed),
+                            value = "${state.windSpeed.toInt()} ${stringResource(R.string.wind_speed_unit)}",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(24.dp))
+
+            item { Spacer(modifier = Modifier.height(24.dp)) }
         }
-        
-        // Show daily forecast if enabled
-        if (state.prefs.showForecast) {
-            DailyForecastList(dailyForecast = state.dailyForecast, temperatureUnit = state.temperatureUnit)
+
+        if (state.prefs.showForecast && state.dailyForecast.isNotEmpty()) {
+            items(state.dailyForecast) { forecast ->
+                DailyForecastItem(forecast = forecast, temperatureUnit = state.temperatureUnit)
+            }
         }
     }
 }
@@ -315,8 +323,8 @@ private fun WeatherMainCard(temperature: Double, weatherCode: Int, isDay: Int, c
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            val weatherIcon = getWeatherIconForCode(weatherCode, isDay)
-            val weatherDesc = stringResource(getWeatherCodeStringResId(weatherCode))
+            val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay)
+            val weatherDesc = stringResource(WeatherCodeMapper.getWeatherCodeStringResId(weatherCode))
             Icon(
                 imageVector = weatherIcon,
                 contentDescription = weatherDesc,

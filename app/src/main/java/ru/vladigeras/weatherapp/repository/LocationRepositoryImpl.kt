@@ -3,24 +3,20 @@ package ru.vladigeras.weatherapp.repository
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.location.Geocoder
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.suspendCancellableCoroutine
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.location.LocationService
-import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration.Companion.minutes
 
 @Singleton
 class LocationRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val locationService: LocationService
+    private val locationService: LocationService,
+    private val androidGeocoder: AndroidGeocoder
 ) : LocationRepository {
 
     private val cache = MutableStateFlow<CachedLocation?>(null)
@@ -53,7 +49,7 @@ class LocationRepositoryImpl @Inject constructor(
 
     private suspend fun getLocationNameAsync(latitude: Double, longitude: Double): String? {
         return try {
-            val addresses = getFromLocationAsync(latitude, longitude, 1)
+            val addresses = androidGeocoder.getFromLocation(latitude, longitude, 1)
             addresses?.firstOrNull()?.let { address ->
                 buildString {
                     address.locality?.let { append(it) }
@@ -64,25 +60,6 @@ class LocationRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             null
-        }
-    }
-
-    private suspend fun getFromLocationAsync(
-        latitude: Double,
-        longitude: Double,
-        maxResults: Int
-    ): List<android.location.Address>? = suspendCancellableCoroutine { continuation ->
-        val geocoder = Geocoder(context, Locale.getDefault())
-        try {
-            geocoder.getFromLocation(latitude, longitude, maxResults) { addresses ->
-                if (continuation.isActive) {
-                    continuation.resume(addresses)
-                }
-            }
-        } catch (e: Exception) {
-            if (continuation.isActive) {
-                continuation.resumeWithException(e)
-            }
         }
     }
 

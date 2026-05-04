@@ -12,6 +12,7 @@ import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import ru.vladigeras.weatherapp.BuildConfig
 import ru.vladigeras.weatherapp.network.GeocodingService
 import ru.vladigeras.weatherapp.network.WeatherApiService
 import ru.vladigeras.weatherapp.network.WeatherApiServiceImpl
@@ -37,8 +38,10 @@ object NetworkModule {
         install(ContentNegotiation) {
             json(json)
         }
-        install(Logging) {
-            level = LogLevel.BODY
+        if (BuildConfig.DEBUG) {
+            install(Logging) {
+                level = LogLevel.BODY
+            }
         }
         engine {
             requestTimeout = 30_000

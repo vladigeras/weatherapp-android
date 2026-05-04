@@ -103,9 +103,6 @@ dependencies {
     // AndroidX Navigation
     implementation(libs.androidx.navigation.compose)
 
-    // Accompanist Permissions
-    implementation(libs.accompanist.permissions)
-
     // Location Services
     implementation(libs.play.services.location)
     implementation(libs.kotlinx.coroutines)

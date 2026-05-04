@@ -1,8 +1,5 @@
 package ru.vladigeras.weatherapp.repository
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -11,6 +8,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
 import ru.vladigeras.weatherapp.data.Current
 import ru.vladigeras.weatherapp.data.CurrentUnits
 import ru.vladigeras.weatherapp.data.DailyWeather
@@ -18,7 +18,8 @@ import ru.vladigeras.weatherapp.data.HourlyWeather
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.data.WeatherResponse
 import ru.vladigeras.weatherapp.network.WeatherApiService
-import java.io.File
+import org.junit.runner.RunWith
+import android.content.Context
 
 private fun createMockWeatherResponse() = WeatherResponse(
     latitude = 55.7558,
@@ -51,24 +52,21 @@ private fun createMockWeatherResponse() = WeatherResponse(
     )
 )
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class WeatherRepositoryImplTest {
 
     private lateinit var weatherRepository: WeatherRepositoryImpl
     private lateinit var mockWeatherApiService: TestWeatherApiService
     private lateinit var weatherCache: WeatherCache
-    private lateinit var dataStore: DataStore<Preferences>
     private val defaultPrefs = WeatherDisplayPrefs()
+    private val context: Context get() = RuntimeEnvironment.getApplication()
 
     @Before
     fun setup() {
-        val tempFile = File.createTempFile("test_weather_cache", ".preferences_pb")
-        dataStore = PreferenceDataStoreFactory.create(
-            scope = CoroutineScope(Dispatchers.Unconfined),
-            produceFile = { tempFile }
-        )
         mockWeatherApiService = TestWeatherApiService()
-        weatherCache = WeatherCache(dataStore)
+        weatherCache = WeatherCache(context)
         weatherRepository = WeatherRepositoryImpl(mockWeatherApiService, weatherCache)
     }
 

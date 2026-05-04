@@ -18,7 +18,162 @@ enum class WeatherType {
     CLEAR, CLOUDY, RAIN, SNOW, THUNDERSTORM
 }
 
+data class WeatherCodeConfig(
+    val icon: ImageVector,
+    val stringRes: Int,
+    val precipitationIcon: ImageVector?
+)
+
 object WeatherCodeMapper {
+
+    private val CODE_MAP = mapOf(
+        0 to WeatherCodeConfig(
+            icon = Icons.Filled.WbSunny,
+            stringRes = R.string.weather_code_0,
+            precipitationIcon = null
+        ),
+        1 to WeatherCodeConfig(
+            icon = Icons.Filled.WbCloudy,
+            stringRes = R.string.weather_code_1,
+            precipitationIcon = null
+        ),
+        2 to WeatherCodeConfig(
+            icon = Icons.Filled.WbCloudy,
+            stringRes = R.string.weather_code_2,
+            precipitationIcon = null
+        ),
+        3 to WeatherCodeConfig(
+            icon = Icons.Filled.Cloud,
+            stringRes = R.string.weather_code_3,
+            precipitationIcon = null
+        ),
+        45 to WeatherCodeConfig(
+            icon = Icons.Filled.Cloud,
+            stringRes = R.string.weather_code_45,
+            precipitationIcon = null
+        ),
+        48 to WeatherCodeConfig(
+            icon = Icons.Filled.Cloud,
+            stringRes = R.string.weather_code_48,
+            precipitationIcon = null
+        ),
+        51 to WeatherCodeConfig(
+            icon = Icons.Filled.WaterDrop,
+            stringRes = R.string.weather_code_51,
+            precipitationIcon = Icons.Filled.WaterDrop
+        ),
+        53 to WeatherCodeConfig(
+            icon = Icons.Filled.WaterDrop,
+            stringRes = R.string.weather_code_53,
+            precipitationIcon = Icons.Filled.WaterDrop
+        ),
+        55 to WeatherCodeConfig(
+            icon = Icons.Filled.WaterDrop,
+            stringRes = R.string.weather_code_55,
+            precipitationIcon = Icons.Filled.WaterDrop
+        ),
+        56 to WeatherCodeConfig(
+            icon = Icons.Filled.Hail,
+            stringRes = R.string.weather_code_56,
+            precipitationIcon = Icons.Filled.Hail
+        ),
+        57 to WeatherCodeConfig(
+            icon = Icons.Filled.Hail,
+            stringRes = R.string.weather_code_57,
+            precipitationIcon = Icons.Filled.Hail
+        ),
+        61 to WeatherCodeConfig(
+            icon = Icons.Filled.WaterDrop,
+            stringRes = R.string.weather_code_61,
+            precipitationIcon = Icons.Filled.WaterDrop
+        ),
+        63 to WeatherCodeConfig(
+            icon = Icons.Filled.WaterDrop,
+            stringRes = R.string.weather_code_63,
+            precipitationIcon = Icons.Filled.WaterDrop
+        ),
+        65 to WeatherCodeConfig(
+            icon = Icons.Filled.WaterDrop,
+            stringRes = R.string.weather_code_65,
+            precipitationIcon = Icons.Filled.WaterDrop
+        ),
+        66 to WeatherCodeConfig(
+            icon = Icons.Filled.Hail,
+            stringRes = R.string.weather_code_66,
+            precipitationIcon = Icons.Filled.Hail
+        ),
+        67 to WeatherCodeConfig(
+            icon = Icons.Filled.Hail,
+            stringRes = R.string.weather_code_67,
+            precipitationIcon = Icons.Filled.Hail
+        ),
+        71 to WeatherCodeConfig(
+            icon = Icons.Filled.AcUnit,
+            stringRes = R.string.weather_code_71,
+            precipitationIcon = Icons.Filled.Grain
+        ),
+        73 to WeatherCodeConfig(
+            icon = Icons.Filled.AcUnit,
+            stringRes = R.string.weather_code_73,
+            precipitationIcon = Icons.Filled.Grain
+        ),
+        75 to WeatherCodeConfig(
+            icon = Icons.Filled.AcUnit,
+            stringRes = R.string.weather_code_75,
+            precipitationIcon = Icons.Filled.Grain
+        ),
+        77 to WeatherCodeConfig(
+            icon = Icons.Filled.Grain,
+            stringRes = R.string.weather_code_77,
+            precipitationIcon = Icons.Filled.Grain
+        ),
+        80 to WeatherCodeConfig(
+            icon = Icons.Filled.WaterDrop,
+            stringRes = R.string.weather_code_80,
+            precipitationIcon = Icons.Filled.WaterDrop
+        ),
+        81 to WeatherCodeConfig(
+            icon = Icons.Filled.WaterDrop,
+            stringRes = R.string.weather_code_81,
+            precipitationIcon = Icons.Filled.WaterDrop
+        ),
+        82 to WeatherCodeConfig(
+            icon = Icons.Filled.WaterDrop,
+            stringRes = R.string.weather_code_82,
+            precipitationIcon = Icons.Filled.WaterDrop
+        ),
+        85 to WeatherCodeConfig(
+            icon = Icons.Filled.AcUnit,
+            stringRes = R.string.weather_code_85,
+            precipitationIcon = Icons.Filled.Grain
+        ),
+        86 to WeatherCodeConfig(
+            icon = Icons.Filled.AcUnit,
+            stringRes = R.string.weather_code_86,
+            precipitationIcon = Icons.Filled.Grain
+        ),
+        95 to WeatherCodeConfig(
+            icon = Icons.Filled.Thunderstorm,
+            stringRes = R.string.weather_code_95,
+            precipitationIcon = Icons.Filled.WaterDrop
+        ),
+        96 to WeatherCodeConfig(
+            icon = Icons.Filled.Thunderstorm,
+            stringRes = R.string.weather_code_96,
+            precipitationIcon = Icons.Filled.Hail
+        ),
+        99 to WeatherCodeConfig(
+            icon = Icons.Filled.Thunderstorm,
+            stringRes = R.string.weather_code_99,
+            precipitationIcon = Icons.Filled.Hail
+        )
+    )
+
+    private val DEFAULT_CONFIG = WeatherCodeConfig(
+        icon = Icons.Filled.Cloud,
+        stringRes = R.string.unknown_weather,
+        precipitationIcon = null
+    )
 
     fun getWeatherType(code: Int, isDay: Int = 1): WeatherType {
         return when (code) {
@@ -41,36 +196,21 @@ object WeatherCodeMapper {
     }
 
     fun getIconVector(code: Int, isDay: Int = 1): ImageVector {
-        val type = getWeatherType(code, isDay)
+        val config = CODE_MAP[code] ?: DEFAULT_CONFIG
         val isDaytime = isDay == 1
-        return when (type) {
-            WeatherType.CLEAR -> if (isDaytime) Icons.Filled.WbSunny else Icons.Filled.NightsStay
-            WeatherType.CLOUDY -> if (isDaytime && code == 1) Icons.Filled.WbCloudy else Icons.Filled.Cloud
-            WeatherType.RAIN -> {
-                when (code) {
-                    56, 57, 66, 67 -> Icons.Filled.Hail
-                    95, 96, 99 -> Icons.Filled.Thunderstorm
-                    else -> Icons.Filled.WaterDrop
-                }
-            }
-            WeatherType.SNOW -> {
-                when (code) {
-                    77 -> Icons.Filled.Grain
-                    else -> Icons.Filled.AcUnit
-                }
-            }
-            WeatherType.THUNDERSTORM -> Icons.Filled.Thunderstorm
+
+        return when (code) {
+            0 -> if (isDaytime) Icons.Filled.WbSunny else Icons.Filled.NightsStay
+            1 -> if (isDaytime) Icons.Filled.WbCloudy else Icons.Filled.Cloud
+            else -> config.icon
         }
     }
 
     fun getPrecipitationIconVector(code: Int): ImageVector? {
-        return when (code) {
-            51, 53, 55, 61, 63, 65, 80, 81, 82 -> Icons.Filled.WaterDrop
-            56, 57, 66, 67 -> Icons.Filled.Hail
-            71, 73, 75, 77, 85, 86 -> Icons.Filled.Grain
-            95 -> Icons.Filled.WaterDrop
-            96, 99 -> Icons.Filled.Hail
-            else -> null
-        }
+        return CODE_MAP[code]?.precipitationIcon
+    }
+
+    fun getWeatherCodeStringResId(code: Int): Int {
+        return CODE_MAP[code]?.stringRes ?: R.string.unknown_weather
     }
 }

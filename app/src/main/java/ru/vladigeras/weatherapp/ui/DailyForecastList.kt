@@ -1,6 +1,5 @@
 package ru.vladigeras.weatherapp.ui
 
-import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,29 +20,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import ru.vladigeras.weatherapp.R
 import ru.vladigeras.weatherapp.util.WeatherCodeMapper
 
 /**
- * Displays a list of daily weather forecasts using a Column (not LazyColumn)
- * to avoid nesting scrollable containers.
+ * Displays a list of daily weather forecasts using a simple Column.
+ * This component is safe to use inside any scrollable container.
  *
  * @param dailyForecast List of [DailyForecast] objects to display.
  */
 @Composable
 fun DailyForecastList(dailyForecast: List<DailyForecast>, temperatureUnit: String) {
-    val context = LocalContext.current
-    
     if (dailyForecast.isEmpty()) {
         return
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         dailyForecast.forEach { forecast ->
             DailyForecastItem(forecast = forecast, temperatureUnit = temperatureUnit)
         }
@@ -55,8 +50,9 @@ fun DailyForecastList(dailyForecast: List<DailyForecast>, temperatureUnit: Strin
  *
  * @param forecast The [DailyForecast] to display.
  */
+@Preview(showBackground = true)
 @Composable
-private fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) {
+fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) {
     Card(
         modifier = Modifier
             .fillMaxWidth()

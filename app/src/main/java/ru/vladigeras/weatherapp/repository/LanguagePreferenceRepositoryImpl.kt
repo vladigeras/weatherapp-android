@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Named
@@ -62,13 +61,11 @@ class LanguagePreferenceRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getAppLocale(): Locale {
+    override suspend fun getAppLocale(): Locale {
         val ordinal = try {
-            runBlocking {
-                dataStore.data.map { preferences ->
-                    preferences[LANGUAGE_KEY] ?: -1
-                }.first()
-            }
+            dataStore.data.map { preferences ->
+                preferences[LANGUAGE_KEY] ?: -1
+            }.first()
         } catch (e: Exception) {
             -1
         }

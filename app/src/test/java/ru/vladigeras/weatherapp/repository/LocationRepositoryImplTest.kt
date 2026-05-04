@@ -27,6 +27,7 @@ class LocationRepositoryImplTest {
 
     private lateinit var context: Context
     private lateinit var locationService: LocationService
+    private lateinit var androidGeocoder: AndroidGeocoder
     private lateinit var repository: LocationRepositoryImpl
 
     @Before
@@ -34,7 +35,8 @@ class LocationRepositoryImplTest {
         val activity = Robolectric.buildActivity(android.app.Activity::class.java).setup().get()
         context = spyk(activity)
         locationService = mockk()
-        repository = LocationRepositoryImpl(context, locationService)
+        androidGeocoder = mockk()
+        repository = LocationRepositoryImpl(context, locationService, androidGeocoder)
         
         // МОКАЕМ статический метод ContextCompat.checkSelfPermission
         mockkStatic(ContextCompat::class)

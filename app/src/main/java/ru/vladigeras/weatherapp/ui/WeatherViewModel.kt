@@ -16,6 +16,8 @@ import kotlinx.coroutines.launch
 import ru.vladigeras.weatherapp.data.DailyWeather
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
+import ru.vladigeras.weatherapp.core.error.ErrorMapper
+import ru.vladigeras.weatherapp.domain.mapper.WeatherMapper
 import ru.vladigeras.weatherapp.repository.CityNameResolver
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.LocationRepository
@@ -26,6 +28,9 @@ import ru.vladigeras.weatherapp.repository.WeatherRepository
 import ru.vladigeras.weatherapp.widget.WeatherWidgetProvider
 import ru.vladigeras.weatherapp.widget.WidgetPrefsManager
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import javax.inject.Inject
 
@@ -57,7 +62,8 @@ class WeatherViewModel @Inject constructor(
     private val weatherDisplayPrefsRepository: WeatherDisplayPrefsRepository,
     private val weatherCache: WeatherCache,
     private val languagePreferenceRepository: LanguagePreferenceRepository,
-    private val cityNameResolver: CityNameResolver
+    private val cityNameResolver: CityNameResolver,
+    private val weatherMapper: WeatherMapper
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<WeatherUiState>(WeatherUiState.Loading)
@@ -152,7 +158,7 @@ class WeatherViewModel @Inject constructor(
                     val daily = response.daily
                     val feelsLike = current?.apparentTemperature
                     val humidity = hourly?.relativehumidity2m?.firstOrNull { it != null } ?: 0
-                    val dailyForecast = processDailyForecast(daily, response.utcOffsetSeconds)
+                    val dailyForecast = weatherMapper.mapToDailyForecast(daily, response.utcOffsetSeconds)
                     val cityName = cityNameResolver.resolveCityName(latitude, longitude, savedLocation?.name, response.timezone)
                     _uiState.value = WeatherUiState.Success(
                         temperature = current?.temperature ?: 0.0,
@@ -180,7 +186,7 @@ class WeatherViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     _uiState.value = WeatherUiState.Error(
-                        error.message ?: "Unknown error occurred"
+                        ErrorMapper.mapToUiMessage(error, context)
                     )
                 }
         }
@@ -189,71 +195,5 @@ class WeatherViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         currentJob?.cancel()
-    }
-
-    private fun processDailyForecast(daily: DailyWeather?, utcOffsetSeconds: Int): List<DailyForecast> {
-        daily ?: return emptyList()
-        val size = daily.time.size
-        val forecasts = mutableListOf<DailyForecast>()
-        for (i in 0 until size) {
-            val dateStr = daily.time[i]
-            val dayName = getDayName(dateStr)
-            val formattedDate = getFormattedDate(dateStr)
-            forecasts.add(
-                DailyForecast(
-                    date = formattedDate,
-                    dayName = dayName,
-                    weatherCode = daily.weatherCode?.getOrNull(i),
-                    temperatureMin = daily.temperature2mMin?.getOrNull(i) ?: 0.0,
-                    temperatureMax = daily.temperature2mMax?.getOrNull(i) ?: 0.0,
-                    precipitationSum = daily.precipitationSum?.getOrNull(i),
-                    sunrise = daily.sunrise?.getOrNull(i)?.let { formatTimeFromUTC(it, utcOffsetSeconds) },
-                    sunset = daily.sunset?.getOrNull(i)?.let { formatTimeFromUTC(it, utcOffsetSeconds) },
-                    windSpeedMax = daily.windspeed10mMax?.getOrNull(i),
-                    windDirectionDominant = daily.winddirection10mDominant?.getOrNull(i),
-                    uvIndexMax = daily.uvIndexMax?.getOrNull(i)
-                )
-            )
-        }
-        return forecasts
-    }
-
-    private fun getDayName(isoDate: String): String {
-        return try {
-            val date = LocalDate.parse(isoDate)
-            // Use app locale for day name formatting with capitalization
-            val currentLocale = languagePreferenceRepository.getAppLocale()
-            val dayName = date.dayOfWeek.getDisplayName(TextStyle.SHORT, currentLocale)
-            dayName.replaceFirstChar { it.uppercaseChar() }
-        } catch (e: Exception) {
-            "?"
-        }
-    }
-
-    private fun getFormattedDate(isoDate: String): String {
-        return try {
-            val date = LocalDate.parse(isoDate)
-            val day = date.dayOfMonth
-            // Use app locale for month name formatting with capitalization
-            val currentLocale = languagePreferenceRepository.getAppLocale()
-            val monthName = date.month.getDisplayName(TextStyle.SHORT, currentLocale)
-            "$day ${monthName.replaceFirstChar { it.uppercaseChar() }}"
-        } catch (e: Exception) {
-            isoDate
-        }
-    }
-
-    private fun formatTimeFromUTC(utcTimeString: String, utcOffsetSeconds: Int): String {
-        if (utcTimeString.isBlank()) return "--:--"
-        val timePart = utcTimeString.substringAfterLast('T')
-        val timeComponents = timePart.split(':')
-        if (timeComponents.size < 2) return timePart
-        val hours = timeComponents[0].toIntOrNull() ?: return timePart
-        val minutes = timeComponents[1].toIntOrNull() ?: return timePart
-        val totalMinutes = (hours * 60 + minutes) + (utcOffsetSeconds / 60)
-        val adjustedMinutes = ((totalMinutes % 1440) + 1440) % 1440
-        val localHours = adjustedMinutes / 60
-        val localMinutes = adjustedMinutes % 60
-        return String.format("%02d:%02d", localHours, localMinutes)
     }
 }

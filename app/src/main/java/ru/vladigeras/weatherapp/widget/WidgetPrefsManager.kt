@@ -1,10 +1,19 @@
 package ru.vladigeras.weatherapp.widget
 
 import android.content.Context
-import android.content.SharedPreferences
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+
+private val Context.widgetDataStore: DataStore<Preferences> by preferencesDataStore(name = "widget_prefs")
 
 object WidgetPrefsManager {
-    private const val PREFS_NAME = "widget_prefs"
     private const val KEY_CITY_NAME = "city_name"
     private const val KEY_TEMP = "temp"
     private const val KEY_FEELS_LIKE = "feels_like"
@@ -12,9 +21,7 @@ object WidgetPrefsManager {
     private const val KEY_IS_DAY = "is_day"
     private const val KEY_TEMP_UNIT = "temp_unit"
 
-    private fun getPrefs(context: Context): SharedPreferences {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    }
+    private fun getDataStore(context: Context): DataStore<Preferences> = context.widgetDataStore
 
     fun save(
         context: Context,
@@ -25,53 +32,67 @@ object WidgetPrefsManager {
         isDay: Int,
         tempUnit: String
     ) {
-        val prefs = getPrefs(context)
-        prefs.edit().apply {
-            putString(KEY_CITY_NAME, cityName)
-            putString(KEY_TEMP, "${temperature.toInt()}$tempUnit")
-            if (feelsLike != null) {
-                putString(KEY_FEELS_LIKE, "${feelsLike.toInt()}$tempUnit")
-            } else {
-                remove(KEY_FEELS_LIKE)
+        runBlocking(Dispatchers.IO) {
+            getDataStore(context).edit { prefs ->
+                prefs[stringPreferencesKey(KEY_CITY_NAME)] = cityName
+                prefs[stringPreferencesKey(KEY_TEMP)] = "${temperature.toInt()}$tempUnit"
+                if (feelsLike != null) {
+                    prefs[stringPreferencesKey(KEY_FEELS_LIKE)] = "${feelsLike.toInt()}$tempUnit"
+                } else {
+                    prefs.remove(stringPreferencesKey(KEY_FEELS_LIKE))
+                }
+                prefs[intPreferencesKey(KEY_WEATHER_CODE)] = weatherCode
+                prefs[intPreferencesKey(KEY_IS_DAY)] = isDay
+                prefs[stringPreferencesKey(KEY_TEMP_UNIT)] = tempUnit
             }
-            putInt(KEY_WEATHER_CODE, weatherCode)
-            putInt(KEY_IS_DAY, isDay)
-            putString(KEY_TEMP_UNIT, tempUnit)
-            apply()
         }
     }
 
     fun getCityName(context: Context): String? {
-        return getPrefs(context).getString(KEY_CITY_NAME, null)
+        return runBlocking(Dispatchers.IO) {
+            getDataStore(context).data.first()[stringPreferencesKey(KEY_CITY_NAME)]
+        }
     }
 
     fun getTemperature(context: Context): String? {
-        return getPrefs(context).getString(KEY_TEMP, null)
+        return runBlocking(Dispatchers.IO) {
+            getDataStore(context).data.first()[stringPreferencesKey(KEY_TEMP)]
+        }
     }
 
     fun getFeelsLike(context: Context): String? {
-        return getPrefs(context).getString(KEY_FEELS_LIKE, null)
+        return runBlocking(Dispatchers.IO) {
+            getDataStore(context).data.first()[stringPreferencesKey(KEY_FEELS_LIKE)]
+        }
     }
 
     fun getWeatherCode(context: Context): Int? {
-        val prefs = getPrefs(context)
-        return if (prefs.contains(KEY_WEATHER_CODE)) prefs.getInt(KEY_WEATHER_CODE, 0) else null
+        return runBlocking(Dispatchers.IO) {
+            getDataStore(context).data.first()[intPreferencesKey(KEY_WEATHER_CODE)]
+        }
     }
 
     fun getIsDay(context: Context): Int? {
-        val prefs = getPrefs(context)
-        return if (prefs.contains(KEY_IS_DAY)) prefs.getInt(KEY_IS_DAY, 1) else null
+        return runBlocking(Dispatchers.IO) {
+            getDataStore(context).data.first()[intPreferencesKey(KEY_IS_DAY)]
+        }
     }
 
     fun getTempUnit(context: Context): String? {
-        return getPrefs(context).getString(KEY_TEMP_UNIT, null)
+        return runBlocking(Dispatchers.IO) {
+            getDataStore(context).data.first()[stringPreferencesKey(KEY_TEMP_UNIT)]
+        }
     }
 
     fun hasData(context: Context): Boolean {
-        return getCityName(context) != null
+        return runBlocking(Dispatchers.IO) {
+            getDataStore(context).data.first().contains(stringPreferencesKey(KEY_CITY_NAME))
+        }
     }
 
     fun clear(context: Context) {
-        getPrefs(context).edit().clear().apply()
+        runBlocking(Dispatchers.IO) {
+            getDataStore(context).edit { it.clear() }
+        }
     }
 }

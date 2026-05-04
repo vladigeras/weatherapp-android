@@ -1,28 +1,30 @@
 package ru.vladigeras.weatherapp.repository
 
-import android.content.Context
-import android.location.Geocoder
 import android.util.Log
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.suspendCancellableCoroutine
-import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 @Singleton
 class CityNameResolverImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val languagePreferenceRepository: LanguagePreferenceRepository
+    private val languagePreferenceRepository: LanguagePreferenceRepository,
+    private val androidGeocoder: AndroidGeocoder
 ) : CityNameResolver {
 
     override suspend fun resolveCityName(latitude: Double, longitude: Double, savedName: String?, timezone: String): String {
         val locale = languagePreferenceRepository.getAppLocale()
 
+        val fallbackName = savedName ?: parseTimezone(timezone) ?: "Unknown"
+
         return try {
-            val addresses = getFromLocationAsync(latitude, longitude, 1, locale)
-            val resolvedName = addresses?.firstOrNull()?.let { address ->
+            val addresses = runCatching {
+                androidGeocoder.getFromLocation(latitude, longitude, 1, locale)
+            }.getOrNull()
+
+            if (addresses.isNullOrEmpty()) {
+                return fallbackName
+            }
+
+            val resolvedName = addresses.firstOrNull()?.let { address ->
                 val builder = StringBuilder()
                 address.locality?.let { builder.append(it) }
                     ?: address.subAdminArea?.let { builder.append(it) }
@@ -31,30 +33,18 @@ class CityNameResolverImpl @Inject constructor(
                 builder.toString()
             }?.takeIf { it.isNotBlank() }
 
-            resolvedName ?: savedName ?: timezone
+            resolvedName ?: fallbackName
         } catch (e: Exception) {
-            Log.e("CityNameResolver", "Failed to resolve city name", e)
-            savedName ?: timezone
+            Log.w("CityNameResolver", "Failed to resolve city name", e)
+            fallbackName
         }
     }
 
-    private suspend fun getFromLocationAsync(
-        latitude: Double,
-        longitude: Double,
-        maxResults: Int,
-        locale: Locale
-    ): List<android.location.Address>? = suspendCancellableCoroutine { continuation ->
-        val geocoder = Geocoder(context, locale)
-        try {
-            geocoder.getFromLocation(latitude, longitude, maxResults) { addresses ->
-                if (continuation.isActive) {
-                    continuation.resume(addresses)
-                }
-            }
+    private fun parseTimezone(timezone: String): String? {
+        return try {
+            timezone.substringBefore("/").replace("_", " ").takeIf { it.isNotBlank() }
         } catch (e: Exception) {
-            if (continuation.isActive) {
-                continuation.resumeWithException(e)
-            }
+            null
         }
     }
 }

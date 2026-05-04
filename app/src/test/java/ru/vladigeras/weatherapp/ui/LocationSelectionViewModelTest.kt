@@ -1,8 +1,9 @@
 package ru.vladigeras.weatherapp.ui
 
-import androidx.arch.core.executor.ArchTaskExecutor
-import androidx.arch.core.executor.TaskExecutor
+import android.content.Context
+import androidx.lifecycle.SavedStateHandle
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -19,16 +20,23 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.network.GeocodingService
 import ru.vladigeras.weatherapp.repository.CitySearchCache
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.LocationRepository
 import ru.vladigeras.weatherapp.repository.SelectedLocationRepository
+import org.junit.runner.RunWith
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 @OptIn(ExperimentalCoroutinesApi::class)
 class LocationSelectionViewModelTest {
 
+    private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var locationRepository: LocationRepository
     private lateinit var geocodingService: GeocodingService
     private lateinit var citySearchCache: CitySearchCache
@@ -38,11 +46,14 @@ class LocationSelectionViewModelTest {
 
     private val mockManualLocation = Location(40.7128, -74.0060, "New York", isAutoDetected = false)
     private val mockAutoLocation = Location(55.7558, 37.6173, "Moscow", isAutoDetected = true)
+    private val context: Context get() = RuntimeEnvironment.getApplication()
 
     @Before
     fun setup() {
         val testDispatcher = StandardTestDispatcher()
         Dispatchers.setMain(testDispatcher)
+
+        savedStateHandle = SavedStateHandle()
 
         locationRepository = mockk(relaxed = true)
         geocodingService = mockk(relaxed = true)
@@ -56,25 +67,19 @@ class LocationSelectionViewModelTest {
         coEvery { languagePreferenceRepository.getEffectiveLocaleCode() } returns "en"
 
         viewModel = LocationSelectionViewModel(
+            context = context,
+            savedStateHandle = savedStateHandle,
             locationRepository = locationRepository,
             geocodingService = geocodingService,
             citySearchCache = citySearchCache,
             selectedLocationRepository = selectedLocationRepository,
             languagePreferenceRepository = languagePreferenceRepository
         )
-
-        ArchTaskExecutor.getInstance().setDelegate(object : TaskExecutor() {
-            override fun executeOnDiskIO(runnable: Runnable) = runnable.run()
-            override fun executeOnMainThread(runnable: Runnable) = runnable.run()
-            override fun postToMainThread(runnable: Runnable) = runnable.run()
-            override fun isMainThread(): Boolean = true
-        })
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
-        ArchTaskExecutor.getInstance().setDelegate(null)
     }
 
     @Test

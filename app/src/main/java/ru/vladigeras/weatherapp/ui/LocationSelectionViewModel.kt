@@ -1,8 +1,10 @@
 package ru.vladigeras.weatherapp.ui
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,11 +22,15 @@ import ru.vladigeras.weatherapp.repository.CitySearchCache
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.LocationRepository
 import ru.vladigeras.weatherapp.repository.SelectedLocationRepository
+import android.content.Context
+import ru.vladigeras.weatherapp.core.error.ErrorMapper
 import javax.inject.Inject
 
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class LocationSelectionViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val savedStateHandle: SavedStateHandle,
     private val locationRepository: LocationRepository,
     private val geocodingService: GeocodingService,
     private val citySearchCache: CitySearchCache,
@@ -46,8 +52,8 @@ class LocationSelectionViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+    private val _searchQuery = savedStateHandle.getStateFlow("search_query", "")
+    val searchQuery: StateFlow<String> = _searchQuery
 
     init {
         loadInitialState()
@@ -105,7 +111,7 @@ class LocationSelectionViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
-                        error = error.message ?: "Failed to get location",
+                        error = ErrorMapper.mapToUiMessage(error, context),
                         autoLocationLoading = false,
                         isLoading = false,
                         locationPermissionGranted = false
@@ -148,13 +154,13 @@ class LocationSelectionViewModel @Inject constructor(
                 activeLocation = manualLocation,
                 searchResults = emptyList()
             )
-            _searchQuery.value = ""
+            savedStateHandle["search_query"] = ""
             onComplete()
         }
     }
 
     fun updateSearchQuery(query: String) {
-        _searchQuery.value = query
+        savedStateHandle["search_query"] = query
         if (query.length < 2) {
             _uiState.value = _uiState.value.copy(searchResults = emptyList())
         }

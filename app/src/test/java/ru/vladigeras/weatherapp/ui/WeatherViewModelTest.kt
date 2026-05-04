@@ -1,8 +1,6 @@
 package ru.vladigeras.weatherapp.ui
 
 import android.content.Context
-import androidx.arch.core.executor.ArchTaskExecutor
-import androidx.arch.core.executor.TaskExecutor
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -30,6 +28,7 @@ import ru.vladigeras.weatherapp.data.HourlyWeather
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.data.WeatherResponse
+import ru.vladigeras.weatherapp.domain.mapper.WeatherMapper
 import ru.vladigeras.weatherapp.repository.CityNameResolver
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.LocationRepository
@@ -50,6 +49,7 @@ class WeatherViewModelTest {
     private lateinit var weatherCache: WeatherCache
     private lateinit var languagePreferenceRepository: LanguagePreferenceRepository
     private lateinit var cityNameResolver: CityNameResolver
+    private lateinit var weatherMapper: WeatherMapper
     private lateinit var weatherViewModel: WeatherViewModel
     private val context: Context get() = RuntimeEnvironment.getApplication()
 
@@ -146,35 +146,22 @@ class WeatherViewModelTest {
             coEvery { evict(any(), any()) } returns Unit
         }
         languagePreferenceRepository = mockk {
-            every { getAppLocale() } returns java.util.Locale.ENGLISH
+            coEvery { getAppLocale() } returns java.util.Locale.ENGLISH
         }
         cityNameResolver = mockk {
             coEvery { resolveCityName(any(), any(), any(), any()) } returns "Test City"
         }
-        weatherViewModel = WeatherViewModel(context, weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, weatherCache, languagePreferenceRepository, cityNameResolver)
+        weatherMapper = mockk {
+            coEvery { mapToDailyForecast(any(), any()) } returns emptyList()
+        }
+        weatherViewModel = WeatherViewModel(context, weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, weatherCache, languagePreferenceRepository, cityNameResolver, weatherMapper)
 
         Dispatchers.setMain(Dispatchers.Unconfined)
-        ArchTaskExecutor.getInstance().setDelegate(object : TaskExecutor() {
-            override fun executeOnDiskIO(runnable: Runnable) {
-                runnable.run()
-            }
-
-            override fun executeOnMainThread(runnable: Runnable) {
-                runnable.run()
-            }
-
-            override fun postToMainThread(runnable: Runnable) {
-                runnable.run()
-            }
-
-            override fun isMainThread(): Boolean = true
-        })
     }
        
     @After
     fun tearDown() {
         Dispatchers.resetMain()
-        ArchTaskExecutor.getInstance().setDelegate(null)
     }
     
     @Test
@@ -348,7 +335,7 @@ class WeatherViewModelTest {
 
     @Test
     fun `should format day names with English locale by default`() = runTest {
-        every { languagePreferenceRepository.getAppLocale() } returns java.util.Locale.ENGLISH
+        coEvery { languagePreferenceRepository.getAppLocale() } returns java.util.Locale.ENGLISH
         coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
 
         weatherViewModel.loadWeather(55.7558, 37.6173)
@@ -367,7 +354,7 @@ class WeatherViewModelTest {
 
     @Test
     fun `should format day names with Russian locale when set`() = runTest {
-        every { languagePreferenceRepository.getAppLocale() } returns java.util.Locale.Builder().setLanguage("ru").setRegion("RU").build()
+        coEvery { languagePreferenceRepository.getAppLocale() } returns java.util.Locale.Builder().setLanguage("ru").setRegion("RU").build()
         coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
 
         weatherViewModel.loadWeather(55.7558, 37.6173)
