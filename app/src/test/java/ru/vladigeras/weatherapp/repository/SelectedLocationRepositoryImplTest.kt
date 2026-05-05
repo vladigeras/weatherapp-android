@@ -5,9 +5,11 @@ import androidx.datastore.preferences.core.Preferences
 import app.cash.turbine.test
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -18,21 +20,22 @@ import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.util.TestDataStoreFactory
 import java.io.File
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class SelectedLocationRepositoryImplTest {
 
     private lateinit var repository: SelectedLocationRepositoryImpl
     private lateinit var tempFile: File
     private lateinit var dataStore: DataStore<Preferences>
+    private lateinit var dataStoreScope: CoroutineScope
 
     @Before
     fun setUp() {
         tempFile = TestDataStoreFactory.createTempFile("test_selected_location")
-
+        dataStoreScope = CoroutineScope(UnconfinedTestDispatcher())
         dataStore = TestDataStoreFactory.createInMemoryDataStore(
-            scope = CoroutineScope(Dispatchers.Unconfined),
+            scope = dataStoreScope,
             tempFile = tempFile
         )
-
         repository = SelectedLocationRepositoryImpl(
             context = mockk(relaxed = true),
             testDataStore = dataStore
@@ -41,12 +44,9 @@ class SelectedLocationRepositoryImplTest {
 
     @After
     fun tearDown() {
-        runBlocking {
-            delay(100)
-        }
-        if (tempFile.exists()) {
-            tempFile.delete()
-        }
+        dataStoreScope.cancel() // Останавливает внутренние писатели DataStore
+        runBlocking { delay(50) } // Даём ОС время освободить файловый лок
+        if (tempFile.exists()) tempFile.delete()
     }
 
     @Test
