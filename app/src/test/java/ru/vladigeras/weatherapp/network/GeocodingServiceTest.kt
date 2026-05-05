@@ -8,7 +8,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -27,7 +27,7 @@ class GeocodingServiceTest {
     }
 
     @Test
-    fun searchCity_success_parsesResponse() = runBlocking {
+    fun searchCity_success_parsesResponse() = runTest {
         val mockEngine = MockEngine { request ->
             respond(
                 content = """
@@ -51,7 +51,7 @@ class GeocodingServiceTest {
     }
 
     @Test
-    fun searchCity_emptyResponse_returnsEmptyList() = runBlocking {
+    fun searchCity_emptyResponse_returnsEmptyList() = runTest {
         val mockEngine = MockEngine { request ->
             respond(
                 content = """{"results":[]}""",
@@ -68,7 +68,7 @@ class GeocodingServiceTest {
     }
 
     @Test
-    fun searchCity_networkError_returnsFailure() = runBlocking {
+    fun searchCity_networkError_returnsFailure() = runTest {
         val mockEngine = MockEngine { request ->
             throw IOException("Network error")
         }

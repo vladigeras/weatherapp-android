@@ -1,7 +1,7 @@
 package ru.vladigeras.weatherapp.repository
 
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -33,34 +33,34 @@ class LanguagePreferenceRepositoryImplTest {
 
     @After
     fun tearDown() {
-        runBlocking {
-            delay(100)
+        kotlinx.coroutines.test.runTest {
+            kotlinx.coroutines.delay(100)
         }
     }
 
     @Test
-    fun saveAndGetPreference_roundTripSystem() = runBlocking {
+    fun saveAndGetPreference_roundTripSystem() = runTest {
         repository.saveLanguagePreference(LanguagePreference.SYSTEM)
         val result = repository.getLanguagePreference()
         assertEquals(LanguagePreference.SYSTEM, result)
     }
 
     @Test
-    fun saveAndGetPreference_roundTripRussian() = runBlocking {
+    fun saveAndGetPreference_roundTripRussian() = runTest {
         repository.saveLanguagePreference(LanguagePreference.RUSSIAN)
         val result = repository.getLanguagePreference()
         assertEquals(LanguagePreference.RUSSIAN, result)
     }
 
     @Test
-    fun getEffectiveLocaleCode_systemEnglishReturnsEn() = runBlocking {
+    fun getEffectiveLocaleCode_systemEnglishReturnsEn() = runTest {
         repository.saveLanguagePreference(LanguagePreference.SYSTEM)
         val result = repository.getEffectiveLocaleCode()
         assertTrue(result.isNotEmpty())
     }
 
     @Test
-    fun getAppLocale_russianReturnsCorrectLocale() = runBlocking {
+    fun getAppLocale_russianReturnsCorrectLocale() = runTest {
         repository.saveLanguagePreference(LanguagePreference.RUSSIAN)
         val result = repository.getAppLocale()
         assertEquals("ru", result.language)
