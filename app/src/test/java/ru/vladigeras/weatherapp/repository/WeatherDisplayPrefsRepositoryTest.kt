@@ -3,7 +3,6 @@ package ru.vladigeras.weatherapp.repository
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import app.cash.turbine.test
-import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -13,28 +12,34 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.util.TestDataStoreFactory
 import java.io.File
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 @OptIn(ExperimentalCoroutinesApi::class)
 class WeatherDisplayPrefsRepositoryTest {
 
     private lateinit var repository: WeatherDisplayPrefsRepository
-    private lateinit var tempFile: File
+    private lateinit var tempDir: File
     private lateinit var dataStore: DataStore<Preferences>
     private lateinit var dataStoreScope: CoroutineScope
 
     @Before
     fun setUp() {
-        tempFile = TestDataStoreFactory.createTempFile("test_weather_display_prefs")
+        tempDir = TestDataStoreFactory.createTempDir("test_weather_display_prefs")
         dataStoreScope = CoroutineScope(UnconfinedTestDispatcher())
         dataStore = TestDataStoreFactory.createTestDataStore(
             scope = dataStoreScope,
-            tempFile = tempFile
+            tempDir = tempDir
         )
         repository = WeatherDisplayPrefsRepository(
-            context = mockk(relaxed = true),
+            context = RuntimeEnvironment.getApplication(),
             testDataStore = dataStore
         )
     }
@@ -42,7 +47,7 @@ class WeatherDisplayPrefsRepositoryTest {
     @After
     fun tearDown() {
         dataStoreScope.cancel()
-        runCatching { java.nio.file.Files.deleteIfExists(tempFile.toPath()) }
+        TestDataStoreFactory.cleanupWithRetry(tempDir)
     }
 
     @Test
