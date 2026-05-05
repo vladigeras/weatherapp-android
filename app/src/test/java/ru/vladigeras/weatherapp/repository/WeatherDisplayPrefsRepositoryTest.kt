@@ -7,8 +7,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -31,7 +29,7 @@ class WeatherDisplayPrefsRepositoryTest {
     fun setUp() {
         tempFile = TestDataStoreFactory.createTempFile("test_weather_display_prefs")
         dataStoreScope = CoroutineScope(UnconfinedTestDispatcher())
-        dataStore = TestDataStoreFactory.createInMemoryDataStore(
+        dataStore = TestDataStoreFactory.createTestDataStore(
             scope = dataStoreScope,
             tempFile = tempFile
         )
@@ -43,9 +41,8 @@ class WeatherDisplayPrefsRepositoryTest {
 
     @After
     fun tearDown() {
-        dataStoreScope.cancel() // Останавливает внутренние писатели DataStore
-        runBlocking { delay(50) } // Даём ОС время освободить файловый лок
-        if (tempFile.exists()) tempFile.delete()
+        dataStoreScope.cancel()
+        runCatching { java.nio.file.Files.deleteIfExists(tempFile.toPath()) }
     }
 
     @Test
@@ -66,10 +63,8 @@ class WeatherDisplayPrefsRepositoryTest {
     @Test
     fun updatePrefs_emitsNewValues() = runTest {
         repository.getPrefs().test {
-            // Skip initial value
             awaitItem()
             
-            // Update prefs
             repository.updatePrefs(
                 WeatherDisplayPrefs(
                     showHumidity = false,
@@ -91,10 +86,8 @@ class WeatherDisplayPrefsRepositoryTest {
     @Test
     fun updatePrefs_partialUpdate_preservesUnchanged() = runTest {
         repository.getPrefs().test {
-            // Skip initial value
             awaitItem()
             
-            // Update only forecastDays
             repository.updatePrefs(
                 WeatherDisplayPrefs(
                     showHumidity = true,
@@ -110,7 +103,7 @@ class WeatherDisplayPrefsRepositoryTest {
             
             val prefs = awaitItem()
             assertEquals(3, prefs.forecastDays)
-            assertEquals(true, prefs.showHumidity) // Should remain unchanged
+            assertEquals(true, prefs.showHumidity)
         }
     }
 }

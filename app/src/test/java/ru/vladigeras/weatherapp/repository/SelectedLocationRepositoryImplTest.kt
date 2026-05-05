@@ -7,8 +7,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -32,7 +30,7 @@ class SelectedLocationRepositoryImplTest {
     fun setUp() {
         tempFile = TestDataStoreFactory.createTempFile("test_selected_location")
         dataStoreScope = CoroutineScope(UnconfinedTestDispatcher())
-        dataStore = TestDataStoreFactory.createInMemoryDataStore(
+        dataStore = TestDataStoreFactory.createTestDataStore(
             scope = dataStoreScope,
             tempFile = tempFile
         )
@@ -44,9 +42,8 @@ class SelectedLocationRepositoryImplTest {
 
     @After
     fun tearDown() {
-        dataStoreScope.cancel() // Останавливает внутренние писатели DataStore
-        runBlocking { delay(50) } // Даём ОС время освободить файловый лок
-        if (tempFile.exists()) tempFile.delete()
+        dataStoreScope.cancel()
+        runCatching { java.nio.file.Files.deleteIfExists(tempFile.toPath()) }
     }
 
     @Test
@@ -59,13 +56,10 @@ class SelectedLocationRepositoryImplTest {
         )
         
         repository.getSelectedLocation().test {
-            // Initial value should be null
             assertNull(awaitItem())
             
-            // Save location
             repository.saveSelectedLocation(location)
             
-            // Verify saved location
             val saved = awaitItem()
             assertEquals(location.latitude, saved?.latitude)
             assertEquals(location.longitude, saved?.longitude)
@@ -84,14 +78,11 @@ class SelectedLocationRepositoryImplTest {
         )
         
         repository.getSelectedLocation().test {
-            // Skip initial value
             awaitItem()
             
-            // Save location
             repository.saveSelectedLocation(location)
             awaitItem()
             
-            // Clear location
             repository.clearSelectedLocation()
             val cleared = awaitItem()
             assertNull(cleared)

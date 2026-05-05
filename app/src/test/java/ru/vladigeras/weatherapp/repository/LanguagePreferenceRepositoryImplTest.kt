@@ -1,6 +1,8 @@
 package ru.vladigeras.weatherapp.repository
 
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -13,6 +15,7 @@ import org.robolectric.annotation.Config
 import ru.vladigeras.weatherapp.util.TestDataStoreFactory
 import java.io.File
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class LanguagePreferenceRepositoryImplTest {
@@ -20,12 +23,14 @@ class LanguagePreferenceRepositoryImplTest {
     private lateinit var repository: LanguagePreferenceRepositoryImpl
     private lateinit var dataStore: androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences>
     private lateinit var tempFile: File
+    private lateinit var dataStoreScope: CoroutineScope
 
     @Before
     fun setUp() {
         tempFile = TestDataStoreFactory.createTempFile("test_language_prefs")
-        dataStore = TestDataStoreFactory.createInMemoryDataStore(
-            scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined),
+        dataStoreScope = CoroutineScope(UnconfinedTestDispatcher())
+        dataStore = TestDataStoreFactory.createTestDataStore(
+            scope = dataStoreScope,
             tempFile = tempFile
         )
         repository = LanguagePreferenceRepositoryImpl(dataStore)
@@ -33,9 +38,8 @@ class LanguagePreferenceRepositoryImplTest {
 
     @After
     fun tearDown() {
-        kotlinx.coroutines.test.runTest {
-            kotlinx.coroutines.delay(100)
-        }
+        dataStoreScope.cancel()
+        runCatching { java.nio.file.Files.deleteIfExists(tempFile.toPath()) }
     }
 
     @Test

@@ -4,16 +4,13 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import java.io.File
 
 object TestDataStoreFactory {
-    fun createInMemoryDataStore(
-        scope: CoroutineScope = CoroutineScope(Dispatchers.Unconfined),
+    fun createTestDataStore(
+        scope: CoroutineScope,
         tempFile: File
     ): DataStore<Preferences> {
-        tempFile.deleteOnExit()
-
         return PreferenceDataStoreFactory.create(
             scope = scope,
             produceFile = { tempFile },
@@ -23,8 +20,6 @@ object TestDataStoreFactory {
     }
 
     fun createTempFile(prefix: String): File {
-        return File.createTempFile(prefix, ".preferences_pb").apply {
-            deleteOnExit()
-        }
+        return File.createTempFile(prefix, ".preferences_pb")
     }
 }
