@@ -12,6 +12,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
@@ -48,14 +51,16 @@ class SettingsViewModelTest {
     fun `toggle humidity should update local prefs`() = runTest {
         advanceUntilIdle()
         viewModel.toggleItem("humidity", false)
-        assert(!viewModel.localPrefs.value.showHumidity)
+        assertFalse(viewModel.localPrefs.value.showHumidity)
+        assertTrue(viewModel.hasChanges.value)
     }
 
     @Test
     fun `set forecast days should update local prefs`() = runTest {
         advanceUntilIdle()
         viewModel.setForecastDays(5)
-        assert(viewModel.localPrefs.value.forecastDays == 5)
+        assertEquals(5, viewModel.localPrefs.value.forecastDays)
+        assertTrue(viewModel.hasChanges.value)
     }
 
     @Test
@@ -71,17 +76,17 @@ class SettingsViewModelTest {
     fun `hasChanges should be true after toggle`() = runTest {
         advanceUntilIdle()
         viewModel.toggleItem("humidity", false)
-        assert(viewModel.hasChanges.value)
+        assertTrue(viewModel.hasChanges.value)
     }
 
     @Test
     fun `resetPrefs should revert changes`() = runTest {
         advanceUntilIdle()
         viewModel.toggleItem("humidity", false)
-        assert(viewModel.hasChanges.value)
+        assertTrue(viewModel.hasChanges.value)
         viewModel.resetPrefs()
-        assert(!viewModel.hasChanges.value)
-        assert(viewModel.localPrefs.value.showHumidity)
+        assertFalse(viewModel.hasChanges.value)
+        assertTrue(viewModel.localPrefs.value.showHumidity)
     }
 
     @Test
@@ -89,7 +94,7 @@ class SettingsViewModelTest {
         advanceUntilIdle()
         viewModel.setLanguagePreference(LanguagePreference.RUSSIAN)
         val result = viewModel.savePrefsAndCheckLanguage()
-        assert(result)
+        assertTrue(result)
         io.mockk.coVerify { languagePreferenceRepository.saveLanguagePreference(LanguagePreference.RUSSIAN) }
     }
 
@@ -97,13 +102,13 @@ class SettingsViewModelTest {
     fun `savePrefsAndCheckLanguage should return false when language not changed`() = runTest {
         advanceUntilIdle()
         val result = viewModel.savePrefsAndCheckLanguage()
-        assert(!result)
+        assertFalse(result)
     }
 
     @Test
     fun `setLanguagePreference should update language preference flow`() = runTest {
         advanceUntilIdle()
         viewModel.setLanguagePreference(LanguagePreference.ENGLISH)
-        assert(viewModel.languagePreference.value == LanguagePreference.ENGLISH)
+        assertEquals(LanguagePreference.ENGLISH, viewModel.languagePreference.value)
     }
 }
