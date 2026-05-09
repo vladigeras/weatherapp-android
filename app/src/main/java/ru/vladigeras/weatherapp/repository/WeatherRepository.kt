@@ -45,7 +45,7 @@ class WeatherRepositoryImpl @Inject constructor(
                 currentParams = currentParams,
                 hourlyParams = hourlyParams,
                 dailyParams = dailyParams,
-                forecastDays = if (prefs.showForecast) prefs.forecastDays else 1
+                forecastDays = if (prefs.showForecast) prefs.forecastDays else 0
             )
             // Store successful response in cache
             weatherCache.putWeather(latitude, longitude, response)

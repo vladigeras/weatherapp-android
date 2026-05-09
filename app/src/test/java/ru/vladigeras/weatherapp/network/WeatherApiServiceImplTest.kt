@@ -11,9 +11,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
-import ru.vladigeras.weatherapp.data.WeatherResponse
 
 class WeatherApiServiceImplTest {
 
@@ -100,11 +98,13 @@ class WeatherApiServiceImplTest {
     }
 
     @Test
-    fun getWeather_forecastDaysZero_usesDefault() = runTest {
+    fun getWeather_forecastDaysZero_skipsParameter() = runTest {
+        var paramPresent = false
         val mockEngine = MockEngine { request ->
             val url = request.url
-            assertEquals("5", url.parameters["forecast_days"])
-            
+            paramPresent = url.parameters.contains("forecast_days")
+            assertEquals(null, url.parameters["forecast_days"])
+
             respond(
                 content = """
                     {
@@ -120,7 +120,7 @@ class WeatherApiServiceImplTest {
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             )
         }
-        
+
         val service = createService(mockEngine)
         service.getWeather(
             latitude = 55.75,
@@ -128,7 +128,9 @@ class WeatherApiServiceImplTest {
             currentParams = "temperature_2m",
             hourlyParams = "temperature_2m",
             dailyParams = "temperature_2m_max,temperature_2m_min",
-            forecastDays = 5
+            forecastDays = 0
         )
+
+        assertEquals(false, paramPresent)
     }
 }

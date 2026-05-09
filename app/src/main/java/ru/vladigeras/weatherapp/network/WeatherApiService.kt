@@ -35,7 +35,9 @@ class WeatherApiServiceImpl(
             parameter("current", currentParams)
             parameter("hourly", hourlyParams)
             parameter("daily", dailyParams)
-            parameter("forecast_days", forecastDays.toString())
+            if (forecastDays > 0) {
+                parameter("forecast_days", forecastDays.toString())
+            }
             parameter("timezone", "auto")
         }.body()
     }
