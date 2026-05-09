@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -308,8 +308,8 @@ private fun SuccessContent(state: WeatherUiState.Success) {
         }
 
         if (state.prefs.showForecast && state.dailyForecast.isNotEmpty()) {
-            items(state.dailyForecast) { forecast ->
-                DailyForecastItem(forecast = forecast, temperatureUnit = state.temperatureUnit)
+            itemsIndexed(state.dailyForecast) { index, forecast ->
+                DailyForecastItem(forecast = forecast, temperatureUnit = state.temperatureUnit, index)
             }
         }
     }

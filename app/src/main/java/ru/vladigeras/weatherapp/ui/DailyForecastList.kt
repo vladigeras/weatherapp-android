@@ -1,5 +1,6 @@
 package ru.vladigeras.weatherapp.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,8 +40,12 @@ fun DailyForecastList(dailyForecast: List<DailyForecast>, temperatureUnit: Strin
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        dailyForecast.forEach { forecast ->
-            DailyForecastItem(forecast = forecast, temperatureUnit = temperatureUnit)
+        dailyForecast.forEachIndexed { index, forecast ->
+            DailyForecastItem(
+                forecast = forecast,
+                temperatureUnit = temperatureUnit,
+                index = index
+            )
         }
     }
 }
@@ -49,10 +54,11 @@ fun DailyForecastList(dailyForecast: List<DailyForecast>, temperatureUnit: Strin
  * Represents a single day's weather forecast item.
  *
  * @param forecast The [DailyForecast] to display.
+ * @param index The position of this item in the list (0 = today, 1 = tomorrow)
  */
 @Preview(showBackground = true)
 @Composable
-fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) {
+fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, index: Int) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -67,6 +73,34 @@ fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) {
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.Center
         ) {
+            // Today/Tomorrow/Day after tomorrow label
+            val isToday = index == 0
+            val isTomorrow = index == 1
+            val isDayAfterTomorrow = index == 2
+            if (isToday || isTomorrow || isDayAfterTomorrow) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .padding(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f))
+                    ) {
+                        val labelResId = when {
+                            isToday -> R.string.today
+                            isTomorrow -> R.string.tomorrow
+                            else -> R.string.day_after_tomorrow
+                        }
+                        Text(
+                            text = stringResource(labelResId),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
             // First row: Day info, icon, temperature
             Row(
                 modifier = Modifier.fillMaxWidth(),

@@ -108,4 +108,7 @@
     <string name="wind_speed_unit">km/h</string>
     <string name="precipitation_unit">mm</string>
     <string name="uv_label">UV</string>
+    <string name="today">Today</string>
+    <string name="tomorrow">Tomorrow</string>
+    <string name="day_after_tomorrow">Day after tomorrow</string>
 </resources>

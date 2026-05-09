@@ -108,4 +108,7 @@
     <!-- Widget -->
     <string name="widget_weather_icon">Иконка погоды</string>
     <string name="widget_no_data">Нет данных</string>
+    <string name="today">Сегодня</string>
+    <string name="tomorrow">Завтра</string>
+    <string name="day_after_tomorrow">Послезавтра</string>
 </resources>
