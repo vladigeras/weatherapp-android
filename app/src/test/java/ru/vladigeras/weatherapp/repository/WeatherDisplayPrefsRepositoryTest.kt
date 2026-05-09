@@ -60,7 +60,7 @@ class WeatherDisplayPrefsRepositoryTest {
             assertEquals(true, prefs.showCondition)
             assertEquals(true, prefs.showSunTimes)
             assertEquals(true, prefs.showUvIndex)
-            assertEquals(true, prefs.showForecast)
+            assertEquals(false, prefs.showForecast)
             assertEquals(1, prefs.forecastDays)
         }
     }

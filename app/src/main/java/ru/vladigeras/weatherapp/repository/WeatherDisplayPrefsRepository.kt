@@ -1,5 +1,6 @@
 package ru.vladigeras.weatherapp.repository
 
+import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -12,7 +13,6 @@ import kotlinx.coroutines.flow.map
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import javax.inject.Inject
 import javax.inject.Singleton
-import android.content.Context
 
 @Singleton
 class WeatherDisplayPrefsRepository @Inject constructor(
@@ -46,7 +46,7 @@ class WeatherDisplayPrefsRepository @Inject constructor(
                 showCondition = prefs[Keys.SHOW_CONDITION] ?: true,
                 showSunTimes = prefs[Keys.SHOW_SUN_TIMES] ?: true,
                 showUvIndex = prefs[Keys.SHOW_UV_INDEX] ?: true,
-                showForecast = prefs[Keys.SHOW_FORECAST] ?: true,
+                showForecast = prefs[Keys.SHOW_FORECAST] ?: false,
                 forecastDays = prefs[Keys.FORECAST_DAYS] ?: 1
             )
         }
