@@ -1,14 +1,15 @@
 package ru.vladigeras.weatherapp.domain.mapper
 
 import ru.vladigeras.weatherapp.data.DailyWeather
+import ru.vladigeras.weatherapp.data.HourlyWeather
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.ui.DailyForecast
+import ru.vladigeras.weatherapp.ui.HourlyForecast
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,6 +23,76 @@ class WeatherMapper @Inject constructor(
         utcOffsetSeconds: Int
     ): List<DailyForecast> {
         return processDailyForecast(daily, utcOffsetSeconds)
+    }
+
+    fun mapToHourlyForecast(
+        hourly: HourlyWeather?,
+        daily: DailyWeather?,
+        utcOffsetSeconds: Int,
+        hours: Int
+    ): List<HourlyForecast> {
+        return processHourlyForecast(hourly, daily, utcOffsetSeconds, hours)
+    }
+
+    private fun processHourlyForecast(
+        hourly: HourlyWeather?,
+        daily: DailyWeather?,
+        utcOffsetSeconds: Int,
+        hours: Int
+    ): List<HourlyForecast> {
+        hourly ?: return emptyList()
+
+        val maxItems = minOf(hours, hourly.time.size)
+        val forecasts = mutableListOf<HourlyForecast>()
+
+        val dailyTimeToWeatherCode = mutableMapOf<String, Int?>()
+        daily?.time?.forEachIndexed { index, dateStr ->
+            dailyTimeToWeatherCode[dateStr] = daily.weatherCode?.getOrNull(index)
+        }
+
+        for (i in 0 until maxItems) {
+            val timeStr = hourly.time.getOrNull(i) ?: continue
+            val temperature = hourly.temperature2m?.getOrNull(i)
+            val humidity = hourly.relativehumidity2m?.getOrNull(i)
+            val windSpeed = hourly.windspeed10m?.getOrNull(i)
+
+            val localTime = formatHourFromUTC(timeStr, utcOffsetSeconds)
+            val weatherCode = getWeatherCodeForHour(timeStr, dailyTimeToWeatherCode)
+
+            forecasts.add(
+                HourlyForecast(
+                    time = localTime,
+                    weatherCode = weatherCode,
+                    temperature = temperature,
+                    humidity = humidity,
+                    windSpeed = windSpeed
+                )
+            )
+        }
+
+        return forecasts
+    }
+
+    private fun formatHourFromUTC(utcTimeString: String, utcOffsetSeconds: Int): String {
+        return runCatching {
+            val localTime = LocalDateTime.parse(utcTimeString, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                .atOffset(ZoneOffset.UTC)
+                .withOffsetSameInstant(ZoneOffset.ofTotalSeconds(utcOffsetSeconds))
+            localTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+        }.getOrDefault("--:--")
+    }
+
+    private fun getWeatherCodeForHour(
+        hourlyTimeStr: String,
+        dailyTimeToWeatherCode: Map<String, Int?>
+    ): Int? {
+        return try {
+            val hourlyDateTime = LocalDateTime.parse(hourlyTimeStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+            val dateOnly = hourlyDateTime.toLocalDate().toString()
+            dailyTimeToWeatherCode[dateOnly]
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private suspend fun processDailyForecast(daily: DailyWeather?, utcOffsetSeconds: Int): List<DailyForecast> {

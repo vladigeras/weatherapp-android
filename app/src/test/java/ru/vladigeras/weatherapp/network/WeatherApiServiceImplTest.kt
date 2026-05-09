@@ -69,7 +69,8 @@ class WeatherApiServiceImplTest {
             currentParams = "temperature_2m",
             hourlyParams = "temperature_2m",
             dailyParams = "temperature_2m_max,temperature_2m_min",
-            forecastDays = 3
+            forecastDays = 3,
+            forecastHours = 24
         )
         
         assertEquals(55.75, result.latitude, 0.01)
@@ -93,17 +94,17 @@ class WeatherApiServiceImplTest {
             currentParams = "temperature_2m",
             hourlyParams = "temperature_2m",
             dailyParams = "temperature_2m_max,temperature_2m_min",
-            forecastDays = 3
+            forecastDays = 3,
+            forecastHours = 24
         )
     }
 
     @Test
-    fun getWeather_forecastDaysZero_skipsParameter() = runTest {
-        var paramPresent = false
+    fun getWeather_forecastDaysZero_passesZeroParameter() = runTest {
+        var paramValue: String? = null
         val mockEngine = MockEngine { request ->
             val url = request.url
-            paramPresent = url.parameters.contains("forecast_days")
-            assertEquals(null, url.parameters["forecast_days"])
+            paramValue = url.parameters["forecast_days"]
 
             respond(
                 content = """
@@ -128,9 +129,47 @@ class WeatherApiServiceImplTest {
             currentParams = "temperature_2m",
             hourlyParams = "temperature_2m",
             dailyParams = "temperature_2m_max,temperature_2m_min",
-            forecastDays = 0
+            forecastDays = 0,
+            forecastHours = 0
         )
 
-        assertEquals(false, paramPresent)
+        assertEquals("0", paramValue)
+    }
+
+    @Test
+    fun getWeather_forecastHoursZero_passesZeroParameter() = runTest {
+        var paramValue: String? = null
+        val mockEngine = MockEngine { request ->
+            val url = request.url
+            paramValue = url.parameters["forecast_hours"]
+
+            respond(
+                content = """
+                    {
+                        "latitude": 55.75,
+                        "longitude": 37.62,
+                        "timezone": "Europe/Moscow",
+                        "elevation": 150.0,
+                        "generationtime_ms": 0.5,
+                        "utc_offset_seconds": 10800,
+                        "timezone_abbreviation": "MSK"
+                    }
+                """.trimIndent(),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        }
+
+        val service = createService(mockEngine)
+        service.getWeather(
+            latitude = 55.75,
+            longitude = 37.62,
+            currentParams = "temperature_2m",
+            hourlyParams = "temperature_2m",
+            dailyParams = "temperature_2m_max,temperature_2m_min",
+            forecastDays = 7,
+            forecastHours = 0
+        )
+
+        assertEquals("0", paramValue)
     }
 }

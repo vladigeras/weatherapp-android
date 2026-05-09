@@ -13,10 +13,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import ru.vladigeras.weatherapp.data.DailyWeather
+import ru.vladigeras.weatherapp.core.error.ErrorMapper
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
-import ru.vladigeras.weatherapp.core.error.ErrorMapper
 import ru.vladigeras.weatherapp.domain.mapper.WeatherMapper
 import ru.vladigeras.weatherapp.repository.CityNameResolver
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
@@ -27,11 +26,6 @@ import ru.vladigeras.weatherapp.repository.WeatherDisplayPrefsRepository
 import ru.vladigeras.weatherapp.repository.WeatherRepository
 import ru.vladigeras.weatherapp.widget.WeatherWidgetProvider
 import ru.vladigeras.weatherapp.widget.WidgetPrefsManager
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
 import javax.inject.Inject
 
 sealed interface WeatherUiState {
@@ -48,6 +42,7 @@ sealed interface WeatherUiState {
         val cityName: String,
         val temperatureUnit: String,
         val dailyForecast: List<DailyForecast> = emptyList(),
+        val hourlyForecast: List<HourlyForecast> = emptyList(),
         val prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()
     ) : WeatherUiState
     data class Error(val message: String) : WeatherUiState
@@ -159,6 +154,7 @@ class WeatherViewModel @Inject constructor(
                     val feelsLike = current?.apparentTemperature
                     val humidity = hourly?.relativehumidity2m?.firstOrNull { it != null } ?: 0
                     val dailyForecast = weatherMapper.mapToDailyForecast(daily, response.utcOffsetSeconds)
+                    val hourlyForecast = weatherMapper.mapToHourlyForecast(hourly, daily, response.utcOffsetSeconds, prefs.hourlyForecastHours)
                     val cityName = cityNameResolver.resolveCityName(latitude, longitude, savedLocation?.name, response.timezone)
                     _uiState.value = WeatherUiState.Success(
                         temperature = current?.temperature ?: 0.0,
@@ -171,6 +167,7 @@ class WeatherViewModel @Inject constructor(
                         cityName = cityName,
                         temperatureUnit = response.currentUnits?.temperatureUnit ?: "°C",
                         dailyForecast = dailyForecast,
+                        hourlyForecast = hourlyForecast,
                         prefs = prefs
                     )
                     WidgetPrefsManager.save(

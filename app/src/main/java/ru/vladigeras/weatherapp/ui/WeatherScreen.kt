@@ -307,7 +307,18 @@ private fun SuccessContent(state: WeatherUiState.Success) {
             item { Spacer(modifier = Modifier.height(24.dp)) }
         }
 
-        if (state.prefs.showForecast && state.dailyForecast.isNotEmpty()) {
+        if (state.prefs.showHourlyForecast && state.hourlyForecast.isNotEmpty()) {
+            item {
+                HourlyForecastList(
+                    forecast = state.hourlyForecast,
+                    temperatureUnit = state.temperatureUnit
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(16.dp)) }
+        }
+
+        if (state.prefs.showForecastDays && state.dailyForecast.isNotEmpty()) {
             itemsIndexed(state.dailyForecast) { index, forecast ->
                 DailyForecastItem(forecast = forecast, temperatureUnit = state.temperatureUnit, index)
             }

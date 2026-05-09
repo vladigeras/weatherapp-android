@@ -153,6 +153,7 @@ class WeatherViewModelTest {
         weatherMapper = mockk {
             // Properly mock the suspend function to return a default value
             coEvery { mapToDailyForecast(any(), any()) } returns emptyList()
+            coEvery { mapToHourlyForecast(any(), any(), any(), any()) } returns emptyList()
         }
         weatherViewModel = WeatherViewModel(context, weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, weatherCache, languagePreferenceRepository, cityNameResolver, weatherMapper)
     
@@ -194,6 +195,7 @@ class WeatherViewModelTest {
         }
         val testWeatherMapper = mockk<WeatherMapper> {
             coEvery { mapToDailyForecast(any(), any()) } returns emptyList<DailyForecast>()
+            coEvery { mapToHourlyForecast(any(), any(), any(), any()) } returns emptyList()
         }
         
         val testViewModel = WeatherViewModel(
@@ -484,5 +486,82 @@ class WeatherViewModelTest {
             .let { it as WeatherUiState.Error }
         
         assertEquals("timeout", errorState.message)
+    }
+
+    @Test
+    fun `loadWeather with hourly forecast enabled includes hourly data in state`() = runTest {
+        val prefsWithHourly = WeatherDisplayPrefs(
+            showHourlyForecast = true,
+            hourlyForecastHours = 24
+        )
+        val testPrefsRepository: WeatherDisplayPrefsRepository = mockk(relaxed = true) {
+            every { getPrefs() } returns flowOf(prefsWithHourly)
+        }
+        val testWeatherMapper: WeatherMapper = mockk(relaxed = true) {
+            coEvery { mapToDailyForecast(any(), any()) } returns emptyList()
+            coEvery { mapToHourlyForecast(any(), any(), any(), any()) } returns listOf(
+                HourlyForecast("10:00", 0, 20.0, 65, 10.0),
+                HourlyForecast("11:00", 1, 22.0, 60, 12.0)
+            )
+        }
+
+        val testViewModel = WeatherViewModel(
+            context,
+            weatherRepository,
+            locationRepository,
+            selectedLocationRepository,
+            testPrefsRepository,
+            weatherCache,
+            languagePreferenceRepository,
+            cityNameResolver,
+            testWeatherMapper
+        )
+
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
+
+        testViewModel.loadWeather(55.7558, 37.6173)
+
+        val successState = testViewModel.uiState
+            .first { it is WeatherUiState.Success } as WeatherUiState.Success
+
+        assertEquals(2, successState.hourlyForecast.size)
+        assertEquals("10:00", successState.hourlyForecast[0].time)
+        assertEquals(20.0, successState.hourlyForecast[0].temperature!!, 0.001)
+        assertEquals(65, successState.hourlyForecast[0].humidity!!)
+    }
+
+    @Test
+    fun `loadWeather without hourly forecast pref still has hourly data in state`() = runTest {
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
+
+        val testWeatherMapper: WeatherMapper = mockk(relaxed = true) {
+            coEvery { mapToDailyForecast(any(), any()) } returns emptyList()
+            coEvery { mapToHourlyForecast(any(), any(), any(), any()) } returns listOf(
+                HourlyForecast("10:00", 0, 20.0, 65, 10.0)
+            )
+        }
+
+        val testViewModel = WeatherViewModel(
+            context,
+            weatherRepository,
+            locationRepository,
+            selectedLocationRepository,
+            weatherDisplayPrefsRepository,
+            weatherCache,
+            languagePreferenceRepository,
+            cityNameResolver,
+            testWeatherMapper
+        )
+
+        testViewModel.loadWeather(55.7558, 37.6173)
+
+        val successState = testViewModel.uiState
+            .first { it is WeatherUiState.Success } as WeatherUiState.Success
+
+        // Hourly data is always mapped, but UI checks showHourlyForecast flag
+        // Default prefs have showHourlyForecast = false, so UI won't show it
+        // But the state still contains the data
+        assertEquals(1, successState.hourlyForecast.size)
+        assertEquals(false, successState.prefs.showHourlyForecast)
     }
 }

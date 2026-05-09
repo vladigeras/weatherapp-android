@@ -45,7 +45,8 @@ class WeatherRepositoryImpl @Inject constructor(
                 currentParams = currentParams,
                 hourlyParams = hourlyParams,
                 dailyParams = dailyParams,
-                forecastDays = if (prefs.showForecast) prefs.forecastDays else 0
+                forecastDays = if (prefs.showForecastDays) prefs.forecastDays else 0,
+                forecastHours = if (prefs.showHourlyForecast) prefs.hourlyForecastHours else 0
             )
             // Store successful response in cache
             weatherCache.putWeather(latitude, longitude, response)
@@ -70,7 +71,6 @@ class WeatherRepositoryImpl @Inject constructor(
 
         if (prefs.showCondition) {
             current += "weathercode,apparent_temperature"
-            hourly += "weathercode"
             daily += "weathercode"
         }
         if (prefs.showHumidity) {
@@ -89,6 +89,13 @@ class WeatherRepositoryImpl @Inject constructor(
         }
         if (prefs.showUvIndex) {
             daily += "uv_index_max"
+        }
+        if (prefs.showHourlyForecast) {
+            // Ensure we have all needed data for hourly forecast
+            hourly += "temperature_2m"
+            hourly += "relativehumidity_2m"
+            hourly += "windspeed_10m"
+            daily += "weathercode" // Needed for hourly weather icons
         }
 
         return Triple(current.distinct().joinToString(","),

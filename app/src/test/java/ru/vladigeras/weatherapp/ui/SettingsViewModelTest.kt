@@ -111,4 +111,41 @@ class SettingsViewModelTest {
         viewModel.setLanguagePreference(LanguagePreference.ENGLISH)
         assertEquals(LanguagePreference.ENGLISH, viewModel.languagePreference.value)
     }
+
+    @Test
+    fun `toggle hourly forecast should update local prefs`() = runTest {
+        advanceUntilIdle()
+        viewModel.toggleItem("hourly_forecast", true)
+        assertTrue(viewModel.localPrefs.value.showHourlyForecast)
+        assertTrue(viewModel.hasChanges.value)
+    }
+
+    @Test
+    fun `set hourly forecast hours should update local prefs`() = runTest {
+        advanceUntilIdle()
+        viewModel.setHourlyForecastHours(48)
+        assertEquals(48, viewModel.localPrefs.value.hourlyForecastHours)
+        assertTrue(viewModel.hasChanges.value)
+    }
+
+    @Test
+    fun `toggle hourly forecast should default to false`() = runTest {
+        advanceUntilIdle()
+        assertFalse(viewModel.localPrefs.value.showHourlyForecast)
+    }
+
+    @Test
+    fun `hourly forecast hours should default to 24`() = runTest {
+        advanceUntilIdle()
+        assertEquals(24, viewModel.localPrefs.value.hourlyForecastHours)
+    }
+
+    @Test
+    fun `savePrefsAndCheckLanguage should save hourly forecast prefs`() = runTest {
+        advanceUntilIdle()
+        viewModel.toggleItem("hourly_forecast", true)
+        viewModel.setHourlyForecastHours(12)
+        viewModel.savePrefsAndCheckLanguage()
+        io.mockk.coVerify { prefsRepository.updatePrefs(match { it.showHourlyForecast == true && it.hourlyForecastHours == 12 }) }
+    }
 }

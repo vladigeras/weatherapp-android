@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.WaterDrop
@@ -172,6 +173,14 @@ fun SettingsScreen(
                                 title = stringResource(item.titleRes),
                                 days = item.days,
                                 onDaysChanged = { viewModel.setForecastDays(it) }
+                            )
+                        }
+
+                        is SettingsItem.HourlyForecastHours -> {
+                            SettingsHourlyForecastHoursItem(
+                                title = stringResource(item.titleRes),
+                                hours = item.hours,
+                                onHoursChanged = { viewModel.setHourlyForecastHours(it) }
                             )
                         }
                     }
@@ -330,6 +339,49 @@ fun SettingsForecastDaysItem(
     }
 }
 
+@Composable
+fun SettingsHourlyForecastHoursItem(
+    title: String,
+    hours: Int,
+    onHoursChanged: (Int) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val availableHours = listOf(12, 24, 48)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = true }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Schedule, contentDescription = null)
+        Spacer(Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+        }
+        Text(
+            text = "$hours ч",
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(end = 8.dp)
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            availableHours.forEach { hour ->
+                DropdownMenuItem(
+                    text = { Text("$hour ч") },
+                    onClick = {
+                        onHoursChanged(hour)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
 sealed interface SettingsItem {
     data class Toggle(
         val key: String,
@@ -343,6 +395,11 @@ sealed interface SettingsItem {
     data class ForecastDays(
         val titleRes: Int,
         val days: Int
+    ) : SettingsItem
+
+    data class HourlyForecastHours(
+        val titleRes: Int,
+        val hours: Int
     ) : SettingsItem
 
     data class LanguageSelector(
@@ -407,12 +464,23 @@ private fun settingsItems(
             key = "daily_forecast",
             titleRes = R.string.daily_forecast,
             descriptionRes = R.string.forecast_description,
-            checked = prefs.showForecast,
+            checked = prefs.showForecastDays,
             icon = { Icon(Icons.Filled.Cloud, contentDescription = null) }
         ),
         SettingsItem.ForecastDays(
             titleRes = R.string.daily_forecast_days,
             days = prefs.forecastDays
+        ),
+        SettingsItem.Toggle(
+            key = "hourly_forecast",
+            titleRes = R.string.hourly_forecast,
+            descriptionRes = R.string.hourly_forecast_description,
+            checked = prefs.showHourlyForecast,
+            icon = { Icon(Icons.Filled.Schedule, contentDescription = null) }
+        ),
+        SettingsItem.HourlyForecastHours(
+            titleRes = R.string.hourly_forecast_hours,
+            hours = prefs.hourlyForecastHours
         )
     )
 }
@@ -462,7 +530,8 @@ class SettingsViewModel @Inject constructor(
             "condition" -> current.copy(showCondition = checked)
             "sun_times" -> current.copy(showSunTimes = checked)
             "uv_index" -> current.copy(showUvIndex = checked)
-            "forecast" -> current.copy(showForecast = checked)
+            "daily_forecast" -> current.copy(showForecastDays = checked)
+            "hourly_forecast" -> current.copy(showHourlyForecast = checked)
             else -> current
         }
         updateHasChanges()
@@ -470,6 +539,11 @@ class SettingsViewModel @Inject constructor(
 
     fun setForecastDays(days: Int) {
         localPrefs.value = localPrefs.value.copy(forecastDays = days)
+        updateHasChanges()
+    }
+
+    fun setHourlyForecastHours(hours: Int) {
+        localPrefs.value = localPrefs.value.copy(hourlyForecastHours = hours)
         updateHasChanges()
     }
 

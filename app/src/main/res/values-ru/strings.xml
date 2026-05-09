@@ -61,6 +61,9 @@
     <string name="sun_times_description">Показать время восхода и заката</string>
     <string name="uv_index_description">Показать максимальный УФ-индекс</string>
     <string name="forecast_description">Включить блок прогноза</string>
+    <string name="hourly_forecast">Почасовой прогноз</string>
+    <string name="hourly_forecast_description">Показать почасовой прогноз погоды</string>
+    <string name="hourly_forecast_hours">Количество часов</string>
     
     <!-- Weather labels -->
     <string name="feels_like">Ощущается как</string>

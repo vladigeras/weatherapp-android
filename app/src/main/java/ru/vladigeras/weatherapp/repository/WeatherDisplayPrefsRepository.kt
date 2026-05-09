@@ -33,8 +33,10 @@ class WeatherDisplayPrefsRepository @Inject constructor(
         val SHOW_CONDITION = booleanPreferencesKey("show_condition")
         val SHOW_SUN_TIMES = booleanPreferencesKey("show_sun_times")
         val SHOW_UV_INDEX = booleanPreferencesKey("show_uv_index")
-        val SHOW_FORECAST = booleanPreferencesKey("show_forecast")
+        val SHOW_FORECAST_DAYS = booleanPreferencesKey("show_forecast")
         val FORECAST_DAYS = intPreferencesKey("forecast_days")
+        val SHOW_HOURLY_FORECAST = booleanPreferencesKey("show_hourly_forecast")
+        val HOURLY_FORECAST_HOURS = intPreferencesKey("hourly_forecast_hours")
     }
 
     fun getPrefs(): Flow<WeatherDisplayPrefs> =
@@ -46,8 +48,10 @@ class WeatherDisplayPrefsRepository @Inject constructor(
                 showCondition = prefs[Keys.SHOW_CONDITION] ?: true,
                 showSunTimes = prefs[Keys.SHOW_SUN_TIMES] ?: true,
                 showUvIndex = prefs[Keys.SHOW_UV_INDEX] ?: true,
-                showForecast = prefs[Keys.SHOW_FORECAST] ?: false,
-                forecastDays = prefs[Keys.FORECAST_DAYS] ?: 1
+                showForecastDays = prefs[Keys.SHOW_FORECAST_DAYS] ?: false,
+                forecastDays = prefs[Keys.FORECAST_DAYS] ?: 1,
+                showHourlyForecast = prefs[Keys.SHOW_HOURLY_FORECAST] ?: false,
+                hourlyForecastHours = prefs[Keys.HOURLY_FORECAST_HOURS] ?: 24
             )
         }
 
@@ -59,8 +63,10 @@ class WeatherDisplayPrefsRepository @Inject constructor(
             it[Keys.SHOW_CONDITION] = prefs.showCondition
             it[Keys.SHOW_SUN_TIMES] = prefs.showSunTimes
             it[Keys.SHOW_UV_INDEX] = prefs.showUvIndex
-            it[Keys.SHOW_FORECAST] = prefs.showForecast
+            it[Keys.SHOW_FORECAST_DAYS] = prefs.showForecastDays
             it[Keys.FORECAST_DAYS] = prefs.forecastDays
+            it[Keys.SHOW_HOURLY_FORECAST] = prefs.showHourlyForecast
+            it[Keys.HOURLY_FORECAST_HOURS] = prefs.hourlyForecastHours
         }
     }
 }

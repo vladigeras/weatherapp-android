@@ -8,6 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.vladigeras.weatherapp.data.DailyWeather
+import ru.vladigeras.weatherapp.data.HourlyWeather
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import java.util.Locale
 
@@ -382,6 +383,128 @@ class WeatherMapperTest {
             windspeed10mMax = listOf(null),
             winddirection10mDominant = listOf(null),
             uvIndexMax = listOf(null)
+        )
+    }
+
+    @Test
+    fun `mapToHourlyForecast returns empty list when hourly is null`() {
+        val result = weatherMapper.mapToHourlyForecast(null, null, 0, 24)
+
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `mapToHourlyForecast maps hourly data correctly`() {
+        val hourly = createTestHourlyWeather()
+        val daily = createTestDailyWeather()
+        val result = weatherMapper.mapToHourlyForecast(hourly, daily, 0, 24)
+
+        assertEquals(4, result.size)
+    }
+
+    @Test
+    fun `mapToHourlyForecast limits results to specified hours`() {
+        val hourly = createTestHourlyWeather()
+        val daily = createTestDailyWeather()
+        val result = weatherMapper.mapToHourlyForecast(hourly, daily, 0, 2)
+
+        assertEquals(2, result.size)
+    }
+
+    @Test
+    fun `mapToHourlyForecast maps temperature correctly`() {
+        val hourly = createTestHourlyWeather()
+        val daily = createTestDailyWeather()
+        val result = weatherMapper.mapToHourlyForecast(hourly, daily, 0, 24)
+
+        assertEquals(20.0, result[0].temperature!!, 0.001)
+        assertEquals(22.0, result[1].temperature!!, 0.001)
+    }
+
+    @Test
+    fun `mapToHourlyForecast maps humidity correctly`() {
+        val hourly = createTestHourlyWeather()
+        val daily = createTestDailyWeather()
+        val result = weatherMapper.mapToHourlyForecast(hourly, daily, 0, 24)
+
+        assertEquals(65, result[0].humidity!!)
+        assertEquals(60, result[1].humidity!!)
+    }
+
+    @Test
+    fun `mapToHourlyForecast maps wind speed correctly`() {
+        val hourly = createTestHourlyWeather()
+        val daily = createTestDailyWeather()
+        val result = weatherMapper.mapToHourlyForecast(hourly, daily, 0, 24)
+
+        assertEquals(10.0, result[0].windSpeed!!, 0.001)
+        assertEquals(12.0, result[1].windSpeed!!, 0.001)
+    }
+
+    @Test
+    fun `mapToHourlyForecast converts time from UTC to local`() {
+        val hourly = createTestHourlyWeather()
+        val daily = createTestDailyWeather()
+
+        // UTC+3 hours (10800 seconds)
+        val utcOffsetSeconds = 10800
+        val result = weatherMapper.mapToHourlyForecast(hourly, daily, utcOffsetSeconds, 24)
+
+        // "2026-04-27T10:00:00" + 3 hours = 13:00
+        assertEquals("13:00", result[0].time)
+    }
+
+    @Test
+    fun `mapToHourlyForecast gets weather code from daily`() {
+        val hourly = createTestHourlyWeather()
+        val daily = createTestDailyWeather()
+        val result = weatherMapper.mapToHourlyForecast(hourly, daily, 0, 24)
+
+        // First hour is on 2026-04-27, daily weather code for that day is 0
+        assertEquals(0, result[0].weatherCode)
+    }
+
+    @Test
+    fun `mapToHourlyForecast handles null hourly values`() {
+        val hourly = HourlyWeather(
+            time = listOf("2026-04-27T10:00:00"),
+            temperature2m = listOf(null),
+            relativehumidity2m = listOf(null),
+            windspeed10m = listOf(null)
+        )
+        val daily = createTestDailyWeather()
+        val result = weatherMapper.mapToHourlyForecast(hourly, daily, 0, 24)
+
+        assertEquals(1, result.size)
+        assertEquals(null, result[0].temperature)
+        assertEquals(null, result[0].humidity)
+        assertEquals(null, result[0].windSpeed)
+    }
+
+    @Test
+    fun `mapToHourlyForecast handles empty daily for weather code`() {
+        val hourly = createTestHourlyWeather()
+        val daily = DailyWeather(
+            time = emptyList(),
+            weatherCode = emptyList()
+        )
+        val result = weatherMapper.mapToHourlyForecast(hourly, daily, 0, 24)
+
+        assertEquals(4, result.size)
+        assertEquals(null, result[0].weatherCode)
+    }
+
+    private fun createTestHourlyWeather(): HourlyWeather {
+        return HourlyWeather(
+            time = listOf(
+                "2026-04-27T10:00:00",
+                "2026-04-27T11:00:00",
+                "2026-04-27T12:00:00",
+                "2026-04-28T10:00:00"
+            ),
+            temperature2m = listOf(20.0, 22.0, 24.0, 23.0),
+            relativehumidity2m = listOf(65, 60, 55, 58),
+            windspeed10m = listOf(10.0, 12.0, 14.0, 11.0)
         )
     }
 }

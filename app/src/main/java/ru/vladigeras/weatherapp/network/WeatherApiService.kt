@@ -14,7 +14,8 @@ interface WeatherApiService {
         currentParams: String,
         hourlyParams: String,
         dailyParams: String,
-        forecastDays: Int
+        forecastDays: Int,
+        forecastHours: Int
     ): WeatherResponse
 }
 
@@ -27,7 +28,8 @@ class WeatherApiServiceImpl(
         currentParams: String,
         hourlyParams: String,
         dailyParams: String,
-        forecastDays: Int
+        forecastDays: Int,
+        forecastHours: Int
     ): WeatherResponse {
         return httpClient.get(BuildConfig.API_URL) {
             parameter("latitude", latitude)
@@ -35,9 +37,8 @@ class WeatherApiServiceImpl(
             parameter("current", currentParams)
             parameter("hourly", hourlyParams)
             parameter("daily", dailyParams)
-            if (forecastDays > 0) {
-                parameter("forecast_days", forecastDays.toString())
-            }
+            parameter("forecast_days", forecastDays.toString())
+            parameter("forecast_hours", forecastHours.toString())
             parameter("timezone", "auto")
         }.body()
     }

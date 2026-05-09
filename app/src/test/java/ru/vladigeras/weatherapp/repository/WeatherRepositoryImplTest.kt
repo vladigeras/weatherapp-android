@@ -1,13 +1,13 @@
 package ru.vladigeras.weatherapp.repository
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import android.content.Context
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -18,8 +18,6 @@ import ru.vladigeras.weatherapp.data.HourlyWeather
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.data.WeatherResponse
 import ru.vladigeras.weatherapp.network.WeatherApiService
-import org.junit.runner.RunWith
-import android.content.Context
 
 private fun createMockWeatherResponse() = WeatherResponse(
     latitude = 55.7558,
@@ -202,7 +200,8 @@ class WeatherRepositoryImplTest {
             currentParams: String,
             hourlyParams: String,
             dailyParams: String,
-            forecastDays: Int
+            forecastDays: Int,
+            forecastHours: Int
         ): WeatherResponse {
             callCount++
             if (exceptionToThrow != null) {

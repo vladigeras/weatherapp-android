@@ -60,8 +60,10 @@ class WeatherDisplayPrefsRepositoryTest {
             assertEquals(true, prefs.showCondition)
             assertEquals(true, prefs.showSunTimes)
             assertEquals(true, prefs.showUvIndex)
-            assertEquals(false, prefs.showForecast)
+            assertEquals(false, prefs.showForecastDays)
             assertEquals(1, prefs.forecastDays)
+            assertEquals(false, prefs.showHourlyForecast)
+            assertEquals(24, prefs.hourlyForecastHours)
         }
     }
 
@@ -69,7 +71,7 @@ class WeatherDisplayPrefsRepositoryTest {
     fun updatePrefs_emitsNewValues() = runTest {
         repository.getPrefs().test {
             awaitItem()
-            
+
             repository.updatePrefs(
                 WeatherDisplayPrefs(
                     showHumidity = false,
@@ -78,13 +80,17 @@ class WeatherDisplayPrefsRepositoryTest {
                     showCondition = true,
                     showSunTimes = true,
                     showUvIndex = true,
-                    showForecast = true,
-                    forecastDays = 1
+                    showForecastDays = true,
+                    forecastDays = 1,
+                    showHourlyForecast = true,
+                    hourlyForecastHours = 12
                 )
             )
-            
+
             val prefs = awaitItem()
             assertEquals(false, prefs.showHumidity)
+            assertEquals(true, prefs.showHourlyForecast)
+            assertEquals(12, prefs.hourlyForecastHours)
         }
     }
 
@@ -101,7 +107,7 @@ class WeatherDisplayPrefsRepositoryTest {
                     showCondition = true,
                     showSunTimes = true,
                     showUvIndex = true,
-                    showForecast = true,
+                    showForecastDays = true,
                     forecastDays = 3
                 )
             )
@@ -109,6 +115,34 @@ class WeatherDisplayPrefsRepositoryTest {
             val prefs = awaitItem()
             assertEquals(3, prefs.forecastDays)
             assertEquals(true, prefs.showHumidity)
+        }
+    }
+
+    @Test
+    fun updatePrefs_hourlyForecast_preservesOtherSettings() = runTest {
+        repository.getPrefs().test {
+            awaitItem()
+
+            repository.updatePrefs(
+                WeatherDisplayPrefs(
+                    showHumidity = true,
+                    showWind = true,
+                    showPrecipitation = true,
+                    showCondition = true,
+                    showSunTimes = true,
+                    showUvIndex = true,
+                    showForecastDays = true,
+                    forecastDays = 7,
+                    showHourlyForecast = true,
+                    hourlyForecastHours = 48
+                )
+            )
+
+            val prefs = awaitItem()
+            assertEquals(true, prefs.showHourlyForecast)
+            assertEquals(48, prefs.hourlyForecastHours)
+            assertEquals(7, prefs.forecastDays)
+            assertEquals(true, prefs.showForecastDays)
         }
     }
 }
