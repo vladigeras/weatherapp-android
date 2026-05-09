@@ -49,11 +49,10 @@
     <string name="precipitation">Precipitation</string>
     <string name="sun_times">Sunrise &amp; Sunset</string>
     <string name="uv_index">UV Index</string>
-    <string name="forecast">Forecast</string>
-    <string name="forecast_days">Forecast Days</string>
-    <string name="unknown_weather">Unknown</string>
     <string name="daily_forecast">Daily Forecast</string>
-    
+    <string name="daily_forecast_days">Forecast Days</string>
+    <string name="unknown_weather">Unknown</string>
+
     <!-- Descriptions -->
     <string name="condition_description">Show weather condition</string>
     <string name="humidity_description">Show relative humidity</string>

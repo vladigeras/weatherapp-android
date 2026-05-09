@@ -49,11 +49,10 @@
     <string name="precipitation">Осадки</string>
     <string name="sun_times">Восход и закат</string>
     <string name="uv_index">УФ-индекс</string>
-    <string name="forecast">Прогноз</string>
-    <string name="forecast_days">Дней прогноза</string>
+    <string name="daily_forecast">Прогноз по дням</string>
+    <string name="daily_forecast_days">Дней прогноза</string>
     <string name="unknown_weather">Неизвестно</string>
-    <string name="daily_forecast">Прогноз на день</string>
-    
+
     <!-- Descriptions -->
     <string name="condition_description">Показать температуру</string>
     <string name="humidity_description">Показать относительную влажность</string>

@@ -2,8 +2,8 @@ package ru.vladigeras.weatherapp.ui
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.WaterDrop
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -56,7 +55,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import ru.vladigeras.weatherapp.MainActivity
 import ru.vladigeras.weatherapp.R
 import ru.vladigeras.weatherapp.core.locale.LanguageManager
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
@@ -406,14 +404,14 @@ private fun settingsItems(
             icon = { Icon(Icons.Filled.Settings, contentDescription = null) }
         ),
         SettingsItem.Toggle(
-            key = "forecast",
-            titleRes = R.string.forecast,
+            key = "daily_forecast",
+            titleRes = R.string.daily_forecast,
             descriptionRes = R.string.forecast_description,
             checked = prefs.showForecast,
             icon = { Icon(Icons.Filled.Cloud, contentDescription = null) }
         ),
         SettingsItem.ForecastDays(
-            titleRes = R.string.forecast_days,
+            titleRes = R.string.daily_forecast_days,
             days = prefs.forecastDays
         )
     )
