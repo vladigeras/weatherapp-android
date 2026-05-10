@@ -32,7 +32,6 @@ private fun createMockWeatherResponse() = WeatherResponse(
         temperature = 9.3,
         apparentTemperature = null,
         windSpeed = 2.5,
-        windDirection = 225,
         weatherCode = 3,
         isDay = 1
     ),

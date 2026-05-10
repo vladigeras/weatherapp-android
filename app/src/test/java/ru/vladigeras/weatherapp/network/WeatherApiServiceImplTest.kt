@@ -53,7 +53,6 @@ class WeatherApiServiceImplTest {
                             "interval": 900,
                             "apparent_temperature": 24.0,
                             "windspeed_10m": 10.0,
-                            "winddirection_10m": 180,
                             "is_day": 1
                         }
                     }

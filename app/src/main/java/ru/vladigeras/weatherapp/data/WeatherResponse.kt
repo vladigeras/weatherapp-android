@@ -36,8 +36,6 @@ data class Current(
     val apparentTemperature: Double? = null,
     @SerialName("windspeed_10m")
     val windSpeed: Double? = null,
-    @SerialName("winddirection_10m")
-    val windDirection: Int? = null,
     @SerialName("weathercode")
     val weatherCode: Int? = null,
     @SerialName("is_day")
@@ -54,8 +52,6 @@ data class CurrentUnits(
     val apparentTemperatureUnit: String? = null,
     @SerialName("windspeed_10m")
     val windSpeedUnit: String? = null,
-    @SerialName("winddirection_10m")
-    val windDirectionUnit: String? = null,
     @SerialName("weathercode")
     val weatherCodeUnit: String? = null,
     @SerialName("is_day")

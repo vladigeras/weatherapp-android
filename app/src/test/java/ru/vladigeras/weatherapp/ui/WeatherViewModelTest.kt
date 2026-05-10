@@ -69,7 +69,6 @@ class WeatherViewModelTest {
             temperature = 20.5, // temperature_2m
             apparentTemperature = 22.0,
             windSpeed = 5.2, // windspeed_10m
-            windDirection = 180, // winddirection_10m
             weatherCode = 0,
             isDay = 1
         ),
@@ -107,7 +106,6 @@ class WeatherViewModelTest {
             temperature = 18.2, // temperature_2m
             apparentTemperature = 19.0,
             windSpeed = 3.1, // windspeed_10m
-            windDirection = 220, // winddirection_10m
             weatherCode = 1,
             isDay = 1
         ),

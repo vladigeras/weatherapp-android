@@ -77,7 +77,7 @@ class WeatherRepositoryImpl @Inject constructor(
             hourly += "relativehumidity_2m"
         }
         if (prefs.showWind) {
-            current += "windspeed_10m,winddirection_10m"
+            current += "windspeed_10m"
             hourly += "windspeed_10m"
             daily += "windspeed_10m_max,winddirection_10m_dominant"
         }

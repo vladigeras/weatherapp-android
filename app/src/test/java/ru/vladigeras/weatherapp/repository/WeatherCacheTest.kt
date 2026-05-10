@@ -1,22 +1,20 @@
 package ru.vladigeras.weatherapp.repository
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
-import org.junit.After
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import ru.vladigeras.weatherapp.data.Current
 import ru.vladigeras.weatherapp.data.WeatherResponse
 import java.io.File
-import org.junit.runner.RunWith
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -54,7 +52,6 @@ class WeatherCacheTest {
                 temperature = 9.3,
                 apparentTemperature = null,
                 windSpeed = 2.5,
-                windDirection = 225,
                 weatherCode = 3,
                 isDay = 1
             )
