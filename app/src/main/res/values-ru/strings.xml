@@ -43,7 +43,6 @@
     <string name="weather_code_99">Гроза с сильным градом</string>
     
     <!-- Weather display options -->
-    <string name="condition">Температура</string>
     <string name="humidity">Влажность</string>
     <string name="wind">Ветер</string>
     <string name="precipitation">Осадки</string>
@@ -54,7 +53,6 @@
     <string name="unknown_weather">Неизвестно</string>
 
     <!-- Descriptions -->
-    <string name="condition_description">Показать температуру</string>
     <string name="humidity_description">Показать относительную влажность</string>
     <string name="wind_description">Показать скорость и направление ветра</string>
     <string name="precipitation_description">Показать сумму осадков</string>

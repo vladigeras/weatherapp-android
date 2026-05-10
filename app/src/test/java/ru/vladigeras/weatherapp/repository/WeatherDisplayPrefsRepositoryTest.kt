@@ -57,7 +57,6 @@ class WeatherDisplayPrefsRepositoryTest {
             assertEquals(true, prefs.showHumidity)
             assertEquals(true, prefs.showWind)
             assertEquals(true, prefs.showPrecipitation)
-            assertEquals(true, prefs.showCondition)
             assertEquals(true, prefs.showSunTimes)
             assertEquals(true, prefs.showUvIndex)
             assertEquals(false, prefs.showForecastDays)
@@ -77,7 +76,6 @@ class WeatherDisplayPrefsRepositoryTest {
                     showHumidity = false,
                     showWind = true,
                     showPrecipitation = true,
-                    showCondition = true,
                     showSunTimes = true,
                     showUvIndex = true,
                     showForecastDays = true,
@@ -104,7 +102,6 @@ class WeatherDisplayPrefsRepositoryTest {
                     showHumidity = true,
                     showWind = true,
                     showPrecipitation = true,
-                    showCondition = true,
                     showSunTimes = true,
                     showUvIndex = true,
                     showForecastDays = true,
@@ -128,7 +125,6 @@ class WeatherDisplayPrefsRepositoryTest {
                     showHumidity = true,
                     showWind = true,
                     showPrecipitation = true,
-                    showCondition = true,
                     showSunTimes = true,
                     showUvIndex = true,
                     showForecastDays = true,

@@ -7,7 +7,6 @@ data class WeatherDisplayPrefs(
     val showHumidity: Boolean = true,
     val showWind: Boolean = true,
     val showPrecipitation: Boolean = true,
-    val showCondition: Boolean = true,
     val showSunTimes: Boolean = true,
     val showUvIndex: Boolean = true,
     val showForecastDays: Boolean = false,

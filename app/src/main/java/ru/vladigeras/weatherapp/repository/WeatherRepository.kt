@@ -69,10 +69,9 @@ class WeatherRepositoryImpl @Inject constructor(
         hourly += "temperature_2m"
         daily += "temperature_2m_max,temperature_2m_min"
 
-        if (prefs.showCondition) {
-            current += "weathercode,apparent_temperature"
-            daily += "weathercode"
-        }
+        current += "weathercode,apparent_temperature"
+        daily += "weathercode"
+
         if (prefs.showHumidity) {
             hourly += "relativehumidity_2m"
         }

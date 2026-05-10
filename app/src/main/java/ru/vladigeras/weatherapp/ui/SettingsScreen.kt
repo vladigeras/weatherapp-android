@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
@@ -418,14 +417,6 @@ private fun settingsItems(
             currentPreference = languagePreference
         ),
         SettingsItem.Toggle(
-            key = "condition",
-            titleRes = R.string.condition,
-            descriptionRes = R.string.condition_description,
-            checked = true,
-            icon = { Icon(Icons.Filled.Thermostat, contentDescription = null) },
-            enabled = false
-        ),
-        SettingsItem.Toggle(
             key = "humidity",
             titleRes = R.string.humidity,
             descriptionRes = R.string.humidity_description,
@@ -527,7 +518,6 @@ class SettingsViewModel @Inject constructor(
             "humidity" -> current.copy(showHumidity = checked)
             "wind" -> current.copy(showWind = checked)
             "precipitation" -> current.copy(showPrecipitation = checked)
-            "condition" -> current.copy(showCondition = checked)
             "sun_times" -> current.copy(showSunTimes = checked)
             "uv_index" -> current.copy(showUvIndex = checked)
             "daily_forecast" -> current.copy(showForecastDays = checked)

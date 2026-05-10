@@ -30,7 +30,6 @@ class WeatherDisplayPrefsRepository @Inject constructor(
         val SHOW_HUMIDITY = booleanPreferencesKey("show_humidity")
         val SHOW_WIND = booleanPreferencesKey("show_wind")
         val SHOW_PRECIPITATION = booleanPreferencesKey("show_precipitation")
-        val SHOW_CONDITION = booleanPreferencesKey("show_condition")
         val SHOW_SUN_TIMES = booleanPreferencesKey("show_sun_times")
         val SHOW_UV_INDEX = booleanPreferencesKey("show_uv_index")
         val SHOW_FORECAST_DAYS = booleanPreferencesKey("show_forecast")
@@ -45,7 +44,6 @@ class WeatherDisplayPrefsRepository @Inject constructor(
                 showHumidity = prefs[Keys.SHOW_HUMIDITY] ?: true,
                 showWind = prefs[Keys.SHOW_WIND] ?: true,
                 showPrecipitation = prefs[Keys.SHOW_PRECIPITATION] ?: true,
-                showCondition = prefs[Keys.SHOW_CONDITION] ?: true,
                 showSunTimes = prefs[Keys.SHOW_SUN_TIMES] ?: true,
                 showUvIndex = prefs[Keys.SHOW_UV_INDEX] ?: true,
                 showForecastDays = prefs[Keys.SHOW_FORECAST_DAYS] ?: false,
@@ -60,7 +58,6 @@ class WeatherDisplayPrefsRepository @Inject constructor(
             it[Keys.SHOW_HUMIDITY] = prefs.showHumidity
             it[Keys.SHOW_WIND] = prefs.showWind
             it[Keys.SHOW_PRECIPITATION] = prefs.showPrecipitation
-            it[Keys.SHOW_CONDITION] = prefs.showCondition
             it[Keys.SHOW_SUN_TIMES] = prefs.showSunTimes
             it[Keys.SHOW_UV_INDEX] = prefs.showUvIndex
             it[Keys.SHOW_FORECAST_DAYS] = prefs.showForecastDays

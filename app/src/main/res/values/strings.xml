@@ -43,7 +43,6 @@
     <string name="weather_code_99">Heavy hail thunderstorm</string>
     
     <!-- Weather display options -->
-    <string name="condition">Condition</string>
     <string name="humidity">Humidity</string>
     <string name="wind">Wind</string>
     <string name="precipitation">Precipitation</string>
@@ -54,7 +53,6 @@
     <string name="unknown_weather">Unknown</string>
 
     <!-- Descriptions -->
-    <string name="condition_description">Show weather condition</string>
     <string name="humidity_description">Show relative humidity</string>
     <string name="wind_description">Show wind speed and direction</string>
     <string name="precipitation_description">Show precipitation sum</string>

@@ -271,13 +271,13 @@ private fun SuccessContent(state: WeatherUiState.Success) {
 
         item { Spacer(modifier = Modifier.height(16.dp)) }
 
-        if (state.prefs.showCondition || state.prefs.showHumidity || state.prefs.showWind) {
+        if (state.prefs.showHumidity || state.prefs.showWind) {
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    if (state.prefs.showCondition && state.feelsLike != null) {
+                    if (state.feelsLike != null) {
                         DetailCard(
                             icon = Icons.Filled.Thermostat,
                             label = stringResource(R.string.feels_like),
