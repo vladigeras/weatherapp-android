@@ -133,7 +133,7 @@ fun HourlyForecastCard(
                         modifier = Modifier.size(12.dp)
                     )
                     Text(
-                        text = "${windSpeed.toInt()}",
+                        text = "${windSpeed.toInt()} ${stringResource(R.string.wind_speed_unit)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
