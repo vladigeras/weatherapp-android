@@ -288,26 +288,6 @@ class WeatherViewModelTest {
     }
     
     @Test
-    fun `should set feelsLike to null when apparent temperature not available`() = runTest {
-        val responseWithoutApparentTemp = mockResponse.copy(
-            current = mockResponse.current?.copy(
-                apparentTemperature = null,
-                temperature = 20.0,
-                windSpeed = 10.0
-            )
-        )
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(responseWithoutApparentTemp)
-        
-        weatherViewModel.loadWeather(55.7558, 37.6173)
-        
-        val successState = weatherViewModel.uiState
-            .first { it is WeatherUiState.Success } as WeatherUiState.Success
-             
-        assertEquals(null, successState.feelsLike)
-        assertEquals(20.0, successState.temperature, 0.001)
-    }
-    
-    @Test
     fun `should process daily forecast correctly`() = runTest {
         coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
 
@@ -454,7 +434,7 @@ class WeatherViewModelTest {
         
         assertEquals(0.0, successState.temperature, 0.001)
         assertEquals(0, successState.weatherCode)
-        assertEquals(null, successState.feelsLike)
+        assertEquals(0.0, successState.feelsLike, 0.001)
     }
 
     @Test

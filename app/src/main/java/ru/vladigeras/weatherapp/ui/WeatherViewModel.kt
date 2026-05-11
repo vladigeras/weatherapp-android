@@ -33,7 +33,7 @@ sealed interface WeatherUiState {
     data object Empty : WeatherUiState
     data class Success(
         val temperature: Double,
-        val feelsLike: Double?,
+        val feelsLike: Double,
         val humidity: Int,
         val windSpeed: Double,
         val weatherCode: Int,
@@ -151,7 +151,7 @@ class WeatherViewModel @Inject constructor(
                     val current = response.current
                     val hourly = response.hourly
                     val daily = response.daily
-                    val feelsLike = current?.apparentTemperature
+                    val feelsLike = current?.apparentTemperature ?: 0.0
                     val humidity = hourly?.relativehumidity2m?.firstOrNull { it != null } ?: 0
                     val dailyForecast = weatherMapper.mapToDailyForecast(daily, response.utcOffsetSeconds)
                     val hourlyForecast = weatherMapper.mapToHourlyForecast(hourly, daily, response.utcOffsetSeconds, prefs.hourlyForecastHours)

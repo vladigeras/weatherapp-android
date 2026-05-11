@@ -271,20 +271,23 @@ private fun SuccessContent(state: WeatherUiState.Success) {
 
         item { Spacer(modifier = Modifier.height(16.dp)) }
 
+        item {
+            DetailCard(
+                icon = Icons.Filled.Thermostat,
+                label = stringResource(R.string.feels_like),
+                value = "${state.feelsLike.toInt()}${state.temperatureUnit}",
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        item { Spacer(modifier = Modifier.height(16.dp)) }
+
         if (state.prefs.showHumidity || state.prefs.showWind) {
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    if (state.feelsLike != null) {
-                        DetailCard(
-                            icon = Icons.Filled.Thermostat,
-                            label = stringResource(R.string.feels_like),
-                            value = "${state.feelsLike.toInt()}${state.temperatureUnit}",
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
                     if (state.prefs.showHumidity) {
                         DetailCard(
                             icon = Icons.Filled.WaterDrop,
