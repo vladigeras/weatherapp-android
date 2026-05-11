@@ -45,6 +45,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -260,55 +261,21 @@ private fun SuccessContent(state: WeatherUiState.Success) {
             .padding(16.dp)
     ) {
         item {
-            WeatherMainCard(
+            CurrentWeatherCard(
                 temperature = state.temperature,
                 weatherCode = state.weatherCode,
                 isDay = state.isDay,
                 cityName = state.cityName,
-                temperatureUnit = state.temperatureUnit
+                temperatureUnit = state.temperatureUnit,
+                feelsLike = state.feelsLike,
+                humidity = state.humidity,
+                windSpeed = state.windSpeed,
+                showHumidity = state.prefs.showHumidity,
+                showWind = state.prefs.showWind
             )
         }
 
-        item { Spacer(modifier = Modifier.height(16.dp)) }
-
-        item {
-            DetailCard(
-                icon = Icons.Filled.Thermostat,
-                label = stringResource(R.string.feels_like),
-                value = "${state.feelsLike.toInt()}${state.temperatureUnit}",
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        item { Spacer(modifier = Modifier.height(16.dp)) }
-
-        if (state.prefs.showHumidity || state.prefs.showWind) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    if (state.prefs.showHumidity) {
-                        DetailCard(
-                            icon = Icons.Filled.WaterDrop,
-                            label = stringResource(R.string.humidity),
-                            value = "${state.humidity}%",
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    if (state.prefs.showWind) {
-                        DetailCard(
-                            icon = Icons.Filled.Air,
-                            label = stringResource(R.string.wind_speed),
-                            value = "${state.windSpeed.toInt()} ${stringResource(R.string.wind_speed_unit)}",
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(24.dp)) }
-        }
+        item { Spacer(modifier = Modifier.height(24.dp)) }
 
         if (state.prefs.showHourlyForecast && state.hourlyForecast.isNotEmpty()) {
             item {
@@ -331,25 +298,128 @@ private fun SuccessContent(state: WeatherUiState.Success) {
 }
 
 @Composable
-private fun WeatherMainCard(temperature: Double, weatherCode: Int, isDay: Int, cityName: String, temperatureUnit: String) {
+private fun CurrentWeatherCard(
+    temperature: Double,
+    weatherCode: Int,
+    isDay: Int,
+    cityName: String,
+    temperatureUnit: String,
+    feelsLike: Double,
+    humidity: Int?,
+    windSpeed: Double?,
+    showHumidity: Boolean,
+    showWind: Boolean
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
         shape = RoundedCornerShape(24.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay)
             val weatherDesc = stringResource(WeatherCodeMapper.getWeatherCodeStringResId(weatherCode))
             Icon(
                 imageVector = weatherIcon,
                 contentDescription = weatherDesc,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(48.dp)
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "${temperature.toInt()}$temperatureUnit", fontSize = 80.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-            Text(text = cityName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${temperature.toInt()}$temperatureUnit",
+                fontSize = 56.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Text(
+                text = cityName,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            CurrentWeatherDetails(
+                feelsLike = feelsLike,
+                temperatureUnit = temperatureUnit,
+                humidity = humidity,
+                windSpeed = windSpeed,
+                showHumidity = showHumidity,
+                showWind = showWind
+            )
         }
+    }
+}
+
+@Composable
+private fun CurrentWeatherDetails(
+    feelsLike: Double,
+    temperatureUnit: String,
+    humidity: Int?,
+    windSpeed: Double?,
+    showHumidity: Boolean,
+    showWind: Boolean
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        WeatherDetailItem(
+            icon = Icons.Filled.Thermostat,
+            value = "${feelsLike.toInt()}$temperatureUnit",
+            label = stringResource(R.string.feels_like)
+        )
+        if (showHumidity && humidity != null) {
+            VerticalDivider(
+                modifier = Modifier.height(40.dp),
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
+            )
+            WeatherDetailItem(
+                icon = Icons.Filled.WaterDrop,
+                value = "$humidity%",
+                label = stringResource(R.string.humidity)
+            )
+        }
+        if (showWind && windSpeed != null) {
+            VerticalDivider(
+                modifier = Modifier.height(40.dp),
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
+            )
+            WeatherDetailItem(
+                icon = Icons.Filled.Air,
+                value = "${windSpeed.toInt()} ${stringResource(R.string.wind_speed_unit)}",
+                label = stringResource(R.string.wind)
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeatherDetailItem(icon: ImageVector, value: String, label: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(horizontal = 8.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+        )
     }
 }
 
