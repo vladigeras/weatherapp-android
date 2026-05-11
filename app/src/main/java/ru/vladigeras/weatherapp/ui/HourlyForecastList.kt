@@ -26,12 +26,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import ru.vladigeras.weatherapp.R
+import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.util.WeatherCodeMapper
 
 @Composable
 fun HourlyForecastList(
     forecast: List<HourlyForecast>,
     temperatureUnit: String,
+    prefs: WeatherDisplayPrefs,
     modifier: Modifier = Modifier
 ) {
     if (forecast.isEmpty()) {
@@ -44,7 +46,7 @@ fun HourlyForecastList(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(forecast) { item ->
-            HourlyForecastCard(forecast = item, temperatureUnit = temperatureUnit)
+            HourlyForecastCard(forecast = item, temperatureUnit = temperatureUnit, prefs = prefs)
         }
     }
 }
@@ -53,6 +55,7 @@ fun HourlyForecastList(
 fun HourlyForecastCard(
     forecast: HourlyForecast,
     temperatureUnit: String,
+    prefs: WeatherDisplayPrefs,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -99,44 +102,48 @@ fun HourlyForecastCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            forecast.humidity?.let { humidity ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.WaterDrop,
-                        contentDescription = stringResource(R.string.humidity),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Text(
-                        text = "$humidity%",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            if (prefs.showHumidity) {
+                forecast.humidity?.let { humidity ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.WaterDrop,
+                            contentDescription = stringResource(R.string.humidity),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = "$humidity%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
-            forecast.windSpeed?.let { windSpeed ->
-                if (forecast.humidity != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Air,
-                        contentDescription = stringResource(R.string.wind),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Text(
-                        text = "${windSpeed.toInt()} ${stringResource(R.string.wind_speed_unit)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            if (prefs.showWind) {
+                forecast.windSpeed?.let { windSpeed ->
+                    if (prefs.showHumidity && forecast.humidity != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Air,
+                            contentDescription = stringResource(R.string.wind),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = "${windSpeed.toInt()} ${stringResource(R.string.wind_speed_unit)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }

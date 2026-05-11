@@ -314,7 +314,8 @@ private fun SuccessContent(state: WeatherUiState.Success) {
             item {
                 HourlyForecastList(
                     forecast = state.hourlyForecast,
-                    temperatureUnit = state.temperatureUnit
+                    temperatureUnit = state.temperatureUnit,
+                    prefs = state.prefs
                 )
             }
 
