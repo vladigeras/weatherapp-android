@@ -5,10 +5,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -187,36 +183,30 @@ fun WeatherScreen(
                 .padding(paddingValues)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            AnimatedContent(
-                targetState = currentState,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "weather_state"
-            ) { targetState ->
-                when (targetState) {
-                    is WeatherUiState.Loading -> SkeletonLoader()
-                    is WeatherUiState.Success -> SuccessContent(targetState)
-                    is WeatherUiState.Error -> ErrorContent(
-                        state = targetState,
-                        onRetry = {
-                            val lat = savedLatitude
-                            val lon = savedLongitude
-                            when {
-                                lat != null && lon != null -> viewModel.loadWeather(lat, lon, forceRefresh = true)
-                                hasLocationPermission -> viewModel.loadWeatherForCurrentLocation(forceRefresh = true)
-                                else -> onNavigateToLocationSelection()
-                            }
-                        },
-                        onSelectLocation = onNavigateToLocationSelection
-                    )
-                    is WeatherUiState.Empty -> {
-                        if (!hasSavedLocation && !hasLocationPermission) {
-                            EmptyStateContent(
-                                onSelectLocation = onSelectLocation,
-                                onRequestPermission = onRequestPermission
-                            )
-                        } else {
-                            SkeletonLoader()
+            when (currentState) {
+                is WeatherUiState.Loading -> SkeletonLoader()
+                is WeatherUiState.Success -> SuccessContent(currentState)
+                is WeatherUiState.Error -> ErrorContent(
+                    state = currentState,
+                    onRetry = {
+                        val lat = savedLatitude
+                        val lon = savedLongitude
+                        when {
+                            lat != null && lon != null -> viewModel.loadWeather(lat, lon, forceRefresh = true)
+                            hasLocationPermission -> viewModel.loadWeatherForCurrentLocation(forceRefresh = true)
+                            else -> onNavigateToLocationSelection()
                         }
+                    },
+                    onSelectLocation = onNavigateToLocationSelection
+                )
+                is WeatherUiState.Empty -> {
+                    if (!hasSavedLocation && !hasLocationPermission) {
+                        EmptyStateContent(
+                            onSelectLocation = onSelectLocation,
+                            onRequestPermission = onRequestPermission
+                        )
+                    } else {
+                        SkeletonLoader()
                     }
                 }
             }
@@ -325,7 +315,11 @@ private fun SuccessContent(state: WeatherUiState.Success) {
             item {
                 SectionHeader(title = stringResource(R.string.daily_forecast))
             }
-            itemsIndexed(state.dailyForecast) { index, forecast ->
+            itemsIndexed(
+                items = state.dailyForecast,
+                key = { _, forecast -> forecast.date },
+                contentType = { _, _ -> "daily_forecast" }
+            ) { index, forecast ->
                 DailyForecastItem(forecast = forecast, temperatureUnit = state.temperatureUnit, index)
             }
         }
@@ -532,8 +526,6 @@ private fun EmptyStateContent(
     onSelectLocation: () -> Unit,
     onRequestPermission: () -> Unit
 ) {
-    val context = LocalContext.current
-    
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,

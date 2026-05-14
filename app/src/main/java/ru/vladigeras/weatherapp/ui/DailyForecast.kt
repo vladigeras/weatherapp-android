@@ -1,8 +1,11 @@
 package ru.vladigeras.weatherapp.ui
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Represents a single day's weather forecast for display in the UI.
  */
+@Immutable
 data class DailyForecast(
     val date: String,          // Formatted date (e.g., "Tue, 28")
     val dayName: String,       // Day of week (e.g., "Tue")

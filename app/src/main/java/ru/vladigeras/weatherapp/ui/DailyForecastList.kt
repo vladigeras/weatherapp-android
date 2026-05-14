@@ -1,18 +1,18 @@
 package ru.vladigeras.weatherapp.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -59,12 +59,11 @@ fun DailyForecastList(dailyForecast: List<DailyForecast>, temperatureUnit: Strin
 @Preview(showBackground = true)
 @Composable
 fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, index: Int) {
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.medium
+            .padding(horizontal = 12.dp, vertical = 2.dp)
+            .background(MaterialTheme.colorScheme.surface)
     ) {
         Column(
             modifier = Modifier
@@ -73,66 +72,62 @@ fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, index: I
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.Start
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        val isToday = index == 0
-                        val isTomorrow = index == 1
-                        val isDayAfterTomorrow = index == 2
-                        if (isToday || isTomorrow || isDayAfterTomorrow) {
-                            val labelResId = when {
-                                isToday -> R.string.today
-                                isTomorrow -> R.string.tomorrow
-                                else -> R.string.day_after_tomorrow
-                            }
-                            Text(
-                                text = stringResource(labelResId),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(end = 4.dp)
-                            )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val isToday = index == 0
+                    val isTomorrow = index == 1
+                    val isDayAfterTomorrow = index == 2
+                    if (isToday || isTomorrow || isDayAfterTomorrow) {
+                        val labelResId = when {
+                            isToday -> R.string.today
+                            isTomorrow -> R.string.tomorrow
+                            else -> R.string.day_after_tomorrow
                         }
                         Text(
-                            text = forecast.dayName,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = stringResource(labelResId),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 4.dp)
                         )
                     }
+                    Text(
+                        text = forecast.dayName,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = forecast.date,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                val weatherCode = forecast.weatherCode ?: 0
-                val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay = 1)
-                val weatherDesc = stringResource(WeatherCodeMapper.getWeatherCodeStringResId(weatherCode))
-                Icon(
-                    imageVector = weatherIcon,
-                    contentDescription = weatherDesc,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp).padding(horizontal = 8.dp)
-                )
-
-                Text(
-                    text = "${forecast.temperatureMin.toInt()}$temperatureUnit/${forecast.temperatureMax.toInt()}$temperatureUnit",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val weatherCode = forecast.weatherCode ?: 0
+                    val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay = 1)
+                    Icon(
+                        imageVector = weatherIcon,
+                        contentDescription = "Weather",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp).padding(horizontal = 8.dp)
+                    )
+                    Text(
+                        text = "${forecast.temperatureMin.toInt()}$temperatureUnit/${forecast.temperatureMax.toInt()}$temperatureUnit",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            FlowRow(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 val precipitationSum = forecast.precipitationSum ?: 0.0
                 if (precipitationSum > 0) {

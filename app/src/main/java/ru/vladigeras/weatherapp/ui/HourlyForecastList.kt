@@ -1,6 +1,8 @@
 package ru.vladigeras.weatherapp.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,8 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.WaterDrop
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,7 +45,7 @@ fun HourlyForecastList(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(forecast) { item ->
+        items(items = forecast, key = { it.time }) { item ->
             HourlyForecastCard(forecast = item, temperatureUnit = temperatureUnit, prefs = prefs)
         }
     }
@@ -58,11 +58,10 @@ fun HourlyForecastCard(
     prefs: WeatherDisplayPrefs,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier.width(80.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = MaterialTheme.shapes.medium,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    Box(
+        modifier = modifier
+            .width(80.dp)
+            .background(MaterialTheme.colorScheme.surface)
     ) {
         Column(
             modifier = Modifier
