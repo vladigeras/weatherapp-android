@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -79,6 +81,7 @@ fun WeatherScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentState = uiState
+    val showUpdateToast by viewModel.showUpdateToast.collectAsState()
     val context = LocalContext.current
 
     val savedLatitude by savedStateHandle.getStateFlow<Double?>("latitude", null).collectAsState(initial = null)
@@ -129,8 +132,8 @@ fun WeatherScreen(
     val weatherUpdatedText = stringResource(R.string.weather_updated)
     val weatherErrorText = stringResource(R.string.weather_error)
     
-    LaunchedEffect(currentState) {
-        if (currentState is WeatherUiState.Success) {
+    LaunchedEffect(showUpdateToast, currentState) {
+        if (showUpdateToast && currentState is WeatherUiState.Success) {
             Toast.makeText(context, weatherUpdatedText, Toast.LENGTH_SHORT).show()
         }
     }
@@ -145,8 +148,9 @@ fun WeatherScreen(
 
     Scaffold(
         topBar = {
+            val cityName = (currentState as? WeatherUiState.Success)?.cityName
             TopAppBar(
-                title = { Text(text = "Weatherapp", fontWeight = FontWeight.Bold) },
+                title = { Text(text = cityName ?: "Weatherapp", fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = onNavigateToLocationSelection) {
                         Icon(
@@ -226,15 +230,43 @@ private fun SkeletonLoader() {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
-        SkeletonCard(modifier = Modifier.fillMaxWidth().height(200.dp))
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            repeat(2) { SkeletonCard(modifier = Modifier.weight(1f).height(120.dp)) }
+        SkeletonCard(modifier = Modifier.fillMaxWidth().height(130.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+        SkeletonHourlyList()
+        Spacer(modifier = Modifier.height(8.dp))
+        repeat(3) {
+            SkeletonDailyItem()
+            Spacer(modifier = Modifier.height(2.dp))
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        SkeletonCard(modifier = Modifier.fillMaxWidth().height(100.dp))
+    }
+}
+
+@Composable
+private fun SkeletonHourlyList() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        repeat(6) {
+            SkeletonCard(modifier = Modifier.width(80.dp).height(80.dp))
+        }
+    }
+}
+
+@Composable
+private fun SkeletonDailyItem() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp))
     }
 }
 
@@ -253,19 +285,16 @@ private fun SkeletonCard(modifier: Modifier = Modifier) {
 
 @Composable
 private fun SuccessContent(state: WeatherUiState.Success) {
-    val context = LocalContext.current
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
         item {
             CurrentWeatherCard(
                 temperature = state.temperature,
                 weatherCode = state.weatherCode,
                 isDay = state.isDay,
-                cityName = state.cityName,
                 temperatureUnit = state.temperatureUnit,
                 feelsLike = state.feelsLike,
                 humidity = state.humidity,
@@ -275,9 +304,12 @@ private fun SuccessContent(state: WeatherUiState.Success) {
             )
         }
 
-        item { Spacer(modifier = Modifier.height(24.dp)) }
+        item { Spacer(modifier = Modifier.height(12.dp)) }
 
         if (state.prefs.showHourlyForecast && state.hourlyForecast.isNotEmpty()) {
+            item {
+                SectionHeader(title = stringResource(R.string.hourly_forecast))
+            }
             item {
                 HourlyForecastList(
                     forecast = state.hourlyForecast,
@@ -286,10 +318,13 @@ private fun SuccessContent(state: WeatherUiState.Success) {
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+            item { Spacer(modifier = Modifier.height(8.dp)) }
         }
 
         if (state.prefs.showForecastDays && state.dailyForecast.isNotEmpty()) {
+            item {
+                SectionHeader(title = stringResource(R.string.daily_forecast))
+            }
             itemsIndexed(state.dailyForecast) { index, forecast ->
                 DailyForecastItem(forecast = forecast, temperatureUnit = state.temperatureUnit, index)
             }
@@ -298,11 +333,31 @@ private fun SuccessContent(state: WeatherUiState.Success) {
 }
 
 @Composable
+private fun SectionHeader(title: String) {
+    Row(
+        modifier = Modifier.padding(bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(20.dp)
+            .background(MaterialTheme.colorScheme.primary)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
 private fun CurrentWeatherCard(
     temperature: Double,
     weatherCode: Int,
     isDay: Int,
-    cityName: String,
     temperatureUnit: String,
     feelsLike: Double,
     humidity: Int?,
@@ -310,13 +365,16 @@ private fun CurrentWeatherCard(
     showHumidity: Boolean,
     showWind: Boolean
 ) {
+    val isDarkTheme = isSystemInDarkTheme()
+    val cardColor = WeatherCodeMapper.getCardColor(weatherCode, isDay, isDarkTheme)
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        shape = RoundedCornerShape(24.dp)
+        colors = CardDefaults.cardColors(containerColor = cardColor),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay)
@@ -325,21 +383,21 @@ private fun CurrentWeatherCard(
                 imageVector = weatherIcon,
                 contentDescription = weatherDesc,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(36.dp)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "${temperature.toInt()}$temperatureUnit",
-                fontSize = 56.sp,
+                fontSize = 42.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
             Text(
-                text = cityName,
+                text = weatherDesc,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             CurrentWeatherDetails(
                 feelsLike = feelsLike,
                 temperatureUnit = temperatureUnit,
@@ -420,24 +478,6 @@ private fun WeatherDetailItem(icon: ImageVector, value: String, label: String) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
         )
-    }
-}
-
-@Composable
-private fun DetailCard(icon: ImageVector, label: String, value: String, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(imageVector = icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-        }
     }
 }
 

@@ -96,6 +96,12 @@
     <string name="day_one">день</string>
     <string name="day_few">дня</string>
     <string name="day_many">дней</string>
+    <plurals name="hours">
+        <item quantity="one">%d час</item>
+        <item quantity="few">%d часа</item>
+        <item quantity="many">%d часов</item>
+        <item quantity="other">%d часов</item>
+    </plurals>
     
     <!-- Notifications/Messages -->
     <string name="location_error_generic">Ошибка местоположения</string>

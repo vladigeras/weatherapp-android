@@ -63,6 +63,9 @@ class WeatherViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<WeatherUiState>(WeatherUiState.Loading)
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
+    
+    private val _showUpdateToast = MutableStateFlow(false)
+    val showUpdateToast: StateFlow<Boolean> = _showUpdateToast.asStateFlow()
 
     private var currentJob: Job? = null
     private var currentLatitude: Double = 0.0
@@ -106,6 +109,7 @@ class WeatherViewModel @Inject constructor(
 
     fun refreshActiveLocation() {
         viewModelScope.launch {
+            _showUpdateToast.value = true
             if (currentLatitude != 0.0 && currentLongitude != 0.0) {
                 loadWeather(currentLatitude, currentLongitude, forceRefresh = true)
             } else {
@@ -170,6 +174,9 @@ class WeatherViewModel @Inject constructor(
                         hourlyForecast = hourlyForecast,
                         prefs = prefs
                     )
+                    if (_showUpdateToast.value) {
+                        _showUpdateToast.value = false
+                    }
                     WidgetPrefsManager.save(
                         context,
                         cityName,

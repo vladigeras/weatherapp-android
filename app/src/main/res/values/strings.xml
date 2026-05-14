@@ -96,6 +96,10 @@
     <string name="day_one">day</string>
     <string name="day_few">days</string>
     <string name="day_many">days</string>
+    <plurals name="hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
     
     <!-- Widget -->
     <string name="widget_weather_icon">Weather icon</string>

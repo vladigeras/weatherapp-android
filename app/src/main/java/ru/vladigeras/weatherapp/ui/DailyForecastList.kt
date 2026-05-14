@@ -1,12 +1,10 @@
 package ru.vladigeras.weatherapp.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -22,8 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import ru.vladigeras.weatherapp.R
@@ -64,202 +62,141 @@ fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, index: I
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .height(110.dp),
+            .padding(horizontal = 12.dp, vertical = 2.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = MaterialTheme.shapes.medium
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.Center
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            // Today/Tomorrow/Day after tomorrow label
-            val isToday = index == 0
-            val isTomorrow = index == 1
-            val isDayAfterTomorrow = index == 2
-            if (isToday || isTomorrow || isDayAfterTomorrow) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .padding(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f))
-                    ) {
-                        val labelResId = when {
-                            isToday -> R.string.today
-                            isTomorrow -> R.string.tomorrow
-                            else -> R.string.day_after_tomorrow
-                        }
-                        Text(
-                            text = stringResource(labelResId),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
-            // First row: Day info, icon, temperature
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Day name and date
                 Column(
-                    modifier = Modifier.weight(1f, fill = false),
+                    modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.Start
                 ) {
-                    Text(
-                        text = forecast.dayName,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val isToday = index == 0
+                        val isTomorrow = index == 1
+                        val isDayAfterTomorrow = index == 2
+                        if (isToday || isTomorrow || isDayAfterTomorrow) {
+                            val labelResId = when {
+                                isToday -> R.string.today
+                                isTomorrow -> R.string.tomorrow
+                                else -> R.string.day_after_tomorrow
+                            }
+                            Text(
+                                text = stringResource(labelResId),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                        }
+                        Text(
+                            text = forecast.dayName,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     Text(
                         text = forecast.date,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                // Weather icon
-                 Box(
-                     modifier = Modifier
-                         .size(32.dp)
-                         .padding(4.dp),
-                     contentAlignment = Alignment.Center
-                 ) {
-                     val weatherCode = forecast.weatherCode ?: 0
-                     val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay = 1)
-                     val weatherDesc = stringResource(WeatherCodeMapper.getWeatherCodeStringResId(weatherCode))
-                     Icon(
-                         imageVector = weatherIcon,
-                         contentDescription = weatherDesc,
-                         tint = MaterialTheme.colorScheme.primary,
-                         modifier = Modifier.size(24.dp)
-                     )
-                 }
+                val weatherCode = forecast.weatherCode ?: 0
+                val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay = 1)
+                val weatherDesc = stringResource(WeatherCodeMapper.getWeatherCodeStringResId(weatherCode))
+                Icon(
+                    imageVector = weatherIcon,
+                    contentDescription = weatherDesc,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp).padding(horizontal = 8.dp)
+                )
 
-                // Temperature range
                 Text(
                     text = "${forecast.temperatureMin.toInt()}$temperatureUnit/${forecast.temperatureMax.toInt()}$temperatureUnit",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Second row: Precipitation, UV, Sunrise, Sunset
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                // Precipitation info
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    val precipitationSum = forecast.precipitationSum ?: 0.0
-                    val context = LocalContext.current
-                        if (precipitationSum > 0) {
-                            val weatherCode = forecast.weatherCode ?: 0
-                            val precipitationIcon = WeatherCodeMapper.getPrecipitationIconVector(weatherCode)
-                            if (precipitationIcon != null) {
-                                Icon(
-                                    imageVector = precipitationIcon,
-                                    contentDescription = "Precipitation",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                            Text(
-                                text = "${precipitationSum.toInt()} ${stringResource(R.string.precipitation_unit)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface
+                val precipitationSum = forecast.precipitationSum ?: 0.0
+                if (precipitationSum > 0) {
+                    val precipitationIcon = forecast.weatherCode?.let { WeatherCodeMapper.getPrecipitationIconVector(it) }
+                    if (precipitationIcon != null) {
+                        Icon(
+                            imageVector = precipitationIcon,
+                            contentDescription = "Precipitation",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(12.dp)
                         )
                     }
+                    Text(
+                        text = "${precipitationSum.toInt()} ${stringResource(R.string.precipitation_unit)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
-                // UV Index
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    val uvIndex = forecast.uvIndexMax
-                    if (uvIndex != null) {
-                        val uvColor = when (uvIndex) {
-                            in 0.0..2.0 -> Color(0xFF4CAF50) // Green - Low
-                            in 2.1..5.0 -> Color(0xFFFFEB3B) // Yellow - Moderate
-                            in 5.1..7.0 -> Color(0xFFFF9800) // Orange - High
-                            else -> Color(0xFFF44336) // Red - Very High
-                        }
-                        Text(
-                            text = stringResource(R.string.uv_label),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "${uvIndex.toInt()}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = uvColor,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                        )
+                val uvIndex = forecast.uvIndexMax
+                if (uvIndex != null) {
+                    val uvColor = when (uvIndex) {
+                        in 0.0..2.0 -> Color(0xFF4CAF50)
+                        in 2.1..5.0 -> Color(0xFFFFEB3B)
+                        in 5.1..7.0 -> Color(0xFFFF9800)
+                        else -> Color(0xFFF44336)
                     }
+                    Text(
+                        text = "${stringResource(R.string.uv_label)} ${uvIndex.toInt()}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = uvColor,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    )
                 }
 
-                // Sunrise
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    forecast.sunrise?.let { sunriseTime ->
-                        Text(
-                            text = "↑$sunriseTime",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                forecast.sunrise?.let { sunriseTime ->
+                    Text(
+                        text = "↑$sunriseTime",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
-                // Sunset
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    forecast.sunset?.let { sunsetTime ->
-                        Text(
-                            text = "↓$sunsetTime",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                forecast.sunset?.let { sunsetTime ->
+                    Text(
+                        text = "↓$sunsetTime",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
-                // Wind speed
                 forecast.windSpeedMax?.let { windSpeed ->
                     if (windSpeed > 0) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Air,
-                                contentDescription = stringResource(R.string.wind),
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = "${windSpeed.toInt()} ${stringResource(R.string.wind_speed_unit)}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Filled.Air,
+                            contentDescription = stringResource(R.string.wind),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = "${windSpeed.toInt()} ${stringResource(R.string.wind_speed_unit)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }

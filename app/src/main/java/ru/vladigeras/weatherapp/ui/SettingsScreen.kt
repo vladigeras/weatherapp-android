@@ -20,9 +20,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -346,6 +348,7 @@ fun SettingsHourlyForecastHoursItem(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val availableHours = listOf(12, 24, 48)
+    val context = LocalContext.current
 
     Row(
         modifier = Modifier
@@ -360,7 +363,7 @@ fun SettingsHourlyForecastHoursItem(
             Text(title, style = MaterialTheme.typography.titleMedium)
         }
         Text(
-            text = "$hours ч",
+            text = context.resources.getQuantityString(R.plurals.hours, hours, hours),
             style = MaterialTheme.typography.labelLarge,
             modifier = Modifier.padding(end = 8.dp)
         )
@@ -370,7 +373,7 @@ fun SettingsHourlyForecastHoursItem(
         ) {
             availableHours.forEach { hour ->
                 DropdownMenuItem(
-                    text = { Text("$hour ч") },
+                    text = { Text(context.resources.getQuantityString(R.plurals.hours, hour, hour)) },
                     onClick = {
                         onHoursChanged(hour)
                         expanded = false
@@ -442,14 +445,14 @@ private fun settingsItems(
             titleRes = R.string.sun_times,
             descriptionRes = R.string.sun_times_description,
             checked = prefs.showSunTimes,
-            icon = { Icon(Icons.Filled.Settings, contentDescription = null) }
+            icon = { Icon(Icons.Filled.WbSunny, contentDescription = null) }
         ),
         SettingsItem.Toggle(
             key = "uv_index",
             titleRes = R.string.uv_index,
             descriptionRes = R.string.uv_index_description,
             checked = prefs.showUvIndex,
-            icon = { Icon(Icons.Filled.Settings, contentDescription = null) }
+            icon = { Icon(Icons.Filled.LightMode, contentDescription = null) }
         ),
         SettingsItem.Toggle(
             key = "daily_forecast",

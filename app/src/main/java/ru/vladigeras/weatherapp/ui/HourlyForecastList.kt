@@ -59,7 +59,7 @@ fun HourlyForecastCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.width(90.dp),
+        modifier = modifier.width(80.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -67,16 +67,16 @@ fun HourlyForecastCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = forecast.time,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             val weatherCode = forecast.weatherCode ?: 0
             val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay = 1)
@@ -85,22 +85,22 @@ fun HourlyForecastCard(
                 imageVector = weatherIcon,
                 contentDescription = weatherDesc,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(24.dp)
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             val temperature = forecast.temperature
             if (temperature != null) {
                 Text(
                     text = "${temperature.toInt()}$temperatureUnit",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             if (prefs.showHumidity) {
                 forecast.humidity?.let { humidity ->
@@ -112,7 +112,7 @@ fun HourlyForecastCard(
                             imageVector = Icons.Filled.WaterDrop,
                             contentDescription = stringResource(R.string.humidity),
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(10.dp)
                         )
                         Text(
                             text = "$humidity%",
@@ -126,7 +126,7 @@ fun HourlyForecastCard(
             if (prefs.showWind) {
                 forecast.windSpeed?.let { windSpeed ->
                     if (prefs.showHumidity && forecast.humidity != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                     }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -136,7 +136,7 @@ fun HourlyForecastCard(
                             imageVector = Icons.Filled.Air,
                             contentDescription = stringResource(R.string.wind),
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(10.dp)
                         )
                         Text(
                             text = "${windSpeed.toInt()} ${stringResource(R.string.wind_speed_unit)}",

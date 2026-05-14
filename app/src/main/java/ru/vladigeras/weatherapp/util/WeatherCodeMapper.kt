@@ -7,10 +7,10 @@ import androidx.compose.material.icons.filled.Grain
 import androidx.compose.material.icons.filled.Hail
 import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.Thunderstorm
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.WbCloudy
 import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import ru.vladigeras.weatherapp.R
 
@@ -212,5 +212,32 @@ object WeatherCodeMapper {
 
     fun getWeatherCodeStringResId(code: Int): Int {
         return CODE_MAP[code]?.stringRes ?: R.string.unknown_weather
+    }
+
+    fun getCardColor(code: Int, isDay: Int = 1, isDarkTheme: Boolean = false): Color {
+        val weatherType = getWeatherType(code, isDay)
+        val isDaytime = isDay == 1
+        
+        return when (weatherType) {
+            WeatherType.CLEAR -> {
+                if (isDaytime) {
+                    if (isDarkTheme) Color(0xFF1A2744) else Color(0xFFE3F2FD)
+                } else {
+                    if (isDarkTheme) Color(0xFF1A1A2E) else Color(0xFFE8EAF6)
+                }
+            }
+            WeatherType.CLOUDY -> {
+                if (isDarkTheme) Color(0xFF1E2228) else Color(0xFFECEFF1)
+            }
+            WeatherType.RAIN -> {
+                if (isDarkTheme) Color(0xFF16273A) else Color(0xFFE1F5FE)
+            }
+            WeatherType.SNOW -> {
+                if (isDarkTheme) Color(0xFF1E2430) else Color(0xFFF3F4F8)
+            }
+            WeatherType.THUNDERSTORM -> {
+                if (isDarkTheme) Color(0xFF1A1625) else Color(0xFFEDE7F6)
+            }
+        }
     }
 }
