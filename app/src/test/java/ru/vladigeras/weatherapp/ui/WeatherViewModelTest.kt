@@ -463,7 +463,7 @@ class WeatherViewModelTest {
             .first { it is WeatherUiState.Error }
             .let { it as WeatherUiState.Error }
         
-        assertEquals("timeout", errorState.message)
+        assertEquals("Something went wrong", errorState.message)
     }
 
     @Test

@@ -70,4 +70,17 @@ class LanguagePreferenceRepositoryImplTest {
         assertEquals("ru", result.language)
         assertEquals("RU", result.country)
     }
+
+    @Test
+    fun `default preference is SYSTEM when DataStore is fresh`() = runTest {
+        val result = repository.getLanguagePreference()
+        assertEquals(LanguagePreference.SYSTEM, result)
+    }
+
+    @Test
+    fun `effectiveLocaleCode for ENGLISH returns en`() = runTest {
+        repository.saveLanguagePreference(LanguagePreference.ENGLISH)
+        val result = repository.getEffectiveLocaleCode()
+        assertEquals("en", result)
+    }
 }
