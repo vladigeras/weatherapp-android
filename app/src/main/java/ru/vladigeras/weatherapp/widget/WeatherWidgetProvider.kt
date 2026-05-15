@@ -34,12 +34,7 @@ class WeatherWidgetProvider : AppWidgetProvider() {
     ) {
         val widthDp = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
         val heightDp = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
-        val sizeCategory = when {
-            widthDp < 240 -> WidgetSizeCategory.SMALL
-            widthDp <= 310 -> WidgetSizeCategory.MEDIUM
-            else -> WidgetSizeCategory.LARGE
-        }
-        updateWidgetWithSize(context, appWidgetManager, appWidgetId, sizeCategory, heightDp)
+        updateWidget(context, appWidgetManager, appWidgetId, widthDp, heightDp)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -49,41 +44,83 @@ class WeatherWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    private fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int) {
+    private fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int, widthDp: Int = 180, heightDp: Int = 70) {
         val views = RemoteViews(context.packageName, R.layout.widget_weather)
 
+        val layoutMode = if (widthDp >= 260) LayoutMode.HORIZONTAL else LayoutMode.VERTICAL
+
         if (!WidgetPrefsManager.hasData(context)) {
-            views.setTextViewText(R.id.widget_city, context.getString(R.string.widget_no_data))
-            views.setTextViewText(R.id.widget_temp, "")
-            views.setTextViewText(R.id.widget_feels_like, "")
+            if (layoutMode == LayoutMode.VERTICAL) {
+                views.setTextViewText(R.id.widget_city, context.getString(R.string.widget_no_data))
+                views.setTextViewText(R.id.widget_description, "")
+                views.setTextViewText(R.id.widget_temp, "")
+            } else {
+                views.setTextViewText(R.id.widget_city_horizontal, context.getString(R.string.widget_no_data))
+                views.setTextViewText(R.id.widget_description_horizontal, "")
+                views.setTextViewText(R.id.widget_temp_horizontal, "")
+            }
             views.setViewVisibility(R.id.widget_icon, View.GONE)
         } else {
             val cityName = WidgetPrefsManager.getCityName(context) ?: ""
             val temperature = WidgetPrefsManager.getTemperature(context)
-            val feelsLike = WidgetPrefsManager.getFeelsLike(context)
             val weatherCode = WidgetPrefsManager.getWeatherCode(context) ?: 0
             val isDay = WidgetPrefsManager.getIsDay(context) ?: 1
 
-            views.setTextViewText(R.id.widget_city, cityName)
+            val descriptionResId = WeatherCodeMapper.getWeatherCodeStringResId(weatherCode)
+            val description = context.getString(descriptionResId)
 
-            if (temperature != null) {
-                views.setTextViewText(R.id.widget_temp, temperature)
+            if (layoutMode == LayoutMode.VERTICAL) {
+                views.setTextViewText(R.id.widget_city, cityName)
+                views.setTextViewText(R.id.widget_description, description)
+                if (temperature != null) {
+                    views.setTextViewText(R.id.widget_temp, temperature)
+                } else {
+                    views.setTextViewText(R.id.widget_temp, "")
+                }
+                views.setViewVisibility(R.id.vertical_container, View.VISIBLE)
+                views.setViewVisibility(R.id.horizontal_container, View.GONE)
             } else {
-                views.setTextViewText(R.id.widget_temp, "")
-            }
-
-            if (feelsLike != null) {
-                val feelsLikeFormatted = "(${context.getString(R.string.feels_like)} $feelsLike)"
-                views.setTextViewText(R.id.widget_feels_like, feelsLikeFormatted)
-                views.setViewVisibility(R.id.widget_feels_like, View.VISIBLE)
-            } else {
-                views.setViewVisibility(R.id.widget_feels_like, View.GONE)
+                views.setTextViewText(R.id.widget_city_horizontal, cityName)
+                views.setTextViewText(R.id.widget_description_horizontal, description)
+                if (temperature != null) {
+                    views.setTextViewText(R.id.widget_temp_horizontal, temperature)
+                } else {
+                    views.setTextViewText(R.id.widget_temp_horizontal, "")
+                }
+                views.setViewVisibility(R.id.vertical_container, View.GONE)
+                views.setViewVisibility(R.id.horizontal_container, View.VISIBLE)
             }
 
             val iconRes = getWeatherIcon(weatherCode, isDay)
             views.setImageViewResource(R.id.widget_icon, iconRes)
             views.setViewVisibility(R.id.widget_icon, View.VISIBLE)
         }
+
+        val sizes = when {
+            widthDp < 200 -> listOf(10f, 9f, 14f, 8f)
+            widthDp < 260 -> listOf(11f, 10f, 16f, 10f)
+            widthDp < 320 -> listOf(12f, 11f, 18f, 12f)
+            else -> listOf(14f, 12f, 22f, 14f)
+        }
+        val citySize = sizes[0] as Float
+        val descriptionSize = sizes[1] as Float
+        val tempSize = sizes[2] as Float
+        val paddingInt = sizes[3].toInt()
+
+        if (layoutMode == LayoutMode.VERTICAL) {
+            views.setTextViewTextSize(R.id.widget_city, TypedValue.COMPLEX_UNIT_SP, citySize)
+            views.setTextViewTextSize(R.id.widget_description, TypedValue.COMPLEX_UNIT_SP, descriptionSize)
+            views.setTextViewTextSize(R.id.widget_temp, TypedValue.COMPLEX_UNIT_SP, tempSize)
+        } else {
+            views.setTextViewTextSize(R.id.widget_city_horizontal, TypedValue.COMPLEX_UNIT_SP, citySize)
+            views.setTextViewTextSize(R.id.widget_description_horizontal, TypedValue.COMPLEX_UNIT_SP, descriptionSize)
+            views.setTextViewTextSize(R.id.widget_temp_horizontal, TypedValue.COMPLEX_UNIT_SP, tempSize)
+        }
+
+        val isTall = heightDp > 90
+        val topBottomPadding = (if (isTall) paddingInt + 4 else paddingInt).dpToPx(context)
+        val sidePadding = paddingInt.dpToPx(context)
+        views.setViewPadding(R.id.root_layout, sidePadding, topBottomPadding, sidePadding, topBottomPadding)
 
         val intent = Intent(context, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -99,32 +136,6 @@ class WeatherWidgetProvider : AppWidgetProvider() {
         manager.updateAppWidget(widgetId, views)
     }
 
-    private fun updateWidgetWithSize(
-        context: Context,
-        manager: AppWidgetManager,
-        widgetId: Int,
-        sizeCategory: WidgetSizeCategory,
-        heightDp: Int
-    ) {
-        val views = RemoteViews(context.packageName, R.layout.widget_weather)
-
-        val (citySize, tempSize, padding) = when (sizeCategory) {
-            WidgetSizeCategory.SMALL -> Triple(10f, 16f, 8)
-            WidgetSizeCategory.MEDIUM -> Triple(12f, 20f, 12)
-            WidgetSizeCategory.LARGE -> Triple(14f, 24f, 16)
-        }
-
-        val isTall = heightDp > 90
-        val topBottomPadding = (if (isTall) padding + 4 else padding).dpToPx(context)
-        val sidePadding = padding.dpToPx(context)
-
-        views.setTextViewTextSize(R.id.widget_city, TypedValue.COMPLEX_UNIT_SP, citySize)
-        views.setTextViewTextSize(R.id.widget_temp, TypedValue.COMPLEX_UNIT_SP, tempSize)
-        views.setViewPadding(R.id.root_layout, sidePadding, topBottomPadding, sidePadding, topBottomPadding)
-
-        updateWidget(context, manager, widgetId)
-    }
-
     private fun Int.dpToPx(context: Context): Int {
         return (this * context.resources.displayMetrics.density).toInt()
     }
@@ -133,8 +144,8 @@ class WeatherWidgetProvider : AppWidgetProvider() {
         return WeatherCodeMapper.getIconRes(weatherCode, isDay)
     }
 
-    private enum class WidgetSizeCategory {
-        SMALL, MEDIUM, LARGE
+    private enum class LayoutMode {
+        VERTICAL, HORIZONTAL
     }
 
     companion object {
