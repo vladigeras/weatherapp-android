@@ -79,8 +79,8 @@ dependencies {
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.appcompat)
 
     // Compose
     implementation(platform(libs.androidx.compose.bom))
@@ -89,9 +89,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
-
-    // Material Components (for theme compatibility)
-    implementation(libs.material)
 
     // Ktor
     implementation(libs.ktor.client.cio)
@@ -121,7 +118,6 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
-    testImplementation(libs.kotest.assertions.core)
     testImplementation(libs.ktor.client.cio)
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.robolectric)
@@ -132,18 +128,5 @@ dependencies {
     testImplementation(libs.androidx.compose.ui.graphics)
     testImplementation(libs.androidx.compose.material3)
     testImplementation(libs.androidx.compose.material.icons.extended)
-    testImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui)
-    androidTestImplementation(libs.androidx.compose.ui.graphics)
-    androidTestImplementation(libs.androidx.compose.material3)
-    androidTestImplementation(libs.androidx.compose.material.icons.extended)
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.hilt.android.testing)
-    androidTestImplementation(libs.hilt.compiler)
-    androidTestImplementation(libs.mockk)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
