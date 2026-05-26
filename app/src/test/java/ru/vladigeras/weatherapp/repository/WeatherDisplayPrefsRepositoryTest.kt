@@ -59,10 +59,10 @@ class WeatherDisplayPrefsRepositoryTest {
             assertEquals(true, prefs.showPrecipitation)
             assertEquals(true, prefs.showSunTimes)
             assertEquals(true, prefs.showUvIndex)
-            assertEquals(false, prefs.showForecastDays)
-            assertEquals(1, prefs.forecastDays)
-            assertEquals(false, prefs.showHourlyForecast)
-            assertEquals(24, prefs.hourlyForecastHours)
+            assertEquals(true, prefs.showForecastDays)
+            assertEquals(7, prefs.forecastDays)
+            assertEquals(true, prefs.showHourlyForecast)
+            assertEquals(12, prefs.hourlyForecastHours)
         }
     }
 

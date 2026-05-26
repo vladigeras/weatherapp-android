@@ -537,9 +537,9 @@ class WeatherViewModelTest {
             .first { it is WeatherUiState.Success } as WeatherUiState.Success
 
         // Hourly data is always mapped, but UI checks showHourlyForecast flag
-        // Default prefs have showHourlyForecast = false, so UI won't show it
+        // Default prefs have showHourlyForecast = true, so UI will show it
         // But the state still contains the data
         assertEquals(1, successState.hourlyForecast.size)
-        assertEquals(false, successState.prefs.showHourlyForecast)
+        assertEquals(true, successState.prefs.showHourlyForecast)
     }
 }

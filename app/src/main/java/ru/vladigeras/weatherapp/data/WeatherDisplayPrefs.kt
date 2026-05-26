@@ -9,8 +9,8 @@ data class WeatherDisplayPrefs(
     val showPrecipitation: Boolean = true,
     val showSunTimes: Boolean = true,
     val showUvIndex: Boolean = true,
-    val showForecastDays: Boolean = false,
-    val forecastDays: Int = 1,
-    val showHourlyForecast: Boolean = false,
-    val hourlyForecastHours: Int = 24
+    val showForecastDays: Boolean = true,
+    val forecastDays: Int = 7,
+    val showHourlyForecast: Boolean = true,
+    val hourlyForecastHours: Int = 12
 )

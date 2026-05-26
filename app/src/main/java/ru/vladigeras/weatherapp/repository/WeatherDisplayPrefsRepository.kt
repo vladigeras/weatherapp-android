@@ -46,10 +46,10 @@ class WeatherDisplayPrefsRepository @Inject constructor(
                 showPrecipitation = prefs[Keys.SHOW_PRECIPITATION] ?: true,
                 showSunTimes = prefs[Keys.SHOW_SUN_TIMES] ?: true,
                 showUvIndex = prefs[Keys.SHOW_UV_INDEX] ?: true,
-                showForecastDays = prefs[Keys.SHOW_FORECAST_DAYS] ?: false,
-                forecastDays = prefs[Keys.FORECAST_DAYS] ?: 1,
-                showHourlyForecast = prefs[Keys.SHOW_HOURLY_FORECAST] ?: false,
-                hourlyForecastHours = prefs[Keys.HOURLY_FORECAST_HOURS] ?: 24
+                showForecastDays = prefs[Keys.SHOW_FORECAST_DAYS] ?: true,
+                forecastDays = prefs[Keys.FORECAST_DAYS] ?: 7,
+                showHourlyForecast = prefs[Keys.SHOW_HOURLY_FORECAST] ?: true,
+                hourlyForecastHours = prefs[Keys.HOURLY_FORECAST_HOURS] ?: 12
             )
         }
 

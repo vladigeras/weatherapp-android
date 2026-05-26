@@ -113,10 +113,10 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `toggle hourly forecast should update local prefs`() = runTest {
+    fun `toggle hourly forecast off should update local prefs`() = runTest {
         advanceUntilIdle()
-        viewModel.toggleItem("hourly_forecast", true)
-        assertTrue(viewModel.localPrefs.value.showHourlyForecast)
+        viewModel.toggleItem("hourly_forecast", false)
+        assertFalse(viewModel.localPrefs.value.showHourlyForecast)
         assertTrue(viewModel.hasChanges.value)
     }
 
@@ -129,15 +129,15 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `toggle hourly forecast should default to false`() = runTest {
+    fun `toggle hourly forecast should default to true`() = runTest {
         advanceUntilIdle()
-        assertFalse(viewModel.localPrefs.value.showHourlyForecast)
+        assertTrue(viewModel.localPrefs.value.showHourlyForecast)
     }
 
     @Test
-    fun `hourly forecast hours should default to 24`() = runTest {
+    fun `hourly forecast hours should default to 12`() = runTest {
         advanceUntilIdle()
-        assertEquals(24, viewModel.localPrefs.value.hourlyForecastHours)
+        assertEquals(12, viewModel.localPrefs.value.hourlyForecastHours)
     }
 
     @Test
