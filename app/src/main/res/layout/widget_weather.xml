@@ -11,8 +11,11 @@
 
     <ImageView
         android:id="@+id/widget_icon"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:maxWidth="48dp"
+        android:maxHeight="48dp"
+        android:adjustViewBounds="true"
         android:contentDescription="@string/widget_weather_icon"
         android:src="@drawable/ic_weather_clear" />
 

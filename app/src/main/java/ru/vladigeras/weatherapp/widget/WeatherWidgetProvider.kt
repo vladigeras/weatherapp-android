@@ -22,7 +22,10 @@ class WeatherWidgetProvider : AppWidgetProvider() {
         appWidgetIds: IntArray
     ) {
         for (widgetId in appWidgetIds) {
-            updateWidget(context, appWidgetManager, widgetId)
+            val options = appWidgetManager.getAppWidgetOptions(widgetId)
+            val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 180)
+            val heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 70)
+            updateWidget(context, appWidgetManager, widgetId, widthDp, heightDp)
         }
     }
 
@@ -44,7 +47,7 @@ class WeatherWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    private fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int, widthDp: Int = 180, heightDp: Int = 70) {
+    private fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int, widthDp: Int, heightDp: Int) {
         val views = RemoteViews(context.packageName, R.layout.widget_weather)
 
         val layoutMode = if (widthDp >= 260) LayoutMode.HORIZONTAL else LayoutMode.VERTICAL
@@ -97,14 +100,18 @@ class WeatherWidgetProvider : AppWidgetProvider() {
         }
 
         val sizes = when {
-            widthDp < 200 -> listOf(10f, 9f, 14f, 8f)
-            widthDp < 260 -> listOf(11f, 10f, 16f, 10f)
-            widthDp < 320 -> listOf(12f, 11f, 18f, 12f)
-            else -> listOf(14f, 12f, 22f, 14f)
+            heightDp >= 140 && widthDp >= 320 -> floatArrayOf(22f, 18f, 36f, 16f)
+            heightDp >= 140 && widthDp >= 260 -> floatArrayOf(18f, 15f, 28f, 14f)
+            heightDp >= 140 && widthDp >= 200 -> floatArrayOf(14f, 12f, 22f, 12f)
+            heightDp >= 140 -> floatArrayOf(12f, 10f, 18f, 10f)
+            widthDp < 200 -> floatArrayOf(10f, 9f, 14f, 8f)
+            widthDp < 260 -> floatArrayOf(11f, 10f, 16f, 10f)
+            widthDp < 320 -> floatArrayOf(12f, 11f, 18f, 12f)
+            else -> floatArrayOf(14f, 12f, 22f, 14f)
         }
-        val citySize = sizes[0] as Float
-        val descriptionSize = sizes[1] as Float
-        val tempSize = sizes[2] as Float
+        val citySize = sizes[0]
+        val descriptionSize = sizes[1]
+        val tempSize = sizes[2]
         val paddingInt = sizes[3].toInt()
 
         if (layoutMode == LayoutMode.VERTICAL) {
@@ -117,8 +124,7 @@ class WeatherWidgetProvider : AppWidgetProvider() {
             views.setTextViewTextSize(R.id.widget_temp_horizontal, TypedValue.COMPLEX_UNIT_SP, tempSize)
         }
 
-        val isTall = heightDp > 90
-        val topBottomPadding = (if (isTall) paddingInt + 4 else paddingInt).dpToPx(context)
+        val topBottomPadding = paddingInt.dpToPx(context)
         val sidePadding = paddingInt.dpToPx(context)
         views.setViewPadding(R.id.root_layout, sidePadding, topBottomPadding, sidePadding, topBottomPadding)
 
@@ -154,11 +160,11 @@ class WeatherWidgetProvider : AppWidgetProvider() {
             val componentName = ComponentName(context, WeatherWidgetProvider::class.java)
             val widgetIds = manager.getAppWidgetIds(componentName)
 
-            if (widgetIds.isNotEmpty()) {
-                val provider = WeatherWidgetProvider()
-                for (widgetId in widgetIds) {
-                    provider.updateWidget(context, manager, widgetId)
-                }
+            for (widgetId in widgetIds) {
+                val options = manager.getAppWidgetOptions(widgetId)
+                val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 180)
+                val heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 70)
+                WeatherWidgetProvider().updateWidget(context, manager, widgetId, widthDp, heightDp)
             }
         }
     }
