@@ -103,6 +103,7 @@ fun LocationSelectionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
             ActiveLocationCard(

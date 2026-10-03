@@ -188,15 +188,7 @@ fun WeatherScreen(
                 is WeatherUiState.Success -> SuccessContent(currentState)
                 is WeatherUiState.Error -> ErrorContent(
                     state = currentState,
-                    onRetry = {
-                        val lat = savedLatitude
-                        val lon = savedLongitude
-                        when {
-                            lat != null && lon != null -> viewModel.loadWeather(lat, lon, forceRefresh = true)
-                            hasLocationPermission -> viewModel.loadWeatherForCurrentLocation(forceRefresh = true)
-                            else -> onNavigateToLocationSelection()
-                        }
-                    },
+                    onRetry = viewModel::refreshActiveLocation,
                     onSelectLocation = onNavigateToLocationSelection
                 )
                 is WeatherUiState.Empty -> {
@@ -484,6 +476,7 @@ private fun ErrorContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -515,7 +508,7 @@ private fun ErrorContent(
                 Text(stringResource(R.string.select_city))
             }
             Button(onClick = onRetry) {
-                Text(stringResource(R.string.use_gps)) // Или добавить строку R.string.retry
+                Text(stringResource(R.string.location_retry))
             }
         }
     }

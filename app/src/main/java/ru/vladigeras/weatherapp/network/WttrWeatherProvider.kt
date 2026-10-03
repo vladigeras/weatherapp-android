@@ -31,7 +31,11 @@ class WttrWeatherProvider @Inject constructor(
     override suspend fun getWeather(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs): ProviderWeather {
         val location = "$latitude,$longitude"
         val response = json.decodeFromString<WttrResponse>(request(location, if (prefs.showHourlyForecast) "j1" else "j2"))
-        val zone = if (prefs.showHourlyForecast) ZoneId.of(request(location, "%Z").trim()) else null
+        val zone = if (prefs.showHourlyForecast) {
+            val timezone = request(location, "%Z").trim()
+            require(timezone in ZoneId.getAvailableZoneIds()) { "Invalid weather timezone" }
+            ZoneId.of(timezone)
+        } else null
         val current = requireNotNull(response.current.firstOrNull()) { "Missing current weather" }
         return ProviderWeather(
             provider = id,

@@ -407,7 +407,7 @@ class WeatherViewModelTest {
     }
 
     @Test
-    fun `refreshActiveLocation uses saved coordinates when available`() = runTest {
+    fun `refreshActiveLocation uses saved coordinates and finishes the update signal`() = runTest {
         coEvery { weatherRepository.getWeather(any(), any(), any(), any()) } returns Result.success(mockResponse.asProviderWeather())
         coEvery { selectedLocationRepository.getSelectedLocation() } returns flowOf(mockLocation)
         
@@ -415,6 +415,14 @@ class WeatherViewModelTest {
         kotlinx.coroutines.yield()
         
         weatherViewModel.refreshActiveLocation()
+
+        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
+        assertEquals(false, weatherViewModel.showUpdateToast.value)
+
+        weatherViewModel.loadWeather(48.8566, 2.3522)
+
+        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
+        assertEquals(false, weatherViewModel.showUpdateToast.value)
         
         coVerify { weatherRepository.getWeather(55.7558, 37.6173, any(), forceRefresh = true) }
     }
@@ -539,26 +547,27 @@ class WeatherViewModelTest {
         assertEquals(true, successState.prefs.showHourlyForecast)
     }
     @Test
-    fun `preference change during load replaces request and ignores late result`() = runTest {
+    fun `provider change during load replaces request and ignores late result`() = runTest {
         val prefs = kotlinx.coroutines.flow.MutableStateFlow(WeatherDisplayPrefs())
         every { weatherDisplayPrefsRepository.getPrefs() } returns prefs
         val old = kotlinx.coroutines.CompletableDeferred<ru.vladigeras.weatherapp.data.ProviderWeather>()
         coEvery { weatherRepository.getWeather(any(), any(), any(), any()) } coAnswers {
-            if (thirdArg<WeatherDisplayPrefs>().showHumidity) {
+            if (thirdArg<WeatherDisplayPrefs>().provider == WeatherProviderId.OPEN_METEO) {
                 kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { old.await() }.let { Result.success(it) }
-            } else Result.success(mockResponse2.asProviderWeather())
+            } else Result.success(mockResponse2.asProviderWeather().copy(provider = WeatherProviderId.WTTR))
         }
         val vm = WeatherViewModel(context, weatherRepository, locationRepository, selectedLocationRepository,
             weatherDisplayPrefsRepository, cityNameResolver, weatherMapper)
         vm.loadWeather(55.7558, 37.6173)
         kotlinx.coroutines.yield()
-        prefs.value = prefs.value.copy(showHumidity = false)
+        prefs.value = prefs.value.copy(provider = WeatherProviderId.WTTR)
         val success = vm.uiState.first { it is WeatherUiState.Success } as WeatherUiState.Success
         assertEquals(18.2, success.temperature!!, 0.001)
         old.complete(mockResponse.asProviderWeather())
         kotlinx.coroutines.yield()
         assertEquals(18.2, (vm.uiState.value as WeatherUiState.Success).temperature!!, 0.001)
         assertEquals("18°C", ru.vladigeras.weatherapp.widget.WidgetPrefsManager.getTemperature(context))
+        assertEquals(WeatherProviderId.WTTR, ru.vladigeras.weatherapp.widget.WidgetPrefsManager.getProvider(context))
         WeatherViewModel::class.java.getDeclaredMethod("onCleared").apply { isAccessible = true }.invoke(vm)
     }
 

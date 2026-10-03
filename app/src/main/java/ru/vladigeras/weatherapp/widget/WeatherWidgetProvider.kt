@@ -51,6 +51,8 @@ class WeatherWidgetProvider : AppWidgetProvider() {
         val views = RemoteViews(context.packageName, R.layout.widget_weather)
 
         val layoutMode = if (widthDp >= 260) LayoutMode.HORIZONTAL else LayoutMode.VERTICAL
+        views.setViewVisibility(R.id.vertical_container, if (layoutMode == LayoutMode.VERTICAL) View.VISIBLE else View.GONE)
+        views.setViewVisibility(R.id.horizontal_container, if (layoutMode == LayoutMode.HORIZONTAL) View.VISIBLE else View.GONE)
 
         if (!WidgetPrefsManager.hasData(context)) {
             if (layoutMode == LayoutMode.VERTICAL) {
@@ -80,8 +82,6 @@ class WeatherWidgetProvider : AppWidgetProvider() {
                 } else {
                     views.setTextViewText(R.id.widget_temp, "")
                 }
-                views.setViewVisibility(R.id.vertical_container, View.VISIBLE)
-                views.setViewVisibility(R.id.horizontal_container, View.GONE)
             } else {
                 views.setTextViewText(R.id.widget_city_horizontal, cityName)
                 views.setTextViewText(R.id.widget_description_horizontal, description)
@@ -90,8 +90,6 @@ class WeatherWidgetProvider : AppWidgetProvider() {
                 } else {
                     views.setTextViewText(R.id.widget_temp_horizontal, "")
                 }
-                views.setViewVisibility(R.id.vertical_container, View.GONE)
-                views.setViewVisibility(R.id.horizontal_container, View.VISIBLE)
             }
 
             val iconRes = getWeatherIcon(weatherCode, isDay)

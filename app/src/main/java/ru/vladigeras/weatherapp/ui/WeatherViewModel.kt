@@ -143,6 +143,7 @@ class WeatherViewModel @Inject constructor(
             current.isDay, response.timezone, cityName, response.temperatureUnit, daily, hourly,
             weatherRepository.capabilities(prefs.provider).effectivePrefs(prefs), weatherRepository.capabilities(prefs.provider).hourlyStepHours
         )
+        _showUpdateToast.value = false
         WidgetPrefsManager.save(context, cityName, current.temperature, current.feelsLike, current.condition?.displayCode,
             current.isDay, response.temperatureUnit, response.provider)
         WeatherWidgetProvider.updateAllWidgets(context)

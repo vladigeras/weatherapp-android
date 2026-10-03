@@ -80,7 +80,7 @@ class WttrWeatherProviderTest {
 
     @Test
     fun `hourly timezone errors fail instead of using device timezone`() = runTest {
-        for (zone in listOf("", "not-a-zone")) {
+        for (zone in listOf("", "not-a-zone", "+03:00")) {
             val client = HttpClient(MockEngine { request -> respond(if (request.url.parameters["format"] == "%Z") zone else fixture(true), headers = headers) })
             assertTrue(runCatching { WttrWeatherProvider(client, json).getWeather(55.7, 37.6, prefs) }.isFailure)
             client.close()
