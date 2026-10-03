@@ -1,6 +1,9 @@
 package ru.vladigeras.weatherapp.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -51,7 +55,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import ru.vladigeras.weatherapp.R
 import ru.vladigeras.weatherapp.data.Location
-import ru.vladigeras.weatherapp.network.GeocodingResult
+import ru.vladigeras.weatherapp.data.SearchLocation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,6 +103,7 @@ fun LocationSelectionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
             ActiveLocationCard(
@@ -131,6 +136,10 @@ fun LocationSelectionScreen(
                 query = query,
                 onQueryChange = { viewModel.updateSearchQuery(it) },
                 searchResults = uiState.searchResults,
+                explicitSearch = uiState.explicitSearch,
+                searchLoading = uiState.searchLoading,
+                searchCompleted = uiState.searchCompleted,
+                onSearch = viewModel::submitSearch,
                 onResultSelected = { result ->
                     val fullName = buildString {
                         append(result.name)
@@ -343,8 +352,12 @@ private fun ErrorCard(onRetry: () -> Unit) {
 private fun SearchSection(
     query: String,
     onQueryChange: (String) -> Unit,
-    searchResults: List<GeocodingResult>,
-    onResultSelected: (GeocodingResult) -> Unit
+    searchResults: List<SearchLocation>,
+    explicitSearch: Boolean,
+    searchLoading: Boolean,
+    searchCompleted: Boolean,
+    onSearch: () -> Unit,
+    onResultSelected: (SearchLocation) -> Unit
 ) {
     OutlinedTextField(
         value = query,
@@ -352,6 +365,8 @@ private fun SearchSection(
         label = { Text(stringResource(R.string.location_search_hint)) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { onSearch() }),
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
         trailingIcon = {
             if (query.isNotEmpty()) {
@@ -362,6 +377,14 @@ private fun SearchSection(
         }
     )
 
+    if (explicitSearch) {
+        Text(stringResource(R.string.single_location_search), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 8.dp))
+        Button(onClick = onSearch, enabled = query.length >= 2 && !searchLoading, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.find_city))
+        }
+    }
+    if (searchLoading) CircularProgressIndicator(modifier = Modifier.padding(8.dp).size(24.dp))
+    if (searchCompleted && searchResults.isEmpty()) Text(stringResource(R.string.city_not_found), modifier = Modifier.padding(vertical = 8.dp))
     if (searchResults.isNotEmpty()) {
         Spacer(modifier = Modifier.height(8.dp))
         Column(
@@ -373,7 +396,8 @@ private fun SearchSection(
             searchResults.forEach { result ->
                 SearchResultItem(
                     result = result,
-                    onClick = { onResultSelected(result) }
+                    onClick = { onResultSelected(result) },
+                    needsConfirmation = explicitSearch
                 )
             }
         }
@@ -382,14 +406,15 @@ private fun SearchSection(
 
 @Composable
 private fun SearchResultItem(
-    result: GeocodingResult,
-    onClick: () -> Unit
+    result: SearchLocation,
+    onClick: () -> Unit,
+    needsConfirmation: Boolean
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clickable { onClick() }
+            .clickable(enabled = !needsConfirmation) { onClick() }
     ) {
         Row(
             modifier = Modifier
@@ -404,7 +429,7 @@ private fun SearchResultItem(
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = result.name,
                     style = MaterialTheme.typography.titleSmall,
@@ -419,6 +444,7 @@ private fun SearchResultItem(
                     )
                 }
             }
+            if (needsConfirmation) TextButton(onClick = onClick) { Text(stringResource(R.string.confirm_location)) }
         }
     }
 }

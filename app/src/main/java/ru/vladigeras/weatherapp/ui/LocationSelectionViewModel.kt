@@ -16,9 +16,14 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.vladigeras.weatherapp.data.Location
-import ru.vladigeras.weatherapp.network.GeocodingResult
-import ru.vladigeras.weatherapp.network.GeocodingService
-import ru.vladigeras.weatherapp.repository.CitySearchCache
+import ru.vladigeras.weatherapp.data.SearchLocation
+import ru.vladigeras.weatherapp.data.WeatherProviderId
+import ru.vladigeras.weatherapp.repository.WeatherRepository
+import ru.vladigeras.weatherapp.repository.WeatherDisplayPrefsRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.cancellation.CancellationException
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.LocationRepository
 import ru.vladigeras.weatherapp.repository.SelectedLocationRepository
@@ -32,8 +37,8 @@ class LocationSelectionViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val savedStateHandle: SavedStateHandle,
     private val locationRepository: LocationRepository,
-    private val geocodingService: GeocodingService,
-    private val citySearchCache: CitySearchCache,
+    private val weatherRepository: WeatherRepository,
+    private val prefsRepository: WeatherDisplayPrefsRepository,
     private val selectedLocationRepository: SelectedLocationRepository,
     private val languagePreferenceRepository: LanguagePreferenceRepository
 ) : ViewModel() {
@@ -45,8 +50,12 @@ class LocationSelectionViewModel @Inject constructor(
         val autoLocationLoading: Boolean = false,
         val isManualMode: Boolean = false,
         val error: String? = null,
-        val searchResults: List<GeocodingResult> = emptyList(),
-        val locationPermissionGranted: Boolean = false
+        val searchResults: List<SearchLocation> = emptyList(),
+        val locationPermissionGranted: Boolean = false,
+        val provider: WeatherProviderId? = null,
+        val searchLoading: Boolean = false,
+        val explicitSearch: Boolean = false,
+        val searchCompleted: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -58,12 +67,28 @@ class LocationSelectionViewModel @Inject constructor(
     init {
         loadInitialState()
         viewModelScope.launch {
-            searchQuery
-                .filter { it.length >= 2 }
-                .debounce(300)
-                .distinctUntilChanged()
-                .collectLatest { query -> performSearch(query) }
+            prefsRepository.getPrefs().collect { prefs ->
+                if (_uiState.value.provider != prefs.provider) {
+                    cancelSearch()
+                    _uiState.value = _uiState.value.copy(provider = prefs.provider, searchResults = emptyList(), searchLoading = false, searchCompleted = false,
+                        explicitSearch = weatherRepository.capabilities(prefs.provider).explicitSearch)
+                    if (!_uiState.value.explicitSearch && _searchQuery.value.length >= 2) search(_searchQuery.value)
+                }
+            }
         }
+        viewModelScope.launch {
+            searchQuery.debounce(300).distinctUntilChanged().collect { query ->
+                if (query.length >= 2 && !_uiState.value.explicitSearch) search(query)
+            }
+        }
+    }
+
+    private var searchJob: Job? = null
+    private var searchGeneration = 0L
+
+    private fun cancelSearch() {
+        ++searchGeneration
+        searchJob?.cancel()
     }
 
     private fun loadInitialState() {
@@ -160,31 +185,32 @@ class LocationSelectionViewModel @Inject constructor(
     }
 
     fun updateSearchQuery(query: String) {
+        cancelSearch()
         savedStateHandle["search_query"] = query
-        if (query.length < 2) {
-            _uiState.value = _uiState.value.copy(searchResults = emptyList())
-        }
+        _uiState.value = _uiState.value.copy(searchResults = emptyList(), searchLoading = false, searchCompleted = false)
     }
 
-    private suspend fun performSearch(query: String) {
-        val cached = citySearchCache.get(query)
-        if (cached != null) {
-            _uiState.value = _uiState.value.copy(searchResults = cached)
-            return
-        }
+    fun submitSearch() {
+        if (_searchQuery.value.length >= 2) search(_searchQuery.value)
+    }
 
-        val languageCode = languagePreferenceRepository.getEffectiveLocaleCode()
-        geocodingService.searchCity(query, languageCode)
-            .onSuccess { response ->
-                val results = response.results ?: emptyList()
-                if (results.isNotEmpty()) {
-                    citySearchCache.put(query, results)
-                }
-                _uiState.value = _uiState.value.copy(searchResults = results)
+    private fun search(query: String) {
+        val provider = _uiState.value.provider ?: return
+        cancelSearch()
+        val version = searchGeneration
+        searchJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(searchLoading = true, searchCompleted = false, error = null)
+            try {
+                val language = languagePreferenceRepository.getEffectiveLocaleCode()
+                val results = weatherRepository.searchLocations(provider, query, language).getOrThrow()
+                currentCoroutineContext().ensureActive()
+                if (version == searchGeneration) _uiState.value = _uiState.value.copy(searchResults = results, searchLoading = false, searchCompleted = true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (version == searchGeneration) _uiState.value = _uiState.value.copy(error = ErrorMapper.mapToUiMessage(e, context), searchLoading = false)
             }
-            .onFailure {
-                _uiState.value = _uiState.value.copy(error = "Search failed")
-            }
+        }
     }
 
     fun clearError() {

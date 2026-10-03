@@ -12,5 +12,6 @@ data class WeatherDisplayPrefs(
     val showForecastDays: Boolean = true,
     val forecastDays: Int = 7,
     val showHourlyForecast: Boolean = true,
-    val hourlyForecastHours: Int = 12
+    val hourlyForecastHours: Int = 12,
+    val provider: WeatherProviderId = WeatherProviderId.OPEN_METEO
 )

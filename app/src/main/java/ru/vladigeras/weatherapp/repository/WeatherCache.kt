@@ -7,7 +7,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import ru.vladigeras.weatherapp.data.WeatherResponse
+import ru.vladigeras.weatherapp.data.ProviderWeather
+import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,16 +27,17 @@ class WeatherCache @Inject constructor(
     }
 
     @VisibleForTesting
-    fun createKey(latitude: Double, longitude: Double): String {
+    fun createKey(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()): String {
         val latRounded = (latitude * 1000).roundToInt() / 1000.0
         val lngRounded = (longitude * 1000).roundToInt() / 1000.0
-        return "weather_${latRounded}_${lngRounded}.json"
+        val flags = listOf(prefs.showHumidity, prefs.showWind, prefs.showPrecipitation, prefs.showSunTimes, prefs.showUvIndex, prefs.showForecastDays, prefs.showHourlyForecast).joinToString("") { if (it) "1" else "0" }
+        return "v2_${prefs.provider.value}_${latRounded}_${lngRounded}_${flags}_${prefs.forecastDays}_${prefs.hourlyForecastHours}.json"
     }
 
     private fun getCurrentTimeMillis(): Long = timeProvider()
 
-    suspend fun getWeather(latitude: Double, longitude: Double): WeatherResponse? {
-        val key = createKey(latitude, longitude)
+    suspend fun getWeather(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()): ProviderWeather? {
+        val key = createKey(latitude, longitude, prefs)
         val cacheFile = File(cacheDir, key)
 
         if (!cacheFile.exists()) {
@@ -58,20 +60,20 @@ class WeatherCache @Inject constructor(
         }
     }
 
-    suspend fun putWeather(latitude: Double, longitude: Double, response: WeatherResponse) {
-        val key = createKey(latitude, longitude)
+    suspend fun putWeather(latitude: Double, longitude: Double, response: ProviderWeather, prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()) {
+        val key = createKey(latitude, longitude, prefs)
         val cacheFile = File(cacheDir, key)
         val cached = CachedWeatherData(response, getCurrentTimeMillis())
         val jsonString = Json.encodeToString(cached)
         cacheFile.writeText(jsonString)
     }
 
-    suspend fun evict(latitude: Double, longitude: Double) {
-        val key = createKey(latitude, longitude)
+    suspend fun evict(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()) {
+        val key = createKey(latitude, longitude, prefs)
         val cacheFile = File(cacheDir, key)
         cacheFile.delete()
     }
 
     @Serializable
-    private data class CachedWeatherData(val response: WeatherResponse, val timestamp: Long)
+    private data class CachedWeatherData(val response: ProviderWeather, val timestamp: Long)
 }

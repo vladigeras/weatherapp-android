@@ -115,4 +115,16 @@
     <string name="today">Today</string>
     <string name="tomorrow">Tomorrow</string>
     <string name="day_after_tomorrow">Day after tomorrow</string>
+    <string name="weather_provider">Weather provider</string>
+    <string name="forecast_step">Forecast · every %1$d hours</string>
+    <string name="provider_unavailable">Unavailable from this provider</string>
+    <string name="daily_wind_unavailable">Current and hourly wind; daily maximum is unavailable</string>
+    <string name="forecast_limit">Up to %1$d days. Longer ranges are unavailable.</string>
+    <string name="single_location_search">One nearby location will be found. Check its region and country before selecting it.</string>
+    <string name="find_city">Find</string>
+    <string name="confirm_location">Select</string>
+    <string name="city_not_found">No location found</string>
+    <string name="weather_cloudy">Cloudy</string>
+    <string name="weather_sleet">Sleet</string>
+    <string name="weather_ice_pellets">Ice pellets</string>
 </resources>

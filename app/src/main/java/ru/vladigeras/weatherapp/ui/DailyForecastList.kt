@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -70,10 +71,11 @@ fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, index: I
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val isToday = index == 0
@@ -105,7 +107,8 @@ fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, index: I
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val weatherCode = forecast.weatherCode ?: 0
+                    val weatherCode = forecast.weatherCode
+                    if (weatherCode != null) {
                     val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay = 1)
                     Icon(
                         imageVector = weatherIcon,
@@ -113,8 +116,9 @@ fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, index: I
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp).padding(horizontal = 8.dp)
                     )
+                    }
                     Text(
-                        text = "${forecast.temperatureMin.toInt()}$temperatureUnit/${forecast.temperatureMax.toInt()}$temperatureUnit",
+                        text = "${forecast.temperatureMin?.toInt()?.toString() ?: "—"}$temperatureUnit/${forecast.temperatureMax?.toInt()?.toString() ?: "—"}$temperatureUnit",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -124,10 +128,11 @@ fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, index: I
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically
             ) {
                 val precipitationSum = forecast.precipitationSum ?: 0.0
                 if (precipitationSum > 0) {
@@ -198,4 +203,3 @@ fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, index: I
         }
     }
 }
-

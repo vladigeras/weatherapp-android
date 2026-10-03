@@ -8,5 +8,6 @@ data class HourlyForecast(
     val weatherCode: Int?,
     val temperature: Double?,
     val humidity: Int?,
-    val windSpeed: Double?
+    val windSpeed: Double?,
+    val epochSeconds: Long = 0
 )

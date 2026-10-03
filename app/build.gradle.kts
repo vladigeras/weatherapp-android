@@ -29,6 +29,7 @@ android {
         versionName = if (tag.isNotEmpty()) cleanTag else "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "WTTR_API_URL", "\"https://wttr.in\"")
         buildConfigField("String", "API_URL", "\"https://api.open-meteo.com/v1/forecast\"")
         buildConfigField("String", "GEOCODING_API_URL", "\"https://geocoding-api.open-meteo.com/v1\"")
     }
@@ -45,6 +46,16 @@ android {
     }
 
     buildTypes {
+        debug {
+            val mockBase = providers.gradleProperty("weatherMockBaseUrl").orNull?.trimEnd('/')
+            if (mockBase != null) {
+                require(mockBase.matches(Regex("http://(10\\.0\\.2\\.2|127\\.0\\.0\\.1|localhost):[0-9]+")))
+                buildConfigField("String", "WTTR_API_URL", "\"$mockBase/wttr\"")
+                buildConfigField("String", "API_URL", "\"$mockBase/open-meteo/forecast\"")
+                buildConfigField("String", "GEOCODING_API_URL", "\"$mockBase/open-meteo\"")
+            }
+        }
+
         release {
             if (System.getenv("KEYSTORE_PATH") != null) {
                 signingConfig = signingConfigs.getByName("release")

@@ -93,4 +93,21 @@ class WidgetPrefsManagerTest {
     fun getIsDay_returnsNullWhenNotSet() {
         assertEquals(null, WidgetPrefsManager.getIsDay(context))
     }
+    @Test
+    fun providerChange_clearsOldWeatherAndRejectsStaleSave() {
+        val context = RuntimeEnvironment.getApplication()
+        val wttr = ru.vladigeras.weatherapp.data.WeatherProviderId.WTTR
+        val openMeteo = ru.vladigeras.weatherapp.data.WeatherProviderId.OPEN_METEO
+        WidgetPrefsManager.save(context, "Old", 18.0, 17.0, 0, 1, "°C", openMeteo)
+        WidgetPrefsManager.activateProvider(context, wttr)
+        assertEquals(false, WidgetPrefsManager.hasData(context))
+        WidgetPrefsManager.save(context, "New", 27.0, 26.0, 0, null, "°C", wttr)
+        WidgetPrefsManager.save(context, "Late", 18.0, 17.0, 0, 1, "°C", openMeteo)
+        assertEquals("New", WidgetPrefsManager.getCityName(context))
+        assertEquals(wttr, WidgetPrefsManager.getProvider(context))
+        assertEquals(null, WidgetPrefsManager.getIsDay(context))
+        WidgetPrefsManager.activateProvider(context, openMeteo)
+        assertEquals(false, WidgetPrefsManager.hasData(context))
+    }
+
 }

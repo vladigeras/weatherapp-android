@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -45,7 +47,7 @@ fun HourlyForecastList(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(items = forecast, key = { it.time }) { item ->
+        items(items = forecast, key = { it.epochSeconds }) { item ->
             HourlyForecastCard(forecast = item, temperatureUnit = temperatureUnit, prefs = prefs)
         }
     }
@@ -60,7 +62,8 @@ fun HourlyForecastCard(
 ) {
     Box(
         modifier = modifier
-            .width(80.dp)
+            .width(IntrinsicSize.Max)
+            .widthIn(min = 80.dp)
             .background(MaterialTheme.colorScheme.surface)
     ) {
         Column(
@@ -77,7 +80,7 @@ fun HourlyForecastCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            val weatherCode = forecast.weatherCode ?: 0
+            val weatherCode = forecast.weatherCode ?: -1
             val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay = 1)
             val weatherDesc = stringResource(WeatherCodeMapper.getWeatherCodeStringResId(weatherCode))
             Icon(

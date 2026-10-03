@@ -117,4 +117,16 @@
     <string name="today">Сегодня</string>
     <string name="tomorrow">Завтра</string>
     <string name="day_after_tomorrow">Послезавтра</string>
+    <string name="weather_provider">Источник погоды</string>
+    <string name="forecast_step">Прогноз · шаг %1$d часа</string>
+    <string name="provider_unavailable">Этот источник не предоставляет эти данные</string>
+    <string name="daily_wind_unavailable">Ветер сейчас и по часам; суточный максимум недоступен</string>
+    <string name="forecast_limit">До %1$d дней. Более длинные периоды недоступны.</string>
+    <string name="single_location_search">Будет найдена одна ближайшая локация. Проверьте регион и страну перед выбором.</string>
+    <string name="find_city">Найти</string>
+    <string name="confirm_location">Выбрать</string>
+    <string name="city_not_found">Локация не найдена</string>
+    <string name="weather_cloudy">Облачно</string>
+    <string name="weather_sleet">Дождь со снегом</string>
+    <string name="weather_ice_pellets">Ледяная крупа</string>
 </resources>

@@ -27,6 +27,9 @@ data class WeatherCodeConfig(
 object WeatherCodeMapper {
 
     private val CODE_MAP = mapOf(
+        -2 to WeatherCodeConfig(Icons.Filled.Cloud, R.string.weather_cloudy, null),
+        -3 to WeatherCodeConfig(Icons.Filled.Hail, R.string.weather_sleet, Icons.Filled.Hail),
+        -4 to WeatherCodeConfig(Icons.Filled.Grain, R.string.weather_ice_pellets, Icons.Filled.Grain),
         0 to WeatherCodeConfig(
             icon = Icons.Filled.WbSunny,
             stringRes = R.string.weather_code_0,
@@ -178,9 +181,9 @@ object WeatherCodeMapper {
     fun getWeatherType(code: Int, isDay: Int = 1): WeatherType {
         return when (code) {
             0 -> WeatherType.CLEAR
-            1, 2, 3, 45, 48 -> WeatherType.CLOUDY
+            -2, 1, 2, 3, 45, 48 -> WeatherType.CLOUDY
             51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99 -> WeatherType.RAIN
-            56, 57, 66, 67, 71, 73, 75, 77, 85, 86 -> WeatherType.SNOW
+            -3, -4, 56, 57, 66, 67, 71, 73, 75, 77, 85, 86 -> WeatherType.SNOW
             else -> WeatherType.CLOUDY
         }
     }
@@ -197,6 +200,7 @@ object WeatherCodeMapper {
 
     fun getIconVector(code: Int, isDay: Int = 1): ImageVector {
         val config = CODE_MAP[code] ?: DEFAULT_CONFIG
+        if (isDay != 0 && isDay != 1) return config.icon
         val isDaytime = isDay == 1
 
         return when (code) {

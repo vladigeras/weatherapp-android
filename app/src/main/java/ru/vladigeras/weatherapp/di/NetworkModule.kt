@@ -16,13 +16,20 @@ import ru.vladigeras.weatherapp.BuildConfig
 import ru.vladigeras.weatherapp.network.GeocodingService
 import ru.vladigeras.weatherapp.network.WeatherApiService
 import ru.vladigeras.weatherapp.network.WeatherApiServiceImpl
+import ru.vladigeras.weatherapp.network.OpenMeteoWeatherProvider
+import ru.vladigeras.weatherapp.network.WeatherProviders
+import ru.vladigeras.weatherapp.network.WttrWeatherProvider
 import ru.vladigeras.weatherapp.repository.CitySearchCache
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import javax.inject.Singleton
+import java.time.Clock
 
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
+    @Provides
+    fun provideClock(): Clock = Clock.systemUTC()
+
     
     @Provides
     @Singleton
@@ -67,4 +74,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideCitySearchCache(): CitySearchCache = CitySearchCache()
+
+    @Provides
+    @Singleton
+    fun provideWeatherProviders(openMeteo: OpenMeteoWeatherProvider, wttr: WttrWeatherProvider) = WeatherProviders(listOf(openMeteo, wttr))
 }

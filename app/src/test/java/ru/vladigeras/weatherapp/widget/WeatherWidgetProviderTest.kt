@@ -4,20 +4,29 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.os.Bundle
+import android.view.View
+import android.widget.FrameLayout
+import android.widget.RemoteViews
+import android.widget.TextView
+import io.mockk.Runs
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
+import io.mockk.just
+import io.mockk.slot
 import io.mockk.unmockkAll
 import io.mockk.verify
 import org.junit.After
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import ru.vladigeras.weatherapp.R
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -45,6 +54,25 @@ class WeatherWidgetProviderTest {
     @Test
     fun `provider can be instantiated`() {
         assertNotNull(provider)
+    }
+
+    @Test
+    fun `cleared weather displays no data in both widget layouts`() {
+        val views = slot<RemoteViews>()
+        every { mockManager.updateAppWidget(1, capture(views)) } just Runs
+        for (width in listOf(180, 300)) {
+            val options = Bundle().apply {
+                putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, width)
+                putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 100)
+            }
+            provider.onAppWidgetOptionsChanged(context, mockManager, 1, options)
+            val root = views.captured.apply(context, FrameLayout(context))
+            val container = if (width < 260) R.id.vertical_container else R.id.horizontal_container
+            val city = if (width < 260) R.id.widget_city else R.id.widget_city_horizontal
+            assertEquals(View.VISIBLE, root.findViewById<View>(container).visibility)
+            assertEquals(context.getString(R.string.widget_no_data), root.findViewById<TextView>(city).text)
+            assertEquals(View.GONE, root.findViewById<View>(R.id.widget_icon).visibility)
+        }
     }
 
     @Test

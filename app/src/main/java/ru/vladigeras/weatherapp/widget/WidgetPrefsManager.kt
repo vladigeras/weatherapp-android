@@ -10,6 +10,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import ru.vladigeras.weatherapp.data.WeatherProviderId
 
 private val Context.widgetDataStore: DataStore<Preferences> by preferencesDataStore(name = "widget_prefs")
 
@@ -26,26 +27,45 @@ object WidgetPrefsManager {
     fun save(
         context: Context,
         cityName: String,
-        temperature: Double,
+        temperature: Double?,
         feelsLike: Double?,
-        weatherCode: Int,
-        isDay: Int,
-        tempUnit: String
+        weatherCode: Int?,
+        isDay: Int?,
+        tempUnit: String,
+        provider: WeatherProviderId = WeatherProviderId.OPEN_METEO
     ) {
         runBlocking(Dispatchers.IO) {
             getDataStore(context).edit { prefs ->
+                if (WeatherProviderId.fromValue(prefs[stringPreferencesKey("provider")]) != provider) return@edit
+                prefs[stringPreferencesKey("provider")] = provider.value
                 prefs[stringPreferencesKey(KEY_CITY_NAME)] = cityName
-                prefs[stringPreferencesKey(KEY_TEMP)] = "${temperature.toInt()}$tempUnit"
+                if (temperature == null) prefs.remove(stringPreferencesKey(KEY_TEMP))
+                else prefs[stringPreferencesKey(KEY_TEMP)] = "${temperature.toInt()}$tempUnit"
                 if (feelsLike != null) {
                     prefs[stringPreferencesKey(KEY_FEELS_LIKE)] = "${feelsLike.toInt()}$tempUnit"
                 } else {
                     prefs.remove(stringPreferencesKey(KEY_FEELS_LIKE))
                 }
-                prefs[intPreferencesKey(KEY_WEATHER_CODE)] = weatherCode
-                prefs[intPreferencesKey(KEY_IS_DAY)] = isDay
+                if (weatherCode == null) prefs.remove(intPreferencesKey(KEY_WEATHER_CODE))
+                else prefs[intPreferencesKey(KEY_WEATHER_CODE)] = weatherCode
+                if (isDay == null) prefs.remove(intPreferencesKey(KEY_IS_DAY))
+                else prefs[intPreferencesKey(KEY_IS_DAY)] = isDay
                 prefs[stringPreferencesKey(KEY_TEMP_UNIT)] = tempUnit
             }
         }
+    }
+
+    fun activateProvider(context: Context, provider: WeatherProviderId) {
+        runBlocking(Dispatchers.IO) {
+            getDataStore(context).edit { prefs ->
+                if (WeatherProviderId.fromValue(prefs[stringPreferencesKey("provider")]) != provider) prefs.clear()
+                prefs[stringPreferencesKey("provider")] = provider.value
+            }
+        }
+    }
+
+    fun getProvider(context: Context): WeatherProviderId = runBlocking(Dispatchers.IO) {
+        WeatherProviderId.fromValue(getDataStore(context).data.first()[stringPreferencesKey("provider")])
     }
 
     fun getCityName(context: Context): String? {

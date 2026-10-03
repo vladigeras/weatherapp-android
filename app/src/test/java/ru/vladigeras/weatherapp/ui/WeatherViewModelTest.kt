@@ -5,6 +5,8 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import ru.vladigeras.weatherapp.data.ProviderCapabilities
+import ru.vladigeras.weatherapp.data.WeatherProviderId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -15,6 +17,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +31,7 @@ import ru.vladigeras.weatherapp.data.HourlyWeather
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.data.WeatherResponse
+import ru.vladigeras.weatherapp.util.asProviderWeather
 import ru.vladigeras.weatherapp.domain.mapper.WeatherMapper
 import ru.vladigeras.weatherapp.repository.CityNameResolver
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
@@ -131,7 +135,7 @@ class WeatherViewModelTest {
        
     @Before
     fun setup() {
-        weatherRepository = mockk()
+        weatherRepository = mockk { every { capabilities(any()) } returns ProviderCapabilities(16, 1) }
         locationRepository = mockk()
         selectedLocationRepository = mockk {
             every { getSelectedLocation() } returns flowOf(null)
@@ -150,10 +154,10 @@ class WeatherViewModelTest {
         }
         weatherMapper = mockk {
             // Properly mock the suspend function to return a default value
-            coEvery { mapToDailyForecast(any(), any()) } returns emptyList()
-            coEvery { mapToHourlyForecast(any(), any(), any(), any()) } returns emptyList()
+            coEvery { mapToDailyForecast(any()) } returns emptyList()
+            coEvery { mapToHourlyForecast(any(), any(), any()) } returns emptyList()
         }
-        weatherViewModel = WeatherViewModel(context, weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, weatherCache, languagePreferenceRepository, cityNameResolver, weatherMapper)
+        weatherViewModel = WeatherViewModel(context, weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, cityNameResolver, weatherMapper)
     
         Dispatchers.setMain(Dispatchers.Unconfined)
     }
@@ -169,14 +173,14 @@ class WeatherViewModelTest {
     
     @Test
     fun `should load weather for location without delay`() = runTest {
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
         
         weatherViewModel.loadWeather(55.7558, 37.6173)
         
         // Wait specifically for Success state
         val successState = weatherViewModel.uiState
             .first { it is WeatherUiState.Success } as WeatherUiState.Success
-        assertEquals(20.5, successState.temperature, 0.001)
+        assertEquals(20.5, successState.temperature!!, 0.001)
         assertEquals(22.0, successState.feelsLike!!, 0.001) // From apparentTemperature in mockResponse
         assertEquals("°C", successState.temperatureUnit)
         assertEquals("Test City", successState.cityName)
@@ -186,14 +190,15 @@ class WeatherViewModelTest {
     fun `should load weather for selected location`() = runTest {
         // Create isolated mocks for this test
         val testWeatherRepository = mockk<WeatherRepository> {
-            coEvery { getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
+            every { capabilities(any()) } returns ProviderCapabilities(16, 1)
+            coEvery { getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
         }
         val testSelectedLocationRepository = mockk<SelectedLocationRepository> {
             every { getSelectedLocation() } returns flowOf<Location?>(mockLocation)
         }
         val testWeatherMapper = mockk<WeatherMapper> {
-            coEvery { mapToDailyForecast(any(), any()) } returns emptyList<DailyForecast>()
-            coEvery { mapToHourlyForecast(any(), any(), any(), any()) } returns emptyList()
+            coEvery { mapToDailyForecast(any()) } returns emptyList<DailyForecast>()
+            coEvery { mapToHourlyForecast(any(), any(), any()) } returns emptyList()
         }
         
         val testViewModel = WeatherViewModel(
@@ -202,8 +207,6 @@ class WeatherViewModelTest {
             locationRepository,
             testSelectedLocationRepository,
             weatherDisplayPrefsRepository,
-            weatherCache,
-            languagePreferenceRepository,
             cityNameResolver,
             testWeatherMapper
         )
@@ -212,7 +215,7 @@ class WeatherViewModelTest {
         
         val successState = testViewModel.uiState
             .first { it is WeatherUiState.Success } as WeatherUiState.Success
-        assertEquals(20.5, successState.temperature, 0.001)
+        assertEquals(20.5, successState.temperature!!, 0.001)
         assertEquals(22.0, successState.feelsLike!!, 0.001)
         assertEquals("°C", successState.temperatureUnit)
         assertEquals("Test City", successState.cityName)
@@ -220,9 +223,9 @@ class WeatherViewModelTest {
     
     @Test
     fun `should cancel previous request when loading new location`() = runTest {
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
         every { selectedLocationRepository.getSelectedLocation() } returns flowOf(mockLocation)
-        coEvery { weatherRepository.getWeather(48.8566, 2.3522, any(), any()) } returns Result.success(mockResponse2)
+        coEvery { weatherRepository.getWeather(48.8566, 2.3522, any(), any()) } returns Result.success(mockResponse2.asProviderWeather())
         
         weatherViewModel.loadSavedLocation() // This loads Moscow (from selectedLocationRepository)
         kotlinx.coroutines.yield() // Give time for the first request to start
@@ -231,7 +234,7 @@ class WeatherViewModelTest {
         // Wait for the final Success state (should be Paris)
         val successState = weatherViewModel.uiState
             .first { it is WeatherUiState.Success && it.temperature == 18.2 } as WeatherUiState.Success
-        assertEquals(18.2, successState.temperature, 0.001)
+        assertEquals(18.2, successState.temperature!!, 0.001)
         assertEquals("°C", successState.temperatureUnit)
     }
     
@@ -239,9 +242,9 @@ class WeatherViewModelTest {
     fun `should handle rapid location changes correctly`() = runTest {
         every { selectedLocationRepository.getSelectedLocation() } returns flowOf(null)
         
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
-        coEvery { weatherRepository.getWeather(51.5074, -0.1278, any(), any()) } returns Result.success(mockResponse2)
-        coEvery { weatherRepository.getWeather(40.7128, -74.0060, any(), any()) } returns Result.success(mockResponse)
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
+        coEvery { weatherRepository.getWeather(51.5074, -0.1278, any(), any()) } returns Result.success(mockResponse2.asProviderWeather())
+        coEvery { weatherRepository.getWeather(40.7128, -74.0060, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
         
         weatherViewModel.loadWeather(55.7558, 37.6173)    // Moscow
         kotlinx.coroutines.yield() // Give time for the first request to start
@@ -251,7 +254,7 @@ class WeatherViewModelTest {
         
         val successState = weatherViewModel.uiState
             .first { it is WeatherUiState.Success && it.temperature == 20.5 } as WeatherUiState.Success
-        assertEquals(20.5, successState.temperature, 0.001)
+        assertEquals(20.5, successState.temperature!!, 0.001)
         assertEquals("°C", successState.temperatureUnit)
     }
     
@@ -259,7 +262,7 @@ class WeatherViewModelTest {
     fun `should show empty state when no location selected`() = runTest {
         coEvery { selectedLocationRepository.getSelectedLocation() } returns flowOf(null)
         // Mock the weatherMapper to avoid UncompletedCoroutinesError
-        coEvery { weatherMapper.mapToDailyForecast(any(), any()) } returns emptyList()
+        coEvery { weatherMapper.mapToDailyForecast(any()) } returns emptyList()
  
         weatherViewModel.loadSavedLocation()
  
@@ -276,7 +279,7 @@ class WeatherViewModelTest {
                 temperature = 20.0
             )
         )
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(responseWithApparentTemp)
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(responseWithApparentTemp.asProviderWeather())
         
         weatherViewModel.loadWeather(55.7558, 37.6173)
         
@@ -284,18 +287,18 @@ class WeatherViewModelTest {
             .first { it is WeatherUiState.Success } as WeatherUiState.Success
              
         assertEquals(25.0, successState.feelsLike!!, 0.001)
-        assertEquals(20.0, successState.temperature, 0.001)
+        assertEquals(20.0, successState.temperature!!, 0.001)
     }
     
     @Test
     fun `should process daily forecast correctly`() = runTest {
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
 
         val expectedForecasts = listOf(
             DailyForecast("27 Apr", "Mon", 0, 15.0, 25.0, 0.0, "07:30", "23:15", 10.0, 180, 5.0),
             DailyForecast("28 Apr", "Tue", 1, 14.0, 23.0, 2.5, "07:29", "23:16", 12.0, 200, 3.0)
         )
-        coEvery { weatherMapper.mapToDailyForecast(any(), any()) } returns expectedForecasts
+        coEvery { weatherMapper.mapToDailyForecast(any()) } returns expectedForecasts
 
         weatherViewModel.loadWeather(55.7558, 37.6173)
 
@@ -311,8 +314,8 @@ class WeatherViewModelTest {
         assertEquals("27 Apr", day1.date)  // Note: our formatting is "27 Apr"
         assertEquals("Mon", day1.dayName)   // April 27, 2026 is a Monday
         assertEquals(0, day1.weatherCode)
-        assertEquals(15.0, day1.temperatureMin, 0.001)
-        assertEquals(25.0, day1.temperatureMax, 0.001)
+        assertEquals(15.0, day1.temperatureMin!!, 0.001)
+        assertEquals(25.0, day1.temperatureMax!!, 0.001)
         assertEquals(0.0, day1.precipitationSum ?: 0.0, 0.001)
         // Sunrise and sunset are formatted to HH:mm in local time (Europe/Moscow, UTC+3)
         // Given sunrise UTC "2026-04-27T04:30:00", offset +3 hours -> 07:30
@@ -328,8 +331,8 @@ class WeatherViewModelTest {
         assertEquals("28 Apr", day2.date)
         assertEquals("Tue", day2.dayName)   // April 28, 2026 is a Tuesday
         assertEquals(1, day2.weatherCode)
-        assertEquals(14.0, day2.temperatureMin, 0.001)
-        assertEquals(23.0, day2.temperatureMax, 0.001)
+        assertEquals(14.0, day2.temperatureMin!!, 0.001)
+        assertEquals(23.0, day2.temperatureMax!!, 0.001)
         assertEquals(2.5, day2.precipitationSum ?: 0.0, 0.001)
         // Sunrise: "2026-04-28T04:29:00" + 3 hours = 07:29
         assertEquals("07:29", day2.sunrise)
@@ -343,13 +346,13 @@ class WeatherViewModelTest {
     @Test
     fun `should format day names with English locale by default`() = runTest {
         coEvery { languagePreferenceRepository.getAppLocale() } returns java.util.Locale.ENGLISH
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
 
         val expectedForecasts = listOf(
             DailyForecast("27 Apr", "Mon", 0, 15.0, 25.0, 0.0, "07:30", "23:15", 10.0, 180, 5.0),
             DailyForecast("28 Apr", "Tue", 1, 14.0, 23.0, 2.5, "07:29", "23:16", 12.0, 200, 3.0)
         )
-        coEvery { weatherMapper.mapToDailyForecast(any(), any()) } returns expectedForecasts
+        coEvery { weatherMapper.mapToDailyForecast(any()) } returns expectedForecasts
 
         weatherViewModel.loadWeather(55.7558, 37.6173)
 
@@ -368,13 +371,13 @@ class WeatherViewModelTest {
     @Test
     fun `should format day names with Russian locale when set`() = runTest {
         coEvery { languagePreferenceRepository.getAppLocale() } returns java.util.Locale.Builder().setLanguage("ru").setRegion("RU").build()
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
 
         val expectedForecasts = listOf(
             DailyForecast("27 апр", "Пн", 0, 15.0, 25.0, 0.0, "07:30", "23:15", 10.0, 180, 5.0),
             DailyForecast("28 апр", "Вт", 1, 14.0, 23.0, 2.5, "07:29", "23:16", 12.0, 200, 3.0)
         )
-        coEvery { weatherMapper.mapToDailyForecast(any(), any()) } returns expectedForecasts
+        coEvery { weatherMapper.mapToDailyForecast(any()) } returns expectedForecasts
 
         weatherViewModel.loadWeather(55.7558, 37.6173)
 
@@ -393,25 +396,33 @@ class WeatherViewModelTest {
 
     @Test
     fun `forceRefresh bypasses cache logic in repository`() = runTest {
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), forceRefresh = true) } returns Result.success(mockResponse)
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), forceRefresh = true) } returns Result.success(mockResponse.asProviderWeather())
         
         weatherViewModel.loadWeather(55.7558, 37.6173, forceRefresh = true)
         
         val successState = weatherViewModel.uiState.first { it is WeatherUiState.Success } as WeatherUiState.Success
-        assertEquals(20.5, successState.temperature, 0.001)
+        assertEquals(20.5, successState.temperature!!, 0.001)
         assertEquals("°C", successState.temperatureUnit)
         coVerify { weatherRepository.getWeather(55.7558, 37.6173, any(), forceRefresh = true) }
     }
 
     @Test
-    fun `refreshActiveLocation uses saved coordinates when available`() = runTest {
-        coEvery { weatherRepository.getWeather(any(), any(), any(), any()) } returns Result.success(mockResponse)
+    fun `refreshActiveLocation uses saved coordinates and finishes the update signal`() = runTest {
+        coEvery { weatherRepository.getWeather(any(), any(), any(), any()) } returns Result.success(mockResponse.asProviderWeather())
         coEvery { selectedLocationRepository.getSelectedLocation() } returns flowOf(mockLocation)
         
         weatherViewModel.loadSavedLocation()
         kotlinx.coroutines.yield()
         
         weatherViewModel.refreshActiveLocation()
+
+        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
+        assertEquals(false, weatherViewModel.showUpdateToast.value)
+
+        weatherViewModel.loadWeather(48.8566, 2.3522)
+
+        assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
+        assertEquals(false, weatherViewModel.showUpdateToast.value)
         
         coVerify { weatherRepository.getWeather(55.7558, 37.6173, any(), forceRefresh = true) }
     }
@@ -425,31 +436,28 @@ class WeatherViewModelTest {
                 weatherCode = null
             )
         )
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(responseWithNulls)
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(responseWithNulls.asProviderWeather())
         
         weatherViewModel.loadWeather(55.7558, 37.6173)
         
         val successState = weatherViewModel.uiState
             .first { it is WeatherUiState.Success } as WeatherUiState.Success
         
-        assertEquals(0.0, successState.temperature, 0.001)
-        assertEquals(0, successState.weatherCode)
-        assertEquals(0.0, successState.feelsLike, 0.001)
+        assertNull(successState.temperature)
+        assertNull(successState.weatherCode)
+        assertNull(successState.feelsLike)
     }
 
     @Test
-    fun `loadWeather_apiCancellation_updatesStateToError`() = runTest {
+    fun `loadWeather_apiCancellation_doesNotShowError`() = runTest {
         // Given a cancellation exception
         coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns
             Result.failure(kotlinx.coroutines.CancellationException("Job was cancelled"))
 
         weatherViewModel.loadWeather(55.7558, 37.6173)
 
-        val errorState = weatherViewModel.uiState
-            .first { it is WeatherUiState.Error }
-            .let { it as WeatherUiState.Error }
-
-        assertEquals("Job was cancelled", errorState.message)
+        kotlinx.coroutines.yield()
+        assertEquals(WeatherUiState.Loading, weatherViewModel.uiState.value)
     }
 
     @Test
@@ -476,8 +484,8 @@ class WeatherViewModelTest {
             every { getPrefs() } returns flowOf(prefsWithHourly)
         }
         val testWeatherMapper: WeatherMapper = mockk(relaxed = true) {
-            coEvery { mapToDailyForecast(any(), any()) } returns emptyList()
-            coEvery { mapToHourlyForecast(any(), any(), any(), any()) } returns listOf(
+            coEvery { mapToDailyForecast(any()) } returns emptyList()
+            coEvery { mapToHourlyForecast(any(), any(), any()) } returns listOf(
                 HourlyForecast("10:00", 0, 20.0, 65, 10.0),
                 HourlyForecast("11:00", 1, 22.0, 60, 12.0)
             )
@@ -489,13 +497,11 @@ class WeatherViewModelTest {
             locationRepository,
             selectedLocationRepository,
             testPrefsRepository,
-            weatherCache,
-            languagePreferenceRepository,
             cityNameResolver,
             testWeatherMapper
         )
 
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
 
         testViewModel.loadWeather(55.7558, 37.6173)
 
@@ -510,11 +516,11 @@ class WeatherViewModelTest {
 
     @Test
     fun `loadWeather without hourly forecast pref still has hourly data in state`() = runTest {
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse)
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
 
         val testWeatherMapper: WeatherMapper = mockk(relaxed = true) {
-            coEvery { mapToDailyForecast(any(), any()) } returns emptyList()
-            coEvery { mapToHourlyForecast(any(), any(), any(), any()) } returns listOf(
+            coEvery { mapToDailyForecast(any()) } returns emptyList()
+            coEvery { mapToHourlyForecast(any(), any(), any()) } returns listOf(
                 HourlyForecast("10:00", 0, 20.0, 65, 10.0)
             )
         }
@@ -525,8 +531,6 @@ class WeatherViewModelTest {
             locationRepository,
             selectedLocationRepository,
             weatherDisplayPrefsRepository,
-            weatherCache,
-            languagePreferenceRepository,
             cityNameResolver,
             testWeatherMapper
         )
@@ -542,4 +546,29 @@ class WeatherViewModelTest {
         assertEquals(1, successState.hourlyForecast.size)
         assertEquals(true, successState.prefs.showHourlyForecast)
     }
+    @Test
+    fun `provider change during load replaces request and ignores late result`() = runTest {
+        val prefs = kotlinx.coroutines.flow.MutableStateFlow(WeatherDisplayPrefs())
+        every { weatherDisplayPrefsRepository.getPrefs() } returns prefs
+        val old = kotlinx.coroutines.CompletableDeferred<ru.vladigeras.weatherapp.data.ProviderWeather>()
+        coEvery { weatherRepository.getWeather(any(), any(), any(), any()) } coAnswers {
+            if (thirdArg<WeatherDisplayPrefs>().provider == WeatherProviderId.OPEN_METEO) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { old.await() }.let { Result.success(it) }
+            } else Result.success(mockResponse2.asProviderWeather().copy(provider = WeatherProviderId.WTTR))
+        }
+        val vm = WeatherViewModel(context, weatherRepository, locationRepository, selectedLocationRepository,
+            weatherDisplayPrefsRepository, cityNameResolver, weatherMapper)
+        vm.loadWeather(55.7558, 37.6173)
+        kotlinx.coroutines.yield()
+        prefs.value = prefs.value.copy(provider = WeatherProviderId.WTTR)
+        val success = vm.uiState.first { it is WeatherUiState.Success } as WeatherUiState.Success
+        assertEquals(18.2, success.temperature!!, 0.001)
+        old.complete(mockResponse.asProviderWeather())
+        kotlinx.coroutines.yield()
+        assertEquals(18.2, (vm.uiState.value as WeatherUiState.Success).temperature!!, 0.001)
+        assertEquals("18°C", ru.vladigeras.weatherapp.widget.WidgetPrefsManager.getTemperature(context))
+        assertEquals(WeatherProviderId.WTTR, ru.vladigeras.weatherapp.widget.WidgetPrefsManager.getProvider(context))
+        WeatherViewModel::class.java.getDeclaredMethod("onCleared").apply { isAccessible = true }.invoke(vm)
+    }
+
 }

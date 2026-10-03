@@ -18,6 +18,15 @@ import ru.vladigeras.weatherapp.data.HourlyWeather
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.data.WeatherResponse
 import ru.vladigeras.weatherapp.network.WeatherApiService
+import ru.vladigeras.weatherapp.network.OpenMeteoWeatherProvider
+import ru.vladigeras.weatherapp.network.WeatherProviders
+import ru.vladigeras.weatherapp.util.asProviderWeather
+import io.mockk.mockk
+import io.mockk.coEvery
+import ru.vladigeras.weatherapp.domain.mapper.WeatherMapper
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 
 private fun createMockWeatherResponse() = WeatherResponse(
     latitude = 55.7558,
@@ -64,7 +73,7 @@ class WeatherRepositoryImplTest {
     fun setup() {
         mockWeatherApiService = TestWeatherApiService()
         weatherCache = WeatherCache(context)
-        weatherRepository = WeatherRepositoryImpl(mockWeatherApiService, weatherCache, WeatherParamsBuilder())
+        weatherRepository = WeatherRepositoryImpl(WeatherProviders(listOf(OpenMeteoWeatherProvider(mockWeatherApiService, mockk(), WeatherParamsBuilder()))), weatherCache, CitySearchCache())
     }
 
     @Test
@@ -96,7 +105,7 @@ class WeatherRepositoryImplTest {
         // Second call immediately - should hit cache
         val result2 = weatherRepository.getWeather(55.7558, 37.6173)
         assertTrue(result2.isSuccess)
-        assertEquals(mockResponse, result2.getOrNull())
+        assertEquals(mockResponse.asProviderWeather(), result2.getOrNull())
         assertEquals(1, mockWeatherApiService.callCount) // Still only 1 API call
     }
 
@@ -167,6 +176,25 @@ class WeatherRepositoryImplTest {
 
         // Should have made only 2 API calls (one for each unique location)
         assertEquals(2, mockWeatherApiService.callCount)
+    }
+
+    @Test
+    fun `cached hours are filtered relative to current time on every display`() = runTest {
+        val response = createMockWeatherResponse().copy(
+            hourly = HourlyWeather(
+                time = listOf("2026-04-25T20:00", "2026-04-25T21:00", "2026-04-25T22:00", "2026-04-26T08:00", "2026-04-26T09:00"),
+                temperature2m = List(5) { 10.0 }
+            )
+        )
+        mockWeatherApiService.setResponse(response)
+        val language = mockk<LanguagePreferenceRepository>()
+        coEvery { language.getAppLocale() } returns java.util.Locale.ENGLISH
+        fun mapper(time: String) = WeatherMapper(language, Clock.fixed(Instant.parse(time), ZoneOffset.UTC))
+        val first = weatherRepository.getWeather(55.7558, 37.6173).getOrThrow()
+        assertEquals(listOf("21:00", "22:00", "08:00"), mapper("2026-04-25T20:25:00Z").mapToHourlyForecast(first.hourly, first.timezone, 12).map { it.time })
+        val cached = weatherRepository.getWeather(55.7558, 37.6173).getOrThrow()
+        assertEquals(listOf("22:00", "08:00", "09:00"), mapper("2026-04-25T21:25:00Z").mapToHourlyForecast(cached.hourly, cached.timezone, 12).map { it.time })
+        assertEquals(1, mockWeatherApiService.callCount)
     }
 
     private class TestWeatherApiService : WeatherApiService {
