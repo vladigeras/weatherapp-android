@@ -105,7 +105,8 @@ fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, index: I
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val weatherCode = forecast.weatherCode ?: 0
+                    val weatherCode = forecast.weatherCode
+                    if (weatherCode != null) {
                     val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay = 1)
                     Icon(
                         imageVector = weatherIcon,
@@ -113,8 +114,9 @@ fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, index: I
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp).padding(horizontal = 8.dp)
                     )
+                    }
                     Text(
-                        text = "${forecast.temperatureMin.toInt()}$temperatureUnit/${forecast.temperatureMax.toInt()}$temperatureUnit",
+                        text = "${forecast.temperatureMin?.toInt()?.toString() ?: "—"}$temperatureUnit/${forecast.temperatureMax?.toInt()?.toString() ?: "—"}$temperatureUnit",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface

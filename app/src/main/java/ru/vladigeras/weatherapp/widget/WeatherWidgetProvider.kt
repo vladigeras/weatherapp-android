@@ -66,8 +66,8 @@ class WeatherWidgetProvider : AppWidgetProvider() {
         } else {
             val cityName = WidgetPrefsManager.getCityName(context) ?: ""
             val temperature = WidgetPrefsManager.getTemperature(context)
-            val weatherCode = WidgetPrefsManager.getWeatherCode(context) ?: 0
-            val isDay = WidgetPrefsManager.getIsDay(context) ?: 1
+            val weatherCode = WidgetPrefsManager.getWeatherCode(context) ?: -1
+            val isDay = WidgetPrefsManager.getIsDay(context) ?: -1
 
             val descriptionResId = WeatherCodeMapper.getWeatherCodeStringResId(weatherCode)
             val description = context.getString(descriptionResId)

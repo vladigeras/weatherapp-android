@@ -7,6 +7,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.vladigeras.weatherapp.BuildConfig
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 class GeocodingService @Inject constructor(
     private val httpClient: HttpClient
@@ -22,6 +23,8 @@ class GeocodingService @Inject constructor(
                 }
             }.body<GeocodingResponse>()
             Result.success(response)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

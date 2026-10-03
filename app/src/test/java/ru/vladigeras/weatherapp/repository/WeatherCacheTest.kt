@@ -22,6 +22,10 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import ru.vladigeras.weatherapp.data.Current
 import ru.vladigeras.weatherapp.data.WeatherResponse
+import ru.vladigeras.weatherapp.data.ProviderWeather
+import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
+import ru.vladigeras.weatherapp.data.WeatherProviderId
+import ru.vladigeras.weatherapp.util.asProviderWeather
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 
@@ -58,7 +62,7 @@ class WeatherCacheTest {
         timeMillis.addAndGet(minutes * 60 * 1000)
     }
 
-    private fun createTestWeatherResponse(): WeatherResponse {
+    private fun createTestWeatherResponse(): ProviderWeather {
         return WeatherResponse(
             latitude = testLatitude,
             longitude = testLongitude,
@@ -75,13 +79,13 @@ class WeatherCacheTest {
                 weatherCode = 3,
                 isDay = 1
             )
-        )
+        ).asProviderWeather()
     }
 
     @Test
     fun `key generation creates valid file name`() = runTest {
         val key = cache.createKey(55.7558, 37.6173)
-        assertEquals("weather_55.756_37.617.json", key)
+        assertEquals("v2_open_meteo_55.756_37.617_1111111_7_12.json", key)
     }
 
     @Test
@@ -102,7 +106,7 @@ class WeatherCacheTest {
     fun `different coordinates use different cache entries`() = runTest {
         val weatherResponse1 = createTestWeatherResponse()
         val weatherResponse2 = weatherResponse1.copy(
-            current = weatherResponse1.current?.copy(temperature = 15.0)
+            current = weatherResponse1.current.copy(temperature = 15.0)
         )
 
         cache.putWeather(testLatitude, testLongitude, weatherResponse1)
@@ -151,7 +155,7 @@ class WeatherCacheTest {
     @Test
     fun `corrupted cache file returns null and deletes file`() = runTest {
         val cacheDir = File(tempDir, "weather_cache")
-        val cacheFile = File(cacheDir, "weather_55.756_37.617.json")
+        val cacheFile = File(cacheDir, "v2_open_meteo_55.756_37.617_1111111_7_12.json")
         cacheDir.mkdirs()
         cacheFile.writeText("corrupted json data")
         assertTrue(cacheFile.exists())
@@ -160,4 +164,15 @@ class WeatherCacheTest {
         assertNull(cached)
         assertFalse(cacheFile.exists())  // File should be deleted
     }
+    @Test
+    fun `provider and response parameters isolate cached weather`() = runTest {
+        val prefs = WeatherDisplayPrefs()
+        val weather = createTestWeatherResponse()
+        cache.putWeather(testLatitude, testLongitude, weather, prefs)
+        assertNull(cache.getWeather(testLatitude, testLongitude, prefs.copy(provider = WeatherProviderId.WTTR)))
+        assertNull(cache.getWeather(testLatitude, testLongitude, prefs.copy(showHumidity = false)))
+        assertNull(cache.getWeather(testLatitude, testLongitude, prefs.copy(forecastDays = 3)))
+        assertNull(cache.getWeather(testLatitude, testLongitude, prefs.copy(hourlyForecastHours = 48)))
+    }
+
 }

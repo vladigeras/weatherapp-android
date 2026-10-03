@@ -17,6 +17,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
+import ru.vladigeras.weatherapp.data.WeatherProviderId
+import kotlinx.coroutines.flow.first
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import ru.vladigeras.weatherapp.util.TestDataStoreFactory
 import java.io.File
 
@@ -141,4 +145,15 @@ class WeatherDisplayPrefsRepositoryTest {
             assertEquals(true, prefs.showForecastDays)
         }
     }
+    @Test
+    fun providerSelection_preservesDisplayValuesAfterRepositoryRecreation() = runTest {
+        dataStore.edit { it[intPreferencesKey("forecast_days")] = 14 }
+        val prefs = repository.getPrefs().first()
+        assertEquals(14, prefs.forecastDays)
+        assertEquals(WeatherProviderId.OPEN_METEO, prefs.provider)
+        repository.updatePrefs(prefs.copy(provider = WeatherProviderId.WTTR))
+        val recreated = WeatherDisplayPrefsRepository(RuntimeEnvironment.getApplication(), dataStore)
+        assertEquals(prefs.copy(provider = WeatherProviderId.WTTR), recreated.getPrefs().first())
+    }
+
 }

@@ -349,18 +349,18 @@ private fun SectionHeader(title: String) {
 
 @Composable
 private fun CurrentWeatherCard(
-    temperature: Double,
-    weatherCode: Int,
-    isDay: Int,
+    temperature: Double?,
+    weatherCode: Int?,
+    isDay: Int?,
     temperatureUnit: String,
-    feelsLike: Double,
+    feelsLike: Double?,
     humidity: Int?,
     windSpeed: Double?,
     showHumidity: Boolean,
     showWind: Boolean
 ) {
     val isDarkTheme = isSystemInDarkTheme()
-    val cardColor = WeatherCodeMapper.getCardColor(weatherCode, isDay, isDarkTheme)
+    val cardColor = if (isDay == null) MaterialTheme.colorScheme.surfaceVariant else WeatherCodeMapper.getCardColor(weatherCode ?: -1, isDay, isDarkTheme)
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -371,8 +371,8 @@ private fun CurrentWeatherCard(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay)
-            val weatherDesc = stringResource(WeatherCodeMapper.getWeatherCodeStringResId(weatherCode))
+            val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode ?: -1, isDay ?: -1)
+            val weatherDesc = stringResource(WeatherCodeMapper.getWeatherCodeStringResId(weatherCode ?: -1))
             Icon(
                 imageVector = weatherIcon,
                 contentDescription = weatherDesc,
@@ -381,7 +381,7 @@ private fun CurrentWeatherCard(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "${temperature.toInt()}$temperatureUnit",
+                text = "${temperature?.toInt()?.toString() ?: "—"}$temperatureUnit",
                 fontSize = 42.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -406,7 +406,7 @@ private fun CurrentWeatherCard(
 
 @Composable
 private fun CurrentWeatherDetails(
-    feelsLike: Double,
+    feelsLike: Double?,
     temperatureUnit: String,
     humidity: Int?,
     windSpeed: Double?,
@@ -418,7 +418,7 @@ private fun CurrentWeatherDetails(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        WeatherDetailItem(
+        if (feelsLike != null) WeatherDetailItem(
             icon = Icons.Filled.Thermostat,
             value = "${feelsLike.toInt()}$temperatureUnit",
             label = stringResource(R.string.feels_like)

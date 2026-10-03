@@ -6,11 +6,13 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
+import ru.vladigeras.weatherapp.data.WeatherProviderId
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,6 +29,7 @@ class WeatherDisplayPrefsRepository @Inject constructor(
     private fun getDataStore(): DataStore<Preferences> = testDataStore ?: context.dataStore
 
     private object Keys {
+        val PROVIDER = stringPreferencesKey("weather_provider")
         val SHOW_HUMIDITY = booleanPreferencesKey("show_humidity")
         val SHOW_WIND = booleanPreferencesKey("show_wind")
         val SHOW_PRECIPITATION = booleanPreferencesKey("show_precipitation")
@@ -49,12 +52,14 @@ class WeatherDisplayPrefsRepository @Inject constructor(
                 showForecastDays = prefs[Keys.SHOW_FORECAST_DAYS] ?: true,
                 forecastDays = prefs[Keys.FORECAST_DAYS] ?: 7,
                 showHourlyForecast = prefs[Keys.SHOW_HOURLY_FORECAST] ?: true,
-                hourlyForecastHours = prefs[Keys.HOURLY_FORECAST_HOURS] ?: 12
+                hourlyForecastHours = prefs[Keys.HOURLY_FORECAST_HOURS] ?: 12,
+                provider = WeatherProviderId.fromValue(prefs[Keys.PROVIDER])
             )
         }
 
     suspend fun updatePrefs(prefs: WeatherDisplayPrefs) {
         getDataStore().edit { it ->
+            it[Keys.PROVIDER] = prefs.provider.value
             it[Keys.SHOW_HUMIDITY] = prefs.showHumidity
             it[Keys.SHOW_WIND] = prefs.showWind
             it[Keys.SHOW_PRECIPITATION] = prefs.showPrecipitation

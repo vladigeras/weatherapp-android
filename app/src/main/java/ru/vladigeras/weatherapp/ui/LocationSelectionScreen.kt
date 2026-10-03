@@ -51,7 +51,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import ru.vladigeras.weatherapp.R
 import ru.vladigeras.weatherapp.data.Location
-import ru.vladigeras.weatherapp.network.GeocodingResult
+import ru.vladigeras.weatherapp.data.SearchLocation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -343,8 +343,8 @@ private fun ErrorCard(onRetry: () -> Unit) {
 private fun SearchSection(
     query: String,
     onQueryChange: (String) -> Unit,
-    searchResults: List<GeocodingResult>,
-    onResultSelected: (GeocodingResult) -> Unit
+    searchResults: List<SearchLocation>,
+    onResultSelected: (SearchLocation) -> Unit
 ) {
     OutlinedTextField(
         value = query,
@@ -382,7 +382,7 @@ private fun SearchSection(
 
 @Composable
 private fun SearchResultItem(
-    result: GeocodingResult,
+    result: SearchLocation,
     onClick: () -> Unit
 ) {
     Card(

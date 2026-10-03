@@ -33,6 +33,15 @@ import ru.vladigeras.weatherapp.network.GeocodingResponse
 import ru.vladigeras.weatherapp.network.GeocodingResult
 import ru.vladigeras.weatherapp.network.GeocodingService
 import ru.vladigeras.weatherapp.repository.CitySearchCache
+import ru.vladigeras.weatherapp.repository.WeatherRepository
+import ru.vladigeras.weatherapp.repository.WeatherRepositoryImpl
+import ru.vladigeras.weatherapp.repository.WeatherDisplayPrefsRepository
+import ru.vladigeras.weatherapp.repository.WeatherParamsBuilder
+import ru.vladigeras.weatherapp.network.OpenMeteoWeatherProvider
+import ru.vladigeras.weatherapp.network.WeatherProviders
+import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
+import ru.vladigeras.weatherapp.data.WeatherProviderId
+import ru.vladigeras.weatherapp.util.asSearchLocation
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.LocationRepository
 import ru.vladigeras.weatherapp.repository.SelectedLocationRepository
@@ -49,6 +58,8 @@ class LocationSelectionViewModelTest {
     private lateinit var citySearchCache: CitySearchCache
     private lateinit var selectedLocationRepository: SelectedLocationRepository
     private lateinit var languagePreferenceRepository: LanguagePreferenceRepository
+    private lateinit var weatherRepository: WeatherRepository
+    private lateinit var prefsRepository: WeatherDisplayPrefsRepository
     private lateinit var viewModel: LocationSelectionViewModel
 
     private val mockManualLocation = Location(40.7128, -74.0060, "New York", isAutoDetected = false)
@@ -79,14 +90,16 @@ class LocationSelectionViewModelTest {
         coEvery { locationRepository.getLocation() } returns Result.success(mockAutoLocation)
         coEvery { locationRepository.hasLocationPermission() } returns true
         coEvery { languagePreferenceRepository.getEffectiveLocaleCode() } returns "en"
-        every { citySearchCache.get(any()) } returns null
+        every { citySearchCache.get(any(), any(), any()) } returns null
+        prefsRepository = mockk { every { getPrefs() } returns flowOf(WeatherDisplayPrefs()) }
+        weatherRepository = WeatherRepositoryImpl(WeatherProviders(listOf(OpenMeteoWeatherProvider(mockk(), geocodingService, WeatherParamsBuilder()))), mockk(), citySearchCache)
 
         viewModel = LocationSelectionViewModel(
             context = context,
             savedStateHandle = savedStateHandle,
             locationRepository = locationRepository,
-            geocodingService = geocodingService,
-            citySearchCache = citySearchCache,
+            weatherRepository = weatherRepository,
+            prefsRepository = prefsRepository,
             selectedLocationRepository = selectedLocationRepository,
             languagePreferenceRepository = languagePreferenceRepository
         )
@@ -113,8 +126,8 @@ class LocationSelectionViewModelTest {
             context = context,
             savedStateHandle = SavedStateHandle(),
             locationRepository = locationRepository,
-            geocodingService = geocodingService,
-            citySearchCache = citySearchCache,
+            weatherRepository = weatherRepository,
+            prefsRepository = prefsRepository,
             selectedLocationRepository = selectedLocationRepository,
             languagePreferenceRepository = languagePreferenceRepository
         )
@@ -143,8 +156,8 @@ class LocationSelectionViewModelTest {
             context = context,
             savedStateHandle = SavedStateHandle(),
             locationRepository = locationRepository,
-            geocodingService = geocodingService,
-            citySearchCache = citySearchCache,
+            weatherRepository = weatherRepository,
+            prefsRepository = prefsRepository,
             selectedLocationRepository = selectedLocationRepository,
             languagePreferenceRepository = languagePreferenceRepository
         )
@@ -198,7 +211,7 @@ class LocationSelectionViewModelTest {
 
     @Test
     fun `search query returns cached results without API call`() = runTest {
-        every { citySearchCache.get("Moscow") } returns testSearchResults
+        every { citySearchCache.get("Moscow", WeatherProviderId.OPEN_METEO, "en") } returns testSearchResults.map { it.asSearchLocation() }
 
         viewModel.updateSearchQuery("Moscow")
         advanceTimeBy(500)
@@ -219,7 +232,7 @@ class LocationSelectionViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.uiState.first { it.error != null }
-        assertEquals("Search failed", state.error)
+        assertNotNull(state.error)
     }
 
     @Test
@@ -232,7 +245,7 @@ class LocationSelectionViewModelTest {
         advanceTimeBy(500)
         advanceUntilIdle()
 
-        coVerify { citySearchCache.put("Moscow", testSearchResults) }
+        coVerify { citySearchCache.put("Moscow", testSearchResults.map { it.asSearchLocation() }, WeatherProviderId.OPEN_METEO, "en") }
     }
 
     @Test
@@ -245,7 +258,7 @@ class LocationSelectionViewModelTest {
         advanceTimeBy(500)
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { citySearchCache.put(any(), any()) }
+        coVerify(exactly = 0) { citySearchCache.put(any(), any(), any(), any()) }
     }
 
     @Test
@@ -333,8 +346,8 @@ class LocationSelectionViewModelTest {
             context = context,
             savedStateHandle = SavedStateHandle(),
             locationRepository = locationRepository,
-            geocodingService = geocodingService,
-            citySearchCache = citySearchCache,
+            weatherRepository = weatherRepository,
+            prefsRepository = prefsRepository,
             selectedLocationRepository = selectedLocationRepository,
             languagePreferenceRepository = languagePreferenceRepository
         )

@@ -45,7 +45,7 @@ fun HourlyForecastList(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(items = forecast, key = { it.time }) { item ->
+        items(items = forecast, key = { it.epochSeconds }) { item ->
             HourlyForecastCard(forecast = item, temperatureUnit = temperatureUnit, prefs = prefs)
         }
     }
@@ -77,7 +77,7 @@ fun HourlyForecastCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            val weatherCode = forecast.weatherCode ?: 0
+            val weatherCode = forecast.weatherCode ?: -1
             val weatherIcon = WeatherCodeMapper.getIconVector(weatherCode, isDay = 1)
             val weatherDesc = stringResource(WeatherCodeMapper.getWeatherCodeStringResId(weatherCode))
             Icon(
