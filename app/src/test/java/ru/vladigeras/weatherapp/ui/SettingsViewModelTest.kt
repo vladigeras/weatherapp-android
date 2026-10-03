@@ -3,6 +3,8 @@ package ru.vladigeras.weatherapp.ui
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import ru.vladigeras.weatherapp.data.ProviderCapabilities
+import ru.vladigeras.weatherapp.data.WeatherProviderId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -21,9 +23,13 @@ import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.repository.LanguagePreference
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.WeatherDisplayPrefsRepository
+import ru.vladigeras.weatherapp.repository.WeatherRepository
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
+    private val weatherRepository = mockk<WeatherRepository> { every { capabilities(any()) } answers {
+        if (firstArg<WeatherProviderId>() == WeatherProviderId.WTTR) ProviderCapabilities(3, 3, true, false, false, false, false) else ProviderCapabilities(16, 1)
+    } }
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var prefsRepository: WeatherDisplayPrefsRepository
     private lateinit var languagePreferenceRepository: LanguagePreferenceRepository
@@ -39,7 +45,7 @@ class SettingsViewModelTest {
         languagePreferenceRepository = mockk(relaxed = true)
         coEvery { languagePreferenceRepository.getLanguagePreference() } returns LanguagePreference.SYSTEM
 
-        viewModel = SettingsViewModel(prefsRepository, languagePreferenceRepository)
+        viewModel = SettingsViewModel(prefsRepository, languagePreferenceRepository, weatherRepository)
     }
 
     @After
@@ -148,4 +154,28 @@ class SettingsViewModelTest {
         viewModel.savePrefsAndCheckLanguage()
         io.mockk.coVerify { prefsRepository.updatePrefs(match { it.showHourlyForecast == true && it.hourlyForecastHours == 12 }) }
     }
+    @Test
+    fun `provider constraints mask shared prefs without overwriting them`() = runTest {
+        advanceUntilIdle()
+        viewModel.setForecastDays(14)
+        viewModel.setProvider(WeatherProviderId.WTTR)
+        val effective = viewModel.capabilities().effectivePrefs(viewModel.localPrefs.value)
+        assertEquals(3, effective.forecastDays)
+        assertFalse(effective.showUvIndex)
+        assertFalse(effective.showPrecipitation)
+        viewModel.toggleItem("uv_index", false)
+        viewModel.toggleItem("precipitation", false)
+        viewModel.setForecastDays(5)
+        assertEquals(14, viewModel.localPrefs.value.forecastDays)
+        assertTrue(viewModel.localPrefs.value.showUvIndex)
+        assertTrue(viewModel.localPrefs.value.showPrecipitation)
+        viewModel.toggleItem("humidity", false)
+        viewModel.savePrefsAndCheckLanguage()
+        io.mockk.coVerify { prefsRepository.updatePrefs(match { it.provider == WeatherProviderId.WTTR && it.forecastDays == 14 && it.showUvIndex && !it.showHumidity }) }
+        viewModel.setProvider(WeatherProviderId.OPEN_METEO)
+        assertEquals(14, viewModel.capabilities().effectivePrefs(viewModel.localPrefs.value).forecastDays)
+        assertTrue(viewModel.localPrefs.value.showUvIndex)
+        assertFalse(viewModel.localPrefs.value.showHumidity)
+    }
+
 }

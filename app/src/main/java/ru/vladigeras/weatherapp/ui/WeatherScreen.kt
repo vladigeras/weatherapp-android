@@ -298,7 +298,7 @@ private fun SuccessContent(state: WeatherUiState.Success) {
 
         if (state.prefs.showHourlyForecast && state.hourlyForecast.isNotEmpty()) {
             item {
-                SectionHeader(title = stringResource(R.string.hourly_forecast))
+                SectionHeader(title = if (state.hourlyStepHours == 1) stringResource(R.string.hourly_forecast) else stringResource(R.string.forecast_step, state.hourlyStepHours))
             }
             item {
                 HourlyForecastList(

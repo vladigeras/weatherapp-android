@@ -60,6 +60,9 @@ import kotlinx.coroutines.launch
 import ru.vladigeras.weatherapp.R
 import ru.vladigeras.weatherapp.core.locale.LanguageManager
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
+import ru.vladigeras.weatherapp.data.WeatherProviderId
+import ru.vladigeras.weatherapp.repository.WeatherRepository
+import ru.vladigeras.weatherapp.widget.WidgetPrefsManager
 import ru.vladigeras.weatherapp.repository.LanguagePreference
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.WeatherDisplayPrefsRepository
@@ -105,6 +108,7 @@ fun SettingsScreen(
     val hasChanges by viewModel.hasChanges.collectAsState(false)
     val languagePreference by viewModel.languagePreference.collectAsState(LanguagePreference.SYSTEM)
     val context = LocalContext.current
+    val capabilities = viewModel.capabilities(prefs.provider)
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -124,6 +128,8 @@ fun SettingsScreen(
                         onClick = {
                             scope.launch {
                                 val languageChanged = viewModel.savePrefsAndCheckLanguage()
+                                WidgetPrefsManager.activateProvider(context, viewModel.localPrefs.value.provider)
+                                WeatherWidgetProvider.updateAllWidgets(context)
                                 if (languageChanged) {
                                     val widgetIntent = Intent(context, WeatherWidgetProvider::class.java).apply {
                                         action = "ru.vladigeras.weatherapp.UPDATE_WIDGETS_ON_LANGUAGE_CHANGE"
@@ -149,8 +155,10 @@ fun SettingsScreen(
             LazyColumn(
                 modifier = Modifier.weight(1f)
             ) {
-                items(settingsItems(prefs, languagePreference)) { item ->
+                items(settingsItems(prefs, languagePreference, viewModel)) { item ->
                     when (item) {
+                        is SettingsItem.ProviderSelector -> SettingsProviderItem(item.provider, viewModel::setProvider)
+
                         is SettingsItem.LanguageSelector -> {
                             SettingsLanguageItem(
                                 currentPreference = item.currentPreference,
@@ -172,7 +180,8 @@ fun SettingsScreen(
                         is SettingsItem.ForecastDays -> {
                             SettingsForecastDaysItem(
                                 title = stringResource(item.titleRes),
-                                days = item.days,
+                                days = item.days.coerceAtMost(capabilities.maxForecastDays),
+                                maxDays = capabilities.maxForecastDays,
                                 onDaysChanged = { viewModel.setForecastDays(it) }
                             )
                         }
@@ -190,6 +199,34 @@ fun SettingsScreen(
         }
 
     }
+}
+
+@Composable
+private fun SettingsProviderItem(provider: WeatherProviderId, onChanged: (WeatherProviderId) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable { expanded = true }.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.Cloud, contentDescription = null)
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.weather_provider), style = MaterialTheme.typography.titleMedium)
+                Text(providerName(provider), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            WeatherProviderId.entries.forEach { id ->
+                DropdownMenuItem(text = { Text(providerName(id)) }, onClick = { onChanged(id); expanded = false })
+            }
+        }
+    }
+}
+
+private fun providerName(provider: WeatherProviderId) = when (provider) {
+    WeatherProviderId.OPEN_METEO -> "Open-Meteo"
+    WeatherProviderId.WTTR -> "wttr.in"
 }
 
 @Composable
@@ -295,6 +332,7 @@ fun SettingsToggleItem(
 fun SettingsForecastDaysItem(
     title: String,
     days: Int,
+    maxDays: Int = 16,
     onDaysChanged: (Int) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -312,6 +350,7 @@ fun SettingsForecastDaysItem(
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
+            if (maxDays < 16) Text(stringResource(R.string.forecast_limit, maxDays), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(
             text = days.toString(),
@@ -330,6 +369,7 @@ fun SettingsForecastDaysItem(
                 }
                 DropdownMenuItem(
                     text = { Text("$day ${stringResource(dayTextRes)}") },
+                    enabled = day <= maxDays,
                     onClick = {
                         onDaysChanged(day)
                         expanded = false
@@ -385,6 +425,7 @@ fun SettingsHourlyForecastHoursItem(
 }
 
 sealed interface SettingsItem {
+    data class ProviderSelector(val provider: WeatherProviderId) : SettingsItem
     data class Toggle(
         val key: String,
         val titleRes: Int,
@@ -412,9 +453,13 @@ sealed interface SettingsItem {
 
 private fun settingsItems(
     prefs: WeatherDisplayPrefs,
-    languagePreference: LanguagePreference
+    languagePreference: LanguagePreference,
+    viewModel: SettingsViewModel
 ): List<SettingsItem> {
+    val capabilities = viewModel.capabilities(prefs.provider)
+    val effective = capabilities.effectivePrefs(prefs)
     return listOf(
+        SettingsItem.ProviderSelector(prefs.provider),
         SettingsItem.LanguageSelector(
             titleRes = R.string.language,
             currentPreference = languagePreference
@@ -429,15 +474,16 @@ private fun settingsItems(
         SettingsItem.Toggle(
             key = "wind",
             titleRes = R.string.wind,
-            descriptionRes = R.string.wind_description,
+            descriptionRes = if (capabilities.dailyWind) R.string.wind_description else R.string.daily_wind_unavailable,
             checked = prefs.showWind,
             icon = { Icon(Icons.Filled.Air, contentDescription = null) }
         ),
         SettingsItem.Toggle(
             key = "precipitation",
             titleRes = R.string.precipitation,
-            descriptionRes = R.string.precipitation_description,
-            checked = prefs.showPrecipitation,
+            descriptionRes = if (capabilities.dailyPrecipitation) R.string.precipitation_description else R.string.provider_unavailable,
+            checked = effective.showPrecipitation,
+            enabled = capabilities.dailyPrecipitation,
             icon = { Icon(Icons.Filled.Cloud, contentDescription = null) }
         ),
         SettingsItem.Toggle(
@@ -450,8 +496,9 @@ private fun settingsItems(
         SettingsItem.Toggle(
             key = "uv_index",
             titleRes = R.string.uv_index,
-            descriptionRes = R.string.uv_index_description,
-            checked = prefs.showUvIndex,
+            descriptionRes = if (capabilities.dailyUv) R.string.uv_index_description else R.string.provider_unavailable,
+            checked = effective.showUvIndex,
+            enabled = capabilities.dailyUv,
             icon = { Icon(Icons.Filled.LightMode, contentDescription = null) }
         ),
         SettingsItem.Toggle(
@@ -482,7 +529,8 @@ private fun settingsItems(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefsRepository: WeatherDisplayPrefsRepository,
-    private val languagePreferenceRepository: LanguagePreferenceRepository
+    private val languagePreferenceRepository: LanguagePreferenceRepository,
+    private val weatherRepository: WeatherRepository
 ) : ViewModel() {
 
     private val _originalPrefs = MutableStateFlow<WeatherDisplayPrefs>(WeatherDisplayPrefs())
@@ -509,6 +557,13 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun capabilities(provider: WeatherProviderId = localPrefs.value.provider) = weatherRepository.capabilities(provider)
+
+    fun setProvider(provider: WeatherProviderId) {
+        localPrefs.value = localPrefs.value.copy(provider = provider)
+        updateHasChanges()
+    }
+
     private fun updateHasChanges() {
         val prefsChanged = _originalPrefs.value != localPrefs.value
         val languagePrefChanged = originalLanguagePreference.value != languagePreference.value
@@ -517,6 +572,7 @@ class SettingsViewModel @Inject constructor(
 
     fun toggleItem(key: String, checked: Boolean) {
         val current = localPrefs.value
+        if (key == "precipitation" && !capabilities().dailyPrecipitation || key == "uv_index" && !capabilities().dailyUv) return
         localPrefs.value = when (key) {
             "humidity" -> current.copy(showHumidity = checked)
             "wind" -> current.copy(showWind = checked)
@@ -531,6 +587,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setForecastDays(days: Int) {
+        if (days > capabilities().maxForecastDays) return
         localPrefs.value = localPrefs.value.copy(forecastDays = days)
         updateHasChanges()
     }

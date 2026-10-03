@@ -1,6 +1,7 @@
 package ru.vladigeras.weatherapp.repository
 
 import ru.vladigeras.weatherapp.data.ProviderWeather
+import ru.vladigeras.weatherapp.data.ProviderCapabilities
 import ru.vladigeras.weatherapp.data.SearchLocation
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.data.WeatherProviderId
@@ -10,6 +11,7 @@ import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
 
 interface WeatherRepository {
+    fun capabilities(provider: WeatherProviderId): ProviderCapabilities
     suspend fun getWeather(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs = WeatherDisplayPrefs(), forceRefresh: Boolean = false): Result<ProviderWeather>
     suspend fun searchLocations(provider: WeatherProviderId, query: String, language: String): Result<List<SearchLocation>>
 }
@@ -20,6 +22,7 @@ class WeatherRepositoryImpl @Inject constructor(
     private val weatherCache: WeatherCache,
     private val citySearchCache: CitySearchCache
 ) : WeatherRepository {
+    override fun capabilities(provider: WeatherProviderId) = providers[provider].capabilities
     override suspend fun getWeather(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs, forceRefresh: Boolean): Result<ProviderWeather> {
         val provider = providers[prefs.provider]
         val effectivePrefs = provider.capabilities.effectivePrefs(prefs)

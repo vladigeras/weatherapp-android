@@ -2,7 +2,9 @@ import argparse
 import json
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, unquote
+from pathlib import Path
+import tempfile
 from zoneinfo import ZoneInfo
 
 
@@ -30,12 +32,41 @@ def open_meteo(params):
     }
 
 
+def wttr(query, include_hourly, language):
+    city, latitude, longitude, country, region, zone = location(query)
+    now = datetime.now(ZoneInfo(zone))
+    days = []
+    for i in range(3):
+        day = {"date": str(now.date() + timedelta(days=i)), "mintempC": "11", "maxtempC": "24", "uvIndex": "8", "astronomy": [{"sunrise": "06:30 AM", "sunset": "06:30 PM"}]}
+        if include_hourly:
+            day["hourly"] = [{"time": str(h * 100), "tempC": "23", "weatherCode": "116", "humidity": "70", "windspeedKmph": "9", "precipMM": "2", "uvIndex": "5"} for h in range(0, 24, 3)]
+        days.append(day)
+    return {
+        "current_condition": [{"temp_C": "27", "FeelsLikeC": "26", "humidity": "70", "windspeedKmph": "9", "weatherCode": "113", "observation_time": "12:00 PM"}],
+        "nearest_area": [{"areaName": [{"value": "Москва" if language == "ru" and city == "Moscow" else city}], "latitude": str(latitude), "longitude": str(longitude), "country": [{"value": country}], "region": [{"value": region}]}],
+        "weather": days
+    }
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         request = urlparse(self.path)
         params = parse_qs(request.query)
         print(json.dumps({"path": request.path, "params": params}), flush=True)
-        if request.path == "/open-meteo/search":
+        failure = Path(tempfile.gettempdir(), "weather_mock_failure")
+        source = "wttr" if request.path.startswith("/wttr/") else "open-meteo"
+        if failure.exists() and failure.read_text().strip() == source:
+            self.send_error(503)
+            return
+        content_type = "application/json"
+        if request.path.startswith("/wttr/"):
+            query = unquote(request.path.removeprefix("/wttr/"))
+            content_type = "text/plain"
+            if params.get("format") == ["%Z"]:
+                body = location(query)[-1]
+            else:
+                body = wttr(query, params.get("format") == ["j1"], params.get("lang", ["en"])[0])
+        elif request.path == "/open-meteo/search":
             city, latitude, longitude, country, region, zone = location(params.get("name", [""])[0])
             body = {"results": [{"id": 1, "name": city, "latitude": latitude, "longitude": longitude, "country": country, "admin1": region}]}
         elif request.path == "/open-meteo/forecast":
@@ -43,9 +74,9 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.send_error(404)
             return
-        payload = json.dumps(body).encode()
+        payload = (body if isinstance(body, str) else json.dumps(body)).encode()
         self.send_response(200)
-        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)

@@ -43,7 +43,7 @@ class OpenMeteoWeatherProvider @Inject constructor(
         val daily = response.daily
         val hourly = response.hourly
         val conditionsByDate = daily?.time.orEmpty().mapIndexed { i, date ->
-            date to WeatherCondition.fromOpenMeteo(daily?.weatherCode?.getOrNull(i))
+            date to condition(daily?.weatherCode?.getOrNull(i))
         }.toMap()
         return ProviderWeather(
             provider = id,
@@ -53,7 +53,7 @@ class OpenMeteoWeatherProvider @Inject constructor(
                 feelsLike = response.current?.apparentTemperature,
                 humidity = hourly?.relativehumidity2m?.firstOrNull { it != null },
                 windSpeed = response.current?.windSpeed,
-                condition = WeatherCondition.fromOpenMeteo(response.current?.weatherCode),
+                condition = condition(response.current?.weatherCode),
                 isDay = response.current?.isDay
             ),
             temperatureUnit = response.currentUnits?.temperatureUnit ?: "°C",
@@ -77,6 +77,8 @@ class OpenMeteoWeatherProvider @Inject constructor(
             }
         )
     }
+
+    private fun condition(code: Int?) = WeatherCondition.entries.firstOrNull { it.displayCode == code && it.displayCode >= 0 }
 
     private fun localTime(value: String?): String? = value?.let {
         runCatching { LocalDateTime.parse(it).format(DateTimeFormatter.ofPattern("HH:mm")) }.getOrNull()

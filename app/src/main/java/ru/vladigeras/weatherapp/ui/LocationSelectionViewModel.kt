@@ -52,8 +52,10 @@ class LocationSelectionViewModel @Inject constructor(
         val error: String? = null,
         val searchResults: List<SearchLocation> = emptyList(),
         val locationPermissionGranted: Boolean = false,
-        val provider: WeatherProviderId = WeatherProviderId.OPEN_METEO,
-        val searchLoading: Boolean = false
+        val provider: WeatherProviderId? = null,
+        val searchLoading: Boolean = false,
+        val explicitSearch: Boolean = false,
+        val searchCompleted: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -68,13 +70,15 @@ class LocationSelectionViewModel @Inject constructor(
             prefsRepository.getPrefs().collect { prefs ->
                 if (_uiState.value.provider != prefs.provider) {
                     cancelSearch()
-                    _uiState.value = _uiState.value.copy(provider = prefs.provider, searchResults = emptyList())
+                    _uiState.value = _uiState.value.copy(provider = prefs.provider, searchResults = emptyList(), searchLoading = false, searchCompleted = false,
+                        explicitSearch = weatherRepository.capabilities(prefs.provider).explicitSearch)
+                    if (!_uiState.value.explicitSearch && _searchQuery.value.length >= 2) search(_searchQuery.value)
                 }
             }
         }
         viewModelScope.launch {
             searchQuery.debounce(300).distinctUntilChanged().collect { query ->
-                if (query.length >= 2) search(query)
+                if (query.length >= 2 && !_uiState.value.explicitSearch) search(query)
             }
         }
     }
@@ -183,20 +187,24 @@ class LocationSelectionViewModel @Inject constructor(
     fun updateSearchQuery(query: String) {
         cancelSearch()
         savedStateHandle["search_query"] = query
-        _uiState.value = _uiState.value.copy(searchResults = emptyList(), searchLoading = false)
+        _uiState.value = _uiState.value.copy(searchResults = emptyList(), searchLoading = false, searchCompleted = false)
+    }
+
+    fun submitSearch() {
+        if (_searchQuery.value.length >= 2) search(_searchQuery.value)
     }
 
     private fun search(query: String) {
+        val provider = _uiState.value.provider ?: return
         cancelSearch()
         val version = searchGeneration
-        val provider = _uiState.value.provider
         searchJob = viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(searchLoading = true, error = null)
+            _uiState.value = _uiState.value.copy(searchLoading = true, searchCompleted = false, error = null)
             try {
                 val language = languagePreferenceRepository.getEffectiveLocaleCode()
                 val results = weatherRepository.searchLocations(provider, query, language).getOrThrow()
                 currentCoroutineContext().ensureActive()
-                if (version == searchGeneration) _uiState.value = _uiState.value.copy(searchResults = results, searchLoading = false)
+                if (version == searchGeneration) _uiState.value = _uiState.value.copy(searchResults = results, searchLoading = false, searchCompleted = true)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
