@@ -1,6 +1,11 @@
 package ru.vladigeras.weatherapp.widget
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.stringPreferencesKey
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -45,6 +50,8 @@ class WidgetPrefsManagerTest {
 
     @Test
     fun save_withNullFeelsLike_doesNotPersistKey() {
+        WidgetPrefsManager.save(context, "Moscow", 25.5, 24.0, 0, 1, "°C")
+        assertEquals("24°C", WidgetPrefsManager.getFeelsLike(context))
         WidgetPrefsManager.save(
             context = context,
             cityName = "Moscow",
@@ -55,8 +62,7 @@ class WidgetPrefsManagerTest {
             tempUnit = "°C"
         )
 
-        val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
-        assertFalse(prefs.contains("feels_like"))
+        assertFalse(readStoredPrefs().contains(stringPreferencesKey("feels_like")))
         assertEquals(null, WidgetPrefsManager.getFeelsLike(context))
     }
 
@@ -74,8 +80,7 @@ class WidgetPrefsManagerTest {
 
         WidgetPrefsManager.clear(context)
 
-        val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
-        assertTrue(prefs.all.isEmpty())
+        assertTrue(readStoredPrefs().asMap().isEmpty())
         assertFalse(WidgetPrefsManager.hasData(context))
     }
 
@@ -108,6 +113,14 @@ class WidgetPrefsManagerTest {
         assertEquals(null, WidgetPrefsManager.getIsDay(context))
         WidgetPrefsManager.activateProvider(context, openMeteo)
         assertEquals(false, WidgetPrefsManager.hasData(context))
+    }
+
+    private fun readStoredPrefs(): Preferences = runBlocking {
+        val method = WidgetPrefsManager::class.java.getDeclaredMethod("getDataStore", Context::class.java)
+        method.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val store = method.invoke(WidgetPrefsManager, context) as DataStore<Preferences>
+        store.data.first()
     }
 
 }
