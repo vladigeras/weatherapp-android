@@ -9,10 +9,12 @@ plugins {
 android {
     namespace = "ru.vladigeras.weatherapp"
     compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
+        version = release(37) {
+            minorApiLevel = 2
         }
     }
+
+    buildToolsVersion = "37.0.0"
 
     defaultConfig {
         applicationId = "ru.vladigeras.weatherapp"
