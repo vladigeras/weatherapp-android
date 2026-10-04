@@ -41,11 +41,10 @@ fun DailyForecastList(dailyForecast: List<DailyForecast>, temperatureUnit: Strin
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        dailyForecast.forEachIndexed { index, forecast ->
+        dailyForecast.forEach { forecast ->
             DailyForecastItem(
                 forecast = forecast,
-                temperatureUnit = temperatureUnit,
-                index = index
+                temperatureUnit = temperatureUnit
             )
         }
     }
@@ -55,11 +54,10 @@ fun DailyForecastList(dailyForecast: List<DailyForecast>, temperatureUnit: Strin
  * Represents a single day's weather forecast item.
  *
  * @param forecast The [DailyForecast] to display.
- * @param index The position of this item in the list (0 = today, 1 = tomorrow)
  */
 @Preview(showBackground = true)
 @Composable
-fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, index: Int) {
+fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -78,15 +76,13 @@ fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String, index: I
                 itemVerticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val isToday = index == 0
-                    val isTomorrow = index == 1
-                    val isDayAfterTomorrow = index == 2
-                    if (isToday || isTomorrow || isDayAfterTomorrow) {
-                        val labelResId = when {
-                            isToday -> R.string.today
-                            isTomorrow -> R.string.tomorrow
-                            else -> R.string.day_after_tomorrow
-                        }
+                    val labelResId = when (forecast.relativeDay) {
+                        0L -> R.string.today
+                        1L -> R.string.tomorrow
+                        2L -> R.string.day_after_tomorrow
+                        else -> null
+                    }
+                    if (labelResId != null) {
                         Text(
                             text = stringResource(labelResId),
                             style = MaterialTheme.typography.labelSmall,

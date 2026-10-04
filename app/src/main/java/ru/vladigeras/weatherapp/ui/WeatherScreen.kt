@@ -316,8 +316,8 @@ private fun SuccessContent(state: WeatherUiState.Success) {
                 items = state.dailyForecast,
                 key = { _, forecast -> forecast.date },
                 contentType = { _, _ -> "daily_forecast" }
-            ) { index, forecast ->
-                DailyForecastItem(forecast = forecast, temperatureUnit = state.temperatureUnit, index)
+            ) { _, forecast ->
+                DailyForecastItem(forecast = forecast, temperatureUnit = state.temperatureUnit)
             }
         }
     }
