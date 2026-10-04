@@ -13,6 +13,10 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.serialization.json.Json
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.After
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.runBlocking
 import ru.vladigeras.weatherapp.BuildConfig
 import ru.vladigeras.weatherapp.data.*
 import ru.vladigeras.weatherapp.domain.mapper.WeatherMapper
@@ -21,6 +25,17 @@ import java.time.Instant
 import java.time.ZoneOffset
 
 class WttrWeatherProviderTest {
+    private val clients = mutableListOf<HttpClient>()
+
+    private fun createClient(engine: MockEngine): HttpClient = HttpClient(engine).also(clients::add)
+
+    @After
+    fun tearDown() = runBlocking {
+        val jobs = clients.map { it.coroutineContext[Job]!! }
+        clients.forEach { it.close() }
+        jobs.joinAll()
+    }
+
     private val prefs = WeatherDisplayPrefs(provider = WeatherProviderId.WTTR)
     private val json = Json { ignoreUnknownKeys = true }
     private val headers = headersOf(HttpHeaders.ContentType, "text/plain; charset=utf-8")
@@ -28,7 +43,7 @@ class WttrWeatherProviderTest {
     @Test
     fun `j2 returns current and local astronomy without requesting timezone`() = runTest {
         var calls = 0
-        val client = HttpClient(MockEngine { request ->
+        val client = createClient(MockEngine { request ->
             calls++
             assertEquals("j2", request.url.parameters["format"])
             assertEquals(15_000L, request.getCapabilityOrNull(HttpTimeoutCapability)?.requestTimeoutMillis)
@@ -61,7 +76,7 @@ class WttrWeatherProviderTest {
     @Test
     fun `j1 and Z preserve three hour instants and clip actual forecast coverage`() = runTest {
         val formats = mutableListOf<String>()
-        val client = HttpClient(MockEngine { request ->
+        val client = createClient(MockEngine { request ->
             formats += request.url.parameters["format"]!!
             assertEquals(if (formats.last() == "%Z") 5_000L else 15_000L, request.getCapabilityOrNull(HttpTimeoutCapability)?.requestTimeoutMillis)
             assertEquals(Url(BuildConfig.WTTR_API_URL).host, request.url.host)
@@ -88,7 +103,7 @@ class WttrWeatherProviderTest {
     @Test
     fun `hourly timezone errors preserve current and daily weather without invented hours`() = runTest {
         for (zone in listOf("", "not-a-zone", "+03:00")) {
-            val client = HttpClient(MockEngine { request -> respond(if (request.url.parameters["format"] == "%Z") zone else fixture(true), headers = headers) })
+            val client = createClient(MockEngine { request -> respond(if (request.url.parameters["format"] == "%Z") zone else fixture(true), headers = headers) })
             val weather = WttrWeatherProvider(client, json).getWeather(55.7, 37.6, prefs)
             assertEquals(12.0, weather.current.temperature!!, 0.001)
             assertEquals(3, weather.daily.size)
@@ -96,7 +111,7 @@ class WttrWeatherProviderTest {
             assertNull(weather.timezone)
             client.close()
         }
-        val client = HttpClient(MockEngine { request ->
+        val client = createClient(MockEngine { request ->
             if (request.url.parameters["format"] == "%Z") respond("Unavailable", HttpStatusCode.ServiceUnavailable, headers)
             else respond(fixture(true), headers = headers)
         })
@@ -110,7 +125,7 @@ class WttrWeatherProviderTest {
     fun `partial or incomplete j1 falls back to j2 without a timezone call`() = runTest {
         for (body in listOf("{\"weather\":[", "{}")) {
             val formats = mutableListOf<String>()
-            val client = HttpClient(MockEngine { request ->
+            val client = createClient(MockEngine { request ->
                 val format = request.url.parameters["format"]!!
                 formats += format
                 respond(if (format == "j1") body else fixture(false), headers = headers)
@@ -128,7 +143,7 @@ class WttrWeatherProviderTest {
     @Test
     fun `failure of both j1 and j2 is reported`() = runTest {
         val formats = mutableListOf<String>()
-        val client = HttpClient(MockEngine { request ->
+        val client = createClient(MockEngine { request ->
             formats += request.url.parameters["format"]!!
             respond("Unavailable", HttpStatusCode.ServiceUnavailable, headers)
         })
@@ -142,7 +157,7 @@ class WttrWeatherProviderTest {
     fun `cancelling j1 does not start fallback`() = runTest {
         val entered = CompletableDeferred<Unit>()
         val formats = mutableListOf<String>()
-        val client = HttpClient(MockEngine { request ->
+        val client = createClient(MockEngine { request ->
             formats += request.url.parameters["format"]!!
             entered.complete(Unit)
             awaitCancellation()
@@ -158,7 +173,7 @@ class WttrWeatherProviderTest {
     @Test
     fun `malformed partial JSON and HTTP errors fail`() = runTest {
         for ((body, status) in listOf("{\"weather\":[" to HttpStatusCode.OK, "error" to HttpStatusCode.InternalServerError, "{}" to HttpStatusCode.OK)) {
-            val client = HttpClient(MockEngine { respond(body, status, headers) })
+            val client = createClient(MockEngine { respond(body, status, headers) })
             assertTrue(runCatching { WttrWeatherProvider(client, json).getWeather(55.7, 37.6, prefs.copy(showHourlyForecast = false)) }.isFailure)
             client.close()
         }
@@ -168,7 +183,7 @@ class WttrWeatherProviderTest {
     fun `search sends encoded name and language and returns one candidate`() = runTest {
         val name = "São Paulo / centre"
         var calls = 0
-        val client = HttpClient(MockEngine { request ->
+        val client = createClient(MockEngine { request ->
             calls++
             assertEquals(name, request.url.segments.last())
             assertEquals(Url(BuildConfig.WTTR_API_URL).host, request.url.host)
@@ -185,7 +200,7 @@ class WttrWeatherProviderTest {
 
     @Test
     fun `missing optional numbers and astronomy remain absent`() = runTest {
-        val client = HttpClient(MockEngine { respond("""{"current_condition":[{"temp_C":"N/A","weatherCode":"999"}],"weather":[{"date":"2026-10-03","astronomy":[{"sunrise":"No sunrise","sunset":"No sunset"}]}]}""", headers = headers) })
+        val client = createClient(MockEngine { respond("""{"current_condition":[{"temp_C":"N/A","weatherCode":"999"}],"weather":[{"date":"2026-10-03","astronomy":[{"sunrise":"No sunrise","sunset":"No sunset"}]}]}""", headers = headers) })
         val weather = WttrWeatherProvider(client, json).getWeather(55.7, 37.6, prefs.copy(showHourlyForecast = false))
         assertEquals(CurrentWeather(), weather.current)
         assertEquals(ForecastDay("2026-10-03"), weather.daily.single())
@@ -194,7 +209,7 @@ class WttrWeatherProviderTest {
 
     @Test
     fun `WWO codes map to shared conditions and unknown codes stay unknown`() {
-        val client = HttpClient(MockEngine { respond("", headers = headers) })
+        val client = createClient(MockEngine { respond("", headers = headers) })
         val provider = WttrWeatherProvider(client, json)
         val groups = mapOf(
             WeatherCondition.CLEAR to listOf(113), WeatherCondition.PARTLY_CLOUDY to listOf(116), WeatherCondition.CLOUDY to listOf(119), WeatherCondition.OVERCAST to listOf(122),

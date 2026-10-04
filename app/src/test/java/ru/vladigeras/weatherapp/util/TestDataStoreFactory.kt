@@ -4,8 +4,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.util.UUID
 
@@ -30,20 +28,7 @@ object TestDataStoreFactory {
         return dir
     }
 
-    fun cleanupWithRetry(tempDir: File, maxRetries: Int = 3) {
-        var lastError: Exception? = null
-        repeat(maxRetries) { attempt ->
-            try {
-                tempDir.deleteRecursively()
-                return
-            } catch (e: Exception) {
-                lastError = e
-                if (attempt < maxRetries - 1) {
-                    runBlocking { delay(100) }
-                }
-            }
-        }
-        // Log warning but don't fail the test
-        println("Warning: Failed to delete temp dir ${tempDir.absolutePath}: ${lastError?.message}")
+    fun cleanup(tempDir: File) {
+        check(tempDir.deleteRecursively()) { "Failed to delete test directory ${tempDir.absolutePath}" }
     }
 }

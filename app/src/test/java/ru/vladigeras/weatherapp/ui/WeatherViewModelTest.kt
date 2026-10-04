@@ -1,6 +1,15 @@
 package ru.vladigeras.weatherapp.ui
 
 import android.content.Context
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runCurrent
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -55,6 +64,9 @@ class WeatherViewModelTest {
     private lateinit var cityNameResolver: CityNameResolver
     private lateinit var weatherMapper: WeatherMapper
     private lateinit var weatherViewModel: WeatherViewModel
+    private val testDispatcher = StandardTestDispatcher()
+    private val viewModelStore = ViewModelStore()
+    private val viewModelJobs = mutableListOf<Job>()
     private val context: Context get() = RuntimeEnvironment.getApplication()
 
     private val mockLocation = Location(55.7558, 37.6173, "Moscow")
@@ -135,7 +147,7 @@ class WeatherViewModelTest {
        
     @Before
     fun setup() {
-        Dispatchers.setMain(Dispatchers.Unconfined)
+        Dispatchers.setMain(testDispatcher)
         weatherRepository = mockk { every { capabilities(any()) } returns ProviderCapabilities(16, 1) }
         locationRepository = mockk()
         selectedLocationRepository = mockk {
@@ -158,17 +170,24 @@ class WeatherViewModelTest {
             coEvery { mapToDailyForecast(any()) } returns emptyList()
             coEvery { mapToHourlyForecast(any(), any(), any()) } returns emptyList()
         }
-        weatherViewModel = WeatherViewModel(context, weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, cityNameResolver, weatherMapper)
+        weatherViewModel = WeatherViewModel(context, weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, cityNameResolver, weatherMapper).tracked()
     
     }
         
     @After
-    fun tearDown() {
-        // Cancel the ViewModel's scope via reflection to clean up coroutines
-        val method = WeatherViewModel::class.java.getDeclaredMethod("onCleared")
-        method.isAccessible = true
-        method.invoke(weatherViewModel)
-        Dispatchers.resetMain()
+    fun tearDown() = runTest(testDispatcher) {
+        try {
+            viewModelStore.clear()
+            viewModelJobs.joinAll()
+            assertTrue(viewModelJobs.all { it.isCompleted })
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    private fun WeatherViewModel.tracked(): WeatherViewModel = apply {
+        viewModelStore.put("weather-${viewModelJobs.size}", this)
+        viewModelJobs.add(viewModelScope.coroutineContext[Job]!!)
     }
     
     @Test
@@ -209,7 +228,7 @@ class WeatherViewModelTest {
             weatherDisplayPrefsRepository,
             cityNameResolver,
             testWeatherMapper
-        )
+        ).tracked()
         
         testViewModel.loadSavedLocation()
         
@@ -224,42 +243,63 @@ class WeatherViewModelTest {
     
     @Test
     fun `should cancel previous request when loading new location`() = runTest {
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
+        val started = CompletableDeferred<Unit>()
+        val cancelled = CompletableDeferred<Unit>()
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } coAnswers {
+            started.complete(Unit)
+            try {
+                awaitCancellation()
+            } finally {
+                cancelled.complete(Unit)
+            }
+        }
         every { selectedLocationRepository.getSelectedLocation() } returns flowOf(mockLocation)
         coEvery { weatherRepository.getWeather(48.8566, 2.3522, any(), any()) } returns Result.success(mockResponse2.asProviderWeather())
-        
-        weatherViewModel.loadSavedLocation() // This loads Moscow (from selectedLocationRepository)
-        kotlinx.coroutines.yield() // Give time for the first request to start
-        weatherViewModel.loadWeather(48.8566, 2.3522) // This loads Paris - should cancel Moscow
-        
-        // Wait for the final Success state (should be Paris)
+
+        weatherViewModel.loadSavedLocation()
+        started.await()
+        weatherViewModel.loadWeather(48.8566, 2.3522)
+        cancelled.await()
         val successState = weatherViewModel.uiState
             .first { it is WeatherUiState.Success && it.temperature == 18.2 } as WeatherUiState.Success
         assertEquals(18.2, successState.temperature!!, 0.001)
         assertEquals("°C", successState.temperatureUnit)
         coVerify { cityNameResolver.resolveCityName(48.8566, 2.3522, null, any()) }
     }
-    
+
     @Test
     fun `should handle rapid location changes correctly`() = runTest {
         every { selectedLocationRepository.getSelectedLocation() } returns flowOf(null)
-        
-        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
-        coEvery { weatherRepository.getWeather(51.5074, -0.1278, any(), any()) } returns Result.success(mockResponse2.asProviderWeather())
-        coEvery { weatherRepository.getWeather(40.7128, -74.0060, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
-        
-        weatherViewModel.loadWeather(55.7558, 37.6173)    // Moscow
-        kotlinx.coroutines.yield() // Give time for the first request to start
-        weatherViewModel.loadWeather(51.5074, -0.1278)  // London
-        kotlinx.coroutines.yield() // Give time for the second request to start
-        weatherViewModel.loadWeather(40.7128, -74.0060) // New York
-        
+        val firstStarted = CompletableDeferred<Job>()
+        val secondStarted = CompletableDeferred<Job>()
+        coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } coAnswers {
+            firstStarted.complete(currentCoroutineContext()[Job]!!)
+            awaitCancellation()
+        }
+        coEvery { weatherRepository.getWeather(51.5074, -0.1278, any(), any()) } coAnswers {
+            secondStarted.complete(currentCoroutineContext()[Job]!!)
+            awaitCancellation()
+        }
+        coEvery { weatherRepository.getWeather(40.7128, -74.0060, any(), any()) } returns Result.success(
+            mockResponse.asProviderWeather().copy(current = mockResponse.asProviderWeather().current.copy(temperature = 29.6))
+        )
+
+        weatherViewModel.loadWeather(55.7558, 37.6173)
+        val firstJob = firstStarted.await()
+        weatherViewModel.loadWeather(51.5074, -0.1278)
+        val secondJob = secondStarted.await()
+        weatherViewModel.loadWeather(40.7128, -74.0060)
+        firstJob.join()
+        secondJob.join()
+        assertTrue(firstJob.isCancelled)
+        assertTrue(secondJob.isCancelled)
         val successState = weatherViewModel.uiState
-            .first { it is WeatherUiState.Success && it.temperature == 20.5 } as WeatherUiState.Success
-        assertEquals(20.5, successState.temperature!!, 0.001)
+            .first { it is WeatherUiState.Success && it.temperature == 29.6 } as WeatherUiState.Success
+        assertEquals(29.6, successState.temperature!!, 0.001)
         assertEquals("°C", successState.temperatureUnit)
+        coVerify { cityNameResolver.resolveCityName(40.7128, -74.0060, null, any()) }
     }
-    
+
     @Test
     fun `should show empty state when no location selected`() = runTest {
         coEvery { selectedLocationRepository.getSelectedLocation() } returns flowOf(null)
@@ -414,7 +454,7 @@ class WeatherViewModelTest {
         coEvery { selectedLocationRepository.getSelectedLocation() } returns flowOf(mockLocation)
         
         weatherViewModel.loadSavedLocation()
-        kotlinx.coroutines.yield()
+        runCurrent()
         
         weatherViewModel.refreshActiveLocation()
 
@@ -460,7 +500,7 @@ class WeatherViewModelTest {
 
         weatherViewModel.loadWeather(55.7558, 37.6173)
 
-        kotlinx.coroutines.yield()
+        runCurrent()
         assertEquals(WeatherUiState.Loading, weatherViewModel.uiState.value)
     }
 
@@ -503,7 +543,7 @@ class WeatherViewModelTest {
             testPrefsRepository,
             cityNameResolver,
             testWeatherMapper
-        )
+        ).tracked()
 
         coEvery { weatherRepository.getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
 
@@ -537,7 +577,7 @@ class WeatherViewModelTest {
             weatherDisplayPrefsRepository,
             cityNameResolver,
             testWeatherMapper
-        )
+        ).tracked()
 
         testViewModel.loadWeather(55.7558, 37.6173)
 
@@ -554,25 +594,33 @@ class WeatherViewModelTest {
     fun `provider change during load replaces request and ignores late result`() = runTest {
         val prefs = kotlinx.coroutines.flow.MutableStateFlow(WeatherDisplayPrefs())
         every { weatherDisplayPrefsRepository.getPrefs() } returns prefs
-        val old = kotlinx.coroutines.CompletableDeferred<ru.vladigeras.weatherapp.data.ProviderWeather>()
+        val old = CompletableDeferred<ru.vladigeras.weatherapp.data.ProviderWeather>()
+        val oldStarted = CompletableDeferred<Job>()
         coEvery { weatherRepository.getWeather(any(), any(), any(), any()) } coAnswers {
             if (thirdArg<WeatherDisplayPrefs>().provider == WeatherProviderId.OPEN_METEO) {
+                oldStarted.complete(currentCoroutineContext()[Job]!!)
                 kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { old.await() }.let { Result.success(it) }
             } else Result.success(mockResponse2.asProviderWeather().copy(provider = WeatherProviderId.WTTR))
         }
         val vm = WeatherViewModel(context, weatherRepository, locationRepository, selectedLocationRepository,
-            weatherDisplayPrefsRepository, cityNameResolver, weatherMapper)
-        vm.loadWeather(55.7558, 37.6173)
-        kotlinx.coroutines.yield()
-        prefs.value = prefs.value.copy(provider = WeatherProviderId.WTTR)
-        val success = vm.uiState.first { it is WeatherUiState.Success } as WeatherUiState.Success
-        assertEquals(18.2, success.temperature!!, 0.001)
-        old.complete(mockResponse.asProviderWeather())
-        kotlinx.coroutines.yield()
-        assertEquals(18.2, (vm.uiState.value as WeatherUiState.Success).temperature!!, 0.001)
-        assertEquals("18°C", ru.vladigeras.weatherapp.widget.WidgetPrefsManager.getTemperature(context))
-        assertEquals(WeatherProviderId.WTTR, ru.vladigeras.weatherapp.widget.WidgetPrefsManager.getProvider(context))
-        WeatherViewModel::class.java.getDeclaredMethod("onCleared").apply { isAccessible = true }.invoke(vm)
+            weatherDisplayPrefsRepository, cityNameResolver, weatherMapper).tracked()
+        try {
+            vm.loadWeather(55.7558, 37.6173)
+            val oldJob = oldStarted.await()
+            prefs.value = prefs.value.copy(provider = WeatherProviderId.WTTR)
+            val success = vm.uiState.first {
+                it is WeatherUiState.Success && it.prefs.provider == WeatherProviderId.WTTR
+            } as WeatherUiState.Success
+            assertTrue(oldJob.isCancelled)
+            assertEquals(18.2, success.temperature!!, 0.001)
+            old.complete(mockResponse.asProviderWeather())
+            oldJob.join()
+            assertEquals(18.2, (vm.uiState.value as WeatherUiState.Success).temperature!!, 0.001)
+            assertEquals("18°C", ru.vladigeras.weatherapp.widget.WidgetPrefsManager.getTemperature(context))
+            assertEquals(WeatherProviderId.WTTR, ru.vladigeras.weatherapp.widget.WidgetPrefsManager.getProvider(context))
+        } finally {
+            old.complete(mockResponse.asProviderWeather())
+        }
     }
 
 }

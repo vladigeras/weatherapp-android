@@ -1,6 +1,10 @@
 package ru.vladigeras.weatherapp.ui
 
 import io.mockk.coEvery
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import org.junit.Assert.assertTrue
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
@@ -20,7 +24,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
@@ -38,6 +41,7 @@ class SettingsViewModelTest {
     private lateinit var prefsRepository: WeatherDisplayPrefsRepository
     private lateinit var languagePreferenceRepository: LanguagePreferenceRepository
     private lateinit var viewModel: SettingsViewModel
+    private val viewModelStore = ViewModelStore()
 
     @Before
     fun setup() {
@@ -52,12 +56,20 @@ class SettingsViewModelTest {
         coEvery { languagePreferenceRepository.getLanguagePreference() } returns LanguagePreference.SYSTEM
 
         viewModel = SettingsViewModel(prefsRepository, languagePreferenceRepository, weatherRepository)
+        viewModelStore.put("settings", viewModel)
     }
 
     @After
-    fun tearDown() {
-        unmockkObject(LanguageManager)
-        Dispatchers.resetMain()
+    fun tearDown() = runTest(testDispatcher) {
+        try {
+            val job = viewModel.viewModelScope.coroutineContext[Job]!!
+            viewModelStore.clear()
+            job.join()
+            assertTrue(job.isCompleted)
+        } finally {
+            unmockkObject(LanguageManager)
+            Dispatchers.resetMain()
+        }
     }
 
     @Test

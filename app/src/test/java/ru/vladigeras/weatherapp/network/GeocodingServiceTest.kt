@@ -17,16 +17,29 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.After
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.runBlocking
 import java.io.IOException
 
 class GeocodingServiceTest {
+
+    private val clients = mutableListOf<HttpClient>()
+
+    @After
+    fun tearDown() = runBlocking {
+        val jobs = clients.map { it.coroutineContext[Job]!! }
+        clients.forEach { it.close() }
+        jobs.joinAll()
+    }
 
     private fun createService(mockEngine: MockEngine): GeocodingService {
         val httpClient = HttpClient(mockEngine) {
             install(ContentNegotiation) {
                 json(Json { ignoreUnknownKeys = true })
             }
-        }
+        }.also(clients::add)
         return GeocodingService(httpClient)
     }
 

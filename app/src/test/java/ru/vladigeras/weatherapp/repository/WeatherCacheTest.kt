@@ -4,16 +4,7 @@ import io.mockk.every
 import io.mockk.mockk
 import android.content.Context
 import java.util.concurrent.ConcurrentLinkedQueue
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.Dispatchers
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -45,20 +36,9 @@ class WeatherCacheTest {
 
     @Before
     fun setup() {
-        val testDispatcher = StandardTestDispatcher()
-        Dispatchers.setMain(testDispatcher)
-
         tempDir = RuntimeEnvironment.getApplication().cacheDir
         cache = WeatherCache(RuntimeEnvironment.getApplication()).apply {
             timeProvider = { timeMillis.get() }
-        }
-    }
-
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
-        runBlocking {
-            delay(100)
         }
     }
 
