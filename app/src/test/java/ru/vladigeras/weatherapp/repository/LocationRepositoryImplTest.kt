@@ -31,6 +31,7 @@ class LocationRepositoryImplTest {
     private lateinit var context: Context
     private lateinit var locationService: LocationService
     private lateinit var androidGeocoder: AndroidGeocoder
+    private lateinit var selectedLocationRepository: SelectedLocationRepository
     private lateinit var repository: LocationRepositoryImpl
 
     @Before
@@ -39,7 +40,10 @@ class LocationRepositoryImplTest {
         context = spyk(activity)
         locationService = mockk()
         androidGeocoder = mockk()
-        repository = LocationRepositoryImpl(context, locationService, androidGeocoder)
+        selectedLocationRepository = mockk {
+            every { getSelectedLocation() } returns kotlinx.coroutines.flow.flowOf(null)
+        }
+        repository = LocationRepositoryImpl(context, locationService, androidGeocoder, selectedLocationRepository)
 
         mockkStatic(ContextCompat::class)
     }
@@ -225,6 +229,16 @@ class LocationRepositoryImplTest {
         coEvery { locationService.getCurrentLocation() } throws kotlinx.coroutines.CancellationException("cancelled")
         val result = runCatching { repository.getLocation() }
         assertTrue(result.exceptionOrNull() is kotlinx.coroutines.CancellationException)
+    }
+
+    @Test
+    fun getLocation_savedNameForSameCoordinates_skipsGeocoder() = runBlocking {
+        grantPermission()
+        val known = Location(55.75, 37.62, "Moscow")
+        every { selectedLocationRepository.getSelectedLocation() } returns kotlinx.coroutines.flow.flowOf(known)
+        coEvery { locationService.getCurrentLocation() } returns Result.success(known.copy(name = null))
+        assertEquals("Moscow", repository.getLocation().getOrThrow().name)
+        coVerify(exactly = 0) { androidGeocoder.getFromLocation(any(), any(), any(), any()) }
     }
 
 }

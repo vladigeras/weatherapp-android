@@ -8,6 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.location.LocationService
@@ -19,7 +20,8 @@ import kotlin.time.Duration.Companion.minutes
 class LocationRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val locationService: LocationService,
-    private val androidGeocoder: AndroidGeocoder
+    private val androidGeocoder: AndroidGeocoder,
+    private val selectedLocationRepository: SelectedLocationRepository
 ) : LocationRepository {
 
     private val cache = MutableStateFlow<CachedLocation?>(null)
@@ -40,7 +42,10 @@ class LocationRepositoryImpl @Inject constructor(
             val loc = locationService.getCurrentLocation().getOrNull()
                 ?: return Result.failure(IllegalStateException("Location unavailable"))
 
-            val locationName = getLocationNameAsync(loc.latitude, loc.longitude)
+            val savedLocation = selectedLocationRepository.getSelectedLocation().first()
+            val knownName = savedLocation?.takeIf { it.latitude == loc.latitude && it.longitude == loc.longitude }?.name
+                ?: cache.value?.location?.takeIf { it.latitude == loc.latitude && it.longitude == loc.longitude }?.name
+            val locationName = knownName ?: getLocationNameAsync(loc.latitude, loc.longitude)
             val locationWithName = loc.copy(name = locationName)
 
             currentCoroutineContext().ensureActive()

@@ -66,12 +66,13 @@ class CityNameResolverImplTest {
     }
 
     @Test
-    fun `geocoder empty list falls back to savedName`() = runTest {
+    fun `known name is returned without another geocoder request`() = runTest {
         coEvery { androidGeocoder.getFromLocation(55.75, 37.62, 1, Locale.ENGLISH) } returns emptyList()
 
         val result = cityNameResolver.resolveCityName(55.75, 37.62, "Saved Location", "Europe/Moscow")
 
         assertEquals("Saved Location", result)
+        io.mockk.coVerify(exactly = 0) { androidGeocoder.getFromLocation(any(), any(), any(), any()) }
     }
 
     @Test
@@ -93,20 +94,27 @@ class CityNameResolverImplTest {
     }
 
     @Test
-    fun `geocoder throws exception falls back to savedName`() = runTest {
+    fun `geocoder throws exception falls back to timezone`() = runTest {
         coEvery { androidGeocoder.getFromLocation(55.75, 37.62, 1, Locale.ENGLISH) } throws Exception("Geocoder failed")
 
-        val result = cityNameResolver.resolveCityName(55.75, 37.62, "Fallback", "Europe/Moscow")
+        val result = cityNameResolver.resolveCityName(55.75, 37.62, null, "Europe/Moscow")
 
-        assertEquals("Fallback", result)
+        assertEquals("Europe", result)
     }
 
     @Test
-    fun `geocoder null address falls back to savedName`() = runTest {
+    fun `geocoder null address falls back to timezone`() = runTest {
         coEvery { androidGeocoder.getFromLocation(55.75, 37.62, 1, Locale.ENGLISH) } returns null
 
-        val result = cityNameResolver.resolveCityName(55.75, 37.62, "Fallback", "Europe/Moscow")
+        val result = cityNameResolver.resolveCityName(55.75, 37.62, null, "Europe/Moscow")
 
-        assertEquals("Fallback", result)
+        assertEquals("Europe", result)
     }
+    @Test
+    fun `geocoder cancellation is propagated`() = runTest {
+        coEvery { androidGeocoder.getFromLocation(any(), any(), any(), any()) } throws kotlinx.coroutines.CancellationException("cancelled")
+        val result = runCatching { cityNameResolver.resolveCityName(55.75, 37.62, null, "Europe/Moscow") }
+        org.junit.Assert.assertTrue(result.exceptionOrNull() is kotlinx.coroutines.CancellationException)
+    }
+
 }

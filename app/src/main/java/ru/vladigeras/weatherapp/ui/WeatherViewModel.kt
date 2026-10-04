@@ -132,7 +132,8 @@ class WeatherViewModel @Inject constructor(
         val prefs = weatherDisplayPrefsRepository.getPrefs().first()
         val savedLocation = selectedLocationRepository.getSelectedLocation().first()
         val response = weatherRepository.getWeather(latitude, longitude, prefs, forceRefresh).getOrThrow()
-        val cityName = cityNameResolver.resolveCityName(latitude, longitude, savedLocation?.name, response.timezone ?: "")
+        val savedName = savedLocation?.takeIf { it.latitude == latitude && it.longitude == longitude }?.name
+        val cityName = cityNameResolver.resolveCityName(latitude, longitude, savedName, response.timezone ?: "")
         val daily = weatherMapper.mapToDailyForecast(response.daily)
         val hourly = weatherMapper.mapToHourlyForecast(response.hourly, response.timezone, prefs.hourlyForecastHours)
         currentCoroutineContext().ensureActive()

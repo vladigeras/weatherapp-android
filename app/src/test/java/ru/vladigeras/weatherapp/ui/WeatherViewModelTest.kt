@@ -219,6 +219,7 @@ class WeatherViewModelTest {
         assertEquals(22.0, successState.feelsLike!!, 0.001)
         assertEquals("°C", successState.temperatureUnit)
         assertEquals("Test City", successState.cityName)
+        coVerify { cityNameResolver.resolveCityName(mockLocation.latitude, mockLocation.longitude, "Moscow", any()) }
     }
     
     @Test
@@ -236,6 +237,7 @@ class WeatherViewModelTest {
             .first { it is WeatherUiState.Success && it.temperature == 18.2 } as WeatherUiState.Success
         assertEquals(18.2, successState.temperature!!, 0.001)
         assertEquals("°C", successState.temperatureUnit)
+        coVerify { cityNameResolver.resolveCityName(48.8566, 2.3522, null, any()) }
     }
     
     @Test
