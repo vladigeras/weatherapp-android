@@ -10,6 +10,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,7 +45,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -413,10 +414,11 @@ private fun CurrentWeatherDetails(
     showHumidity: Boolean,
     showWind: Boolean
 ) {
-    Row(
+    FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        itemVerticalAlignment = Alignment.CenterVertically
     ) {
         if (feelsLike != null) WeatherDetailItem(
             icon = Icons.Filled.Thermostat,
@@ -424,10 +426,6 @@ private fun CurrentWeatherDetails(
             label = stringResource(R.string.feels_like)
         )
         if (showHumidity && humidity != null) {
-            VerticalDivider(
-                modifier = Modifier.height(40.dp),
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
-            )
             WeatherDetailItem(
                 icon = Icons.Filled.WaterDrop,
                 value = "$humidity%",
@@ -435,10 +433,6 @@ private fun CurrentWeatherDetails(
             )
         }
         if (showWind && windSpeed != null) {
-            VerticalDivider(
-                modifier = Modifier.height(40.dp),
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
-            )
             WeatherDetailItem(
                 icon = Icons.Filled.Air,
                 value = "${windSpeed.toInt()} ${stringResource(R.string.wind_speed_unit)}",
@@ -452,7 +446,7 @@ private fun CurrentWeatherDetails(
 private fun WeatherDetailItem(icon: ImageVector, value: String, label: String) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(horizontal = 8.dp)
+        modifier = Modifier.width(IntrinsicSize.Max).padding(horizontal = 8.dp)
     ) {
         Icon(
             imageVector = icon,
@@ -463,6 +457,7 @@ private fun WeatherDetailItem(icon: ImageVector, value: String, label: String) {
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = value,
+            softWrap = false,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onPrimaryContainer
