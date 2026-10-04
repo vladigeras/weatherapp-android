@@ -599,7 +599,6 @@ class SettingsViewModel @Inject constructor(
 
     fun setLanguagePreference(preference: LanguagePreference) {
         languagePreference.value = preference
-        LanguageManager.applyLocale(preference)
         updateHasChanges()
     }
 
@@ -618,6 +617,7 @@ class SettingsViewModel @Inject constructor(
 
         updateHasChanges()
 
+        if (languagePrefChanged) LanguageManager.applyLocale(languagePrefToSave)
         return languagePrefChanged
     }
 
