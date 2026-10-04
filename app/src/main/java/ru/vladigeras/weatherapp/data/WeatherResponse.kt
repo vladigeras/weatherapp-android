@@ -39,7 +39,9 @@ data class Current(
     @SerialName("weathercode")
     val weatherCode: Int? = null,
     @SerialName("is_day")
-    val isDay: Int? = null
+    val isDay: Int? = null,
+    @SerialName("relativehumidity_2m")
+    val humidity: Int? = null
 )
 
 @Serializable
@@ -66,7 +68,9 @@ data class HourlyWeather(
     @SerialName("relativehumidity_2m")
     val relativehumidity2m: List<Int?>? = null,
     @SerialName("windspeed_10m")
-    val windspeed10m: List<Double?>? = null
+    val windspeed10m: List<Double?>? = null,
+    @SerialName("weathercode")
+    val weatherCode: List<Int?>? = null
 )
 
 @Serializable

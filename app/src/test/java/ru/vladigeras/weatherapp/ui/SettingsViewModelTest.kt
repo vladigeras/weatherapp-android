@@ -3,6 +3,10 @@ package ru.vladigeras.weatherapp.ui
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
+import io.mockk.justRun
+import ru.vladigeras.weatherapp.core.locale.LanguageManager
 import ru.vladigeras.weatherapp.data.ProviderCapabilities
 import ru.vladigeras.weatherapp.data.WeatherProviderId
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +42,8 @@ class SettingsViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+        mockkObject(LanguageManager)
+        justRun { LanguageManager.applyLocale(any()) }
 
         prefsRepository = mockk(relaxed = true) {
             every { getPrefs() } returns flowOf(WeatherDisplayPrefs())
@@ -50,6 +56,7 @@ class SettingsViewModelTest {
 
     @After
     fun tearDown() {
+        unmockkObject(LanguageManager)
         Dispatchers.resetMain()
     }
 
@@ -102,6 +109,10 @@ class SettingsViewModelTest {
         val result = viewModel.savePrefsAndCheckLanguage()
         assertTrue(result)
         io.mockk.coVerify { languagePreferenceRepository.saveLanguagePreference(LanguagePreference.RUSSIAN) }
+        io.mockk.coVerifyOrder {
+            languagePreferenceRepository.saveLanguagePreference(LanguagePreference.RUSSIAN)
+            LanguageManager.applyLocale(LanguagePreference.RUSSIAN)
+        }
     }
 
     @Test
@@ -116,6 +127,18 @@ class SettingsViewModelTest {
         advanceUntilIdle()
         viewModel.setLanguagePreference(LanguagePreference.ENGLISH)
         assertEquals(LanguagePreference.ENGLISH, viewModel.languagePreference.value)
+        io.mockk.verify(exactly = 0) { LanguageManager.applyLocale(any()) }
+        io.mockk.coVerify(exactly = 0) { languagePreferenceRepository.saveLanguagePreference(any()) }
+    }
+
+    @Test
+    fun `leaving language selection without saving retains the original language`() = runTest {
+        advanceUntilIdle()
+        viewModel.setLanguagePreference(LanguagePreference.RUSSIAN)
+        viewModel.resetPrefs()
+        assertEquals(LanguagePreference.SYSTEM, viewModel.languagePreference.value)
+        io.mockk.verify(exactly = 0) { LanguageManager.applyLocale(any()) }
+        io.mockk.coVerify(exactly = 0) { languagePreferenceRepository.saveLanguagePreference(any()) }
     }
 
     @Test

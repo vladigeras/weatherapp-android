@@ -58,6 +58,9 @@ class SelectedLocationRepositoryImpl @Inject constructor(
 
     override suspend fun saveSelectedLocation(location: Location) {
         getDataStore().edit { preferences ->
+            val coordinatesChanged = preferences[PreferencesKeys.LATITUDE] != location.latitude ||
+                preferences[PreferencesKeys.LONGITUDE] != location.longitude
+            if (location.name == null && coordinatesChanged) preferences.remove(PreferencesKeys.NAME)
             preferences[PreferencesKeys.LATITUDE] = location.latitude
             preferences[PreferencesKeys.LONGITUDE] = location.longitude
             location.name?.let { preferences[PreferencesKeys.NAME] = it }

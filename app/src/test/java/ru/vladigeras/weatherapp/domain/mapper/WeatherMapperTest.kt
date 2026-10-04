@@ -14,6 +14,7 @@ import java.time.ZoneOffset
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.Locale
+import java.util.TimeZone
 
 class WeatherMapperTest {
     private val language = mockk<LanguagePreferenceRepository>()
@@ -39,6 +40,40 @@ class WeatherMapperTest {
         val russian = mapper.mapToDailyForecast(response.daily).single()
         assertEquals("27 Апр.", russian.date)
         assertEquals("Пн", russian.dayName)
+    }
+
+    @Test
+    fun `daily labels use actual dates rather than position`() = runTest {
+        coEvery { language.getAppLocale() } returns Locale.ENGLISH
+        val originalZone = TimeZone.getDefault()
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+            val days = (26..29).map { ForecastDay("2026-04-$it") }
+            val forecast = mapper.mapToDailyForecast(days)
+            assertEquals(listOf(-1L, 0L, 1L, 2L), forecast.map { it.relativeDay })
+            assertEquals("26 Apr", forecast.first().date)
+        } finally {
+            TimeZone.setDefault(originalZone)
+        }
+    }
+
+    @Test
+    fun `daily labels follow phone timezone and change across its midnight`() = runTest {
+        coEvery { language.getAppLocale() } returns Locale.ENGLISH
+        val originalZone = TimeZone.getDefault()
+        suspend fun relative(time: String) = WeatherMapper(language, Clock.fixed(Instant.parse(time), ZoneId.of("Asia/Tokyo")))
+            .mapToDailyForecast(listOf(ForecastDay("2026-04-27"))).single().relativeDay
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+            assertEquals(1L, relative("2026-04-26T23:30:00Z"))
+            assertEquals(0L, relative("2026-04-27T00:30:00Z"))
+            TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"))
+            assertEquals(1L, relative("2026-04-27T00:30:00Z"))
+            TimeZone.setDefault(TimeZone.getTimeZone("Asia/Tokyo"))
+            assertEquals(0L, relative("2026-04-27T00:30:00Z"))
+        } finally {
+            TimeZone.setDefault(originalZone)
+        }
     }
 
     @Test
@@ -98,7 +133,7 @@ class WeatherMapperTest {
     private fun rawWeather(zone: String, offset: Int) = WeatherResponse(
         latitude = 55.7, longitude = 37.6, generationtimeMs = 0.1, utcOffsetSeconds = offset,
         timezone = zone, elevation = 0.0,
-        hourly = HourlyWeather(listOf("2026-04-27T10:00"), listOf(20.0), listOf(65), listOf(10.0)),
+        hourly = HourlyWeather(listOf("2026-04-27T10:00"), listOf(20.0), listOf(65), listOf(10.0), weatherCode = listOf(0)),
         daily = DailyWeather(
             time = listOf("2026-04-27"), weatherCode = listOf(0), temperature2mMin = listOf(15.0),
             temperature2mMax = listOf(25.0), precipitationSum = listOf(2.5),

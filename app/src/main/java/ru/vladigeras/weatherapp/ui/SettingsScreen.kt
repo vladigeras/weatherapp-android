@@ -3,6 +3,7 @@ package ru.vladigeras.weatherapp.ui
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,8 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,7 +51,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -67,6 +69,7 @@ import ru.vladigeras.weatherapp.repository.LanguagePreference
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.WeatherDisplayPrefsRepository
 import ru.vladigeras.weatherapp.widget.WeatherWidgetProvider
+import ru.vladigeras.weatherapp.ui.theme.WeatherAppTheme
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -79,9 +82,9 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        enableEdgeToEdge()
         setContent {
-            MaterialTheme {
+            WeatherAppTheme {
                 SettingsScreen(
                     viewModel = hiltViewModel<SettingsViewModel>(),
                     onBack = { finish() },
@@ -115,6 +118,11 @@ fun SettingsScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.settings)) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -125,6 +133,10 @@ fun SettingsScreen(
                 },
                 actions = {
                     TextButton(
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.38f)
+                        ),
                         onClick = {
                             scope.launch {
                                 val languageChanged = viewModel.savePrefsAndCheckLanguage()
@@ -599,7 +611,6 @@ class SettingsViewModel @Inject constructor(
 
     fun setLanguagePreference(preference: LanguagePreference) {
         languagePreference.value = preference
-        LanguageManager.applyLocale(preference)
         updateHasChanges()
     }
 
@@ -618,6 +629,7 @@ class SettingsViewModel @Inject constructor(
 
         updateHasChanges()
 
+        if (languagePrefChanged) LanguageManager.applyLocale(languagePrefToSave)
         return languagePrefChanged
     }
 

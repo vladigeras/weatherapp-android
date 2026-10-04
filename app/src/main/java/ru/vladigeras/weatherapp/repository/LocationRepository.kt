@@ -4,6 +4,6 @@ import kotlinx.coroutines.flow.Flow
 import ru.vladigeras.weatherapp.data.Location
 
 interface LocationRepository {
-    suspend fun getLocation(): Result<Location>
+    suspend fun getLocation(forceRefresh: Boolean = false): Result<Location>
     fun hasLocationPermission(): Boolean
 }

@@ -17,5 +17,6 @@ data class DailyForecast(
     val sunset: String?,        // Sunset time
     val windSpeedMax: Double?,  // Maximum wind speed
     val windDirectionDominant: Int?, // Dominant wind direction
-    val uvIndexMax: Double?     // Maximum UV index
+    val uvIndexMax: Double?,     // Maximum UV index
+    val relativeDay: Long? = null
 )

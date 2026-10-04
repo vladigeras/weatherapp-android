@@ -3,6 +3,9 @@ package ru.vladigeras.weatherapp.network
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.HttpTimeoutCapability
+import io.ktor.client.plugins.ResponseException
+import io.ktor.http.HttpStatusCode
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -30,6 +33,7 @@ class GeocodingServiceTest {
     @Test
     fun searchCity_success_parsesResponse() = runTest {
         val mockEngine = MockEngine { request ->
+            assertEquals(10_000L, request.getCapabilityOrNull(HttpTimeoutCapability)?.requestTimeoutMillis)
             respond(
                 content = """
                     {
@@ -111,6 +115,17 @@ class GeocodingServiceTest {
 
         assertTrue(result.isFailure)
         assertNotNull(result.exceptionOrNull())
+    }
+
+    @Test
+    fun `HTTP errors with valid error JSON are failures rather than empty results`() = runTest {
+        for (status in listOf(HttpStatusCode.BadRequest, HttpStatusCode.ServiceUnavailable)) {
+            val service = createService(MockEngine {
+                respond("""{"error":true,"reason":"service failure"}""", status, headersOf(HttpHeaders.ContentType, "application/json"))
+            })
+            val result = service.searchCity("Moscow", "en")
+            assertTrue(result.exceptionOrNull() is ResponseException)
+        }
     }
 
     @Test

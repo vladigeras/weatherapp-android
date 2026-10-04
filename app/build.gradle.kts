@@ -9,10 +9,12 @@ plugins {
 android {
     namespace = "ru.vladigeras.weatherapp"
     compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
+        version = release(37) {
+            minorApiLevel = 2
         }
     }
+
+    buildToolsVersion = "37.0.0"
 
     defaultConfig {
         applicationId = "ru.vladigeras.weatherapp"
@@ -29,7 +31,7 @@ android {
         versionName = if (tag.isNotEmpty()) cleanTag else "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "WTTR_API_URL", "\"https://wttr.in\"")
+        buildConfigField("String", "WTTR_API_URL", "\"https://wttr.is\"")
         buildConfigField("String", "API_URL", "\"https://api.open-meteo.com/v1/forecast\"")
         buildConfigField("String", "GEOCODING_API_URL", "\"https://geocoding-api.open-meteo.com/v1\"")
     }
@@ -47,9 +49,11 @@ android {
 
     buildTypes {
         debug {
+            manifestPlaceholders["debugNetworkSecurityConfig"] = "@null"
             val mockBase = providers.gradleProperty("weatherMockBaseUrl").orNull?.trimEnd('/')
             if (mockBase != null) {
                 require(mockBase.matches(Regex("http://(10\\.0\\.2\\.2|127\\.0\\.0\\.1|localhost):[0-9]+")))
+                manifestPlaceholders["debugNetworkSecurityConfig"] = "@xml/debug_network_security"
                 buildConfigField("String", "WTTR_API_URL", "\"$mockBase/wttr\"")
                 buildConfigField("String", "API_URL", "\"$mockBase/open-meteo/forecast\"")
                 buildConfigField("String", "GEOCODING_API_URL", "\"$mockBase/open-meteo\"")
@@ -60,7 +64,8 @@ android {
             if (System.getenv("KEYSTORE_PATH") != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -132,8 +137,6 @@ dependencies {
     testImplementation(libs.ktor.client.cio)
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.robolectric)
-    testImplementation(libs.androidx.junit)
-    testImplementation(libs.androidx.core)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui)
     testImplementation(libs.androidx.compose.ui.graphics)

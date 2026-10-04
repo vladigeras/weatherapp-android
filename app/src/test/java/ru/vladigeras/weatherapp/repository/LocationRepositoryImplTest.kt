@@ -31,6 +31,7 @@ class LocationRepositoryImplTest {
     private lateinit var context: Context
     private lateinit var locationService: LocationService
     private lateinit var androidGeocoder: AndroidGeocoder
+    private lateinit var selectedLocationRepository: SelectedLocationRepository
     private lateinit var repository: LocationRepositoryImpl
 
     @Before
@@ -39,7 +40,10 @@ class LocationRepositoryImplTest {
         context = spyk(activity)
         locationService = mockk()
         androidGeocoder = mockk()
-        repository = LocationRepositoryImpl(context, locationService, androidGeocoder)
+        selectedLocationRepository = mockk {
+            every { getSelectedLocation() } returns kotlinx.coroutines.flow.flowOf(null)
+        }
+        repository = LocationRepositoryImpl(context, locationService, androidGeocoder, selectedLocationRepository)
 
         mockkStatic(ContextCompat::class)
     }
@@ -59,6 +63,9 @@ class LocationRepositoryImplTest {
         every {
             ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION)
         } returns PackageManager.PERMISSION_DENIED
+        every {
+            ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION)
+        } returns PackageManager.PERMISSION_DENIED
     }
 
     @Test
@@ -69,6 +76,17 @@ class LocationRepositoryImplTest {
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is SecurityException)
+    }
+
+    @Test
+    fun getLocation_withApproximatePermission_succeeds() = runBlocking {
+        denyPermission()
+        every { ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) } returns PackageManager.PERMISSION_GRANTED
+        coEvery { locationService.getCurrentLocation() } returns Result.success(Location(55.75, 37.62, null))
+        coEvery { androidGeocoder.getFromLocation(any(), any(), any()) } returns null
+
+        assertTrue(repository.hasLocationPermission())
+        assertTrue(repository.getLocation().isSuccess)
     }
 
     @Test
@@ -205,4 +223,35 @@ class LocationRepositoryImplTest {
         assertTrue(result.isSuccess)
         assertNull(result.getOrNull()?.name)
     }
+    @Test
+    fun getLocation_cancellation_isNotConvertedToFailure() = runBlocking {
+        grantPermission()
+        coEvery { locationService.getCurrentLocation() } throws kotlinx.coroutines.CancellationException("cancelled")
+        val result = runCatching { repository.getLocation() }
+        assertTrue(result.exceptionOrNull() is kotlinx.coroutines.CancellationException)
+    }
+
+    @Test
+    fun getLocation_savedNameForSameCoordinates_skipsGeocoder() = runBlocking {
+        grantPermission()
+        val known = Location(55.75, 37.62, "Moscow")
+        every { selectedLocationRepository.getSelectedLocation() } returns kotlinx.coroutines.flow.flowOf(known)
+        coEvery { locationService.getCurrentLocation() } returns Result.success(known.copy(name = null))
+        assertEquals("Moscow", repository.getLocation().getOrThrow().name)
+        coVerify(exactly = 0) { androidGeocoder.getFromLocation(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun getLocation_forceRefresh_bypassesFreshCache() = runBlocking {
+        grantPermission()
+        coEvery { androidGeocoder.getFromLocation(any(), any(), any()) } returns null
+        val old = Location(55.75, 37.62, null)
+        val updated = Location(59.93, 30.32, null)
+        coEvery { locationService.getCurrentLocation() } returnsMany listOf(Result.success(old), Result.success(updated))
+        assertEquals(old, repository.getLocation().getOrThrow())
+        assertEquals(updated, repository.getLocation(true).getOrThrow())
+        assertEquals(updated, repository.getLocation().getOrThrow())
+        coVerify(exactly = 2) { locationService.getCurrentLocation() }
+    }
+
 }

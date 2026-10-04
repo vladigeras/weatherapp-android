@@ -1,5 +1,11 @@
 package ru.vladigeras.weatherapp.ui
 
+import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,6 +30,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,6 +48,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -48,10 +58,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavHostController
 import ru.vladigeras.weatherapp.R
 import ru.vladigeras.weatherapp.data.Location
@@ -68,6 +82,54 @@ fun LocationSelectionScreen(
     val uiState by viewModel.uiState.collectAsState()
     val query by viewModel.searchQuery.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showPermissionError by remember { mutableStateOf(false) }
+    var selectAutoAfterPermission by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    fun selectAutoLocation() {
+        viewModel.useAutoLocation {
+            val autoLocation = viewModel.uiState.value.autoLocation
+            if (autoLocation != null) {
+                onLocationChosen(autoLocation.latitude, autoLocation.longitude)
+            }
+        }
+    }
+
+    fun refreshAutoLocation() {
+        viewModel.refreshAutoLocation {
+            val location = viewModel.uiState.value.activeLocation
+            if (location != null) {
+                navController.previousBackStackEntry?.savedStateHandle?.set("latitude", location.latitude)
+                navController.previousBackStackEntry?.savedStateHandle?.set("longitude", location.longitude)
+                navController.previousBackStackEntry?.savedStateHandle?.set("location_update_trigger", System.currentTimeMillis())
+            }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        viewModel.refreshLocationPermission()
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            if (selectAutoAfterPermission) selectAutoLocation() else refreshAutoLocation()
+        } else {
+            showPermissionError = true
+        }
+    }
+
+    fun requestPermission(selectAuto: Boolean) {
+        selectAutoAfterPermission = selectAuto
+        permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshLocationPermission()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    if (showPermissionError) LocationPermissionDialog { showPermissionError = false }
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
@@ -117,17 +179,11 @@ fun LocationSelectionScreen(
                     }
                 },
                 onSwitchToAuto = {
-                    viewModel.useAutoLocation {
-                        val autoLocation = viewModel.uiState.value.autoLocation
-                        if (autoLocation != null) {
-                            navController.previousBackStackEntry?.savedStateHandle?.set("latitude", autoLocation.latitude)
-                            navController.previousBackStackEntry?.savedStateHandle?.set("longitude", autoLocation.longitude)
-                            navController.previousBackStackEntry?.savedStateHandle?.set("location_update_trigger", System.currentTimeMillis())
-                        }
-                        onNavigateBack()
-                    }
+                    if (uiState.locationPermissionGranted) selectAutoLocation() else requestPermission(true)
                 },
-                onRefreshAuto = { viewModel.refreshAutoLocation() }
+                onRefreshAuto = {
+                    if (uiState.locationPermissionGranted) refreshAutoLocation() else requestPermission(false)
+                }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -139,6 +195,7 @@ fun LocationSelectionScreen(
                 explicitSearch = uiState.explicitSearch,
                 searchLoading = uiState.searchLoading,
                 searchCompleted = uiState.searchCompleted,
+                searchError = uiState.searchError,
                 onSearch = viewModel::submitSearch,
                 onResultSelected = { result ->
                     val fullName = buildString {
@@ -278,12 +335,7 @@ private fun LocationCard(
 
             if (isManualMode) {
                 OutlinedButton(
-                    onClick = {
-                        if (locationPermissionGranted) {
-                            onSwitchToAuto()
-                        }
-                    },
-                    enabled = locationPermissionGranted,
+                    onClick = onSwitchToAuto,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(
@@ -356,6 +408,7 @@ private fun SearchSection(
     explicitSearch: Boolean,
     searchLoading: Boolean,
     searchCompleted: Boolean,
+    searchError: String?,
     onSearch: () -> Unit,
     onResultSelected: (SearchLocation) -> Unit
 ) {
@@ -384,6 +437,12 @@ private fun SearchSection(
         }
     }
     if (searchLoading) CircularProgressIndicator(modifier = Modifier.padding(8.dp).size(24.dp))
+    if (searchError != null) {
+        Text(searchError, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp))
+        Button(onClick = onSearch, enabled = !searchLoading) {
+            Text(stringResource(R.string.location_retry))
+        }
+    }
     if (searchCompleted && searchResults.isEmpty()) Text(stringResource(R.string.city_not_found), modifier = Modifier.padding(vertical = 8.dp))
     if (searchResults.isNotEmpty()) {
         Spacer(modifier = Modifier.height(8.dp))
@@ -447,4 +506,25 @@ private fun SearchResultItem(
             if (needsConfirmation) TextButton(onClick = onClick) { Text(stringResource(R.string.confirm_location)) }
         }
     }
+}
+
+@Composable
+internal fun LocationPermissionDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.location_permission_required)) },
+        text = { Text(stringResource(R.string.location_permission_description)) },
+        confirmButton = {
+            TextButton(onClick = {
+                onDismiss()
+                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
+            }) {
+                Text(stringResource(R.string.settings))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
+        }
+    )
 }

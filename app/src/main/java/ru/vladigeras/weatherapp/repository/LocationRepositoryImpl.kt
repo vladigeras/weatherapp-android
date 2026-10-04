@@ -5,6 +5,10 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.location.LocationService
@@ -16,18 +20,19 @@ import kotlin.time.Duration.Companion.minutes
 class LocationRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val locationService: LocationService,
-    private val androidGeocoder: AndroidGeocoder
+    private val androidGeocoder: AndroidGeocoder,
+    private val selectedLocationRepository: SelectedLocationRepository
 ) : LocationRepository {
 
     private val cache = MutableStateFlow<CachedLocation?>(null)
     private val cacheValidity = 10.minutes
 
-    override suspend fun getLocation(): Result<Location> {
+    override suspend fun getLocation(forceRefresh: Boolean): Result<Location> {
         if (!hasLocationPermission()) {
             return Result.failure(SecurityException("Location permission not granted"))
         }
 
-        cache.value?.let { cached ->
+        if (!forceRefresh) cache.value?.let { cached ->
             if (System.currentTimeMillis() - cached.timestamp < cacheValidity.inWholeMilliseconds) {
                 return Result.success(cached.location)
             }
@@ -37,11 +42,17 @@ class LocationRepositoryImpl @Inject constructor(
             val loc = locationService.getCurrentLocation().getOrNull()
                 ?: return Result.failure(IllegalStateException("Location unavailable"))
 
-            val locationName = getLocationNameAsync(loc.latitude, loc.longitude)
+            val savedLocation = selectedLocationRepository.getSelectedLocation().first()
+            val knownName = savedLocation?.takeIf { it.latitude == loc.latitude && it.longitude == loc.longitude }?.name
+                ?: cache.value?.location?.takeIf { it.latitude == loc.latitude && it.longitude == loc.longitude }?.name
+            val locationName = knownName ?: getLocationNameAsync(loc.latitude, loc.longitude)
             val locationWithName = loc.copy(name = locationName)
 
+            currentCoroutineContext().ensureActive()
             cache.value = CachedLocation(locationWithName, System.currentTimeMillis())
             Result.success(locationWithName)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -58,6 +69,8 @@ class LocationRepositoryImpl @Inject constructor(
                     address.countryName?.let { append(", $it") }
                 }.takeIf { it.isNotBlank() }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             null
         }
@@ -67,6 +80,9 @@ class LocationRepositoryImpl @Inject constructor(
         return ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
     }
 

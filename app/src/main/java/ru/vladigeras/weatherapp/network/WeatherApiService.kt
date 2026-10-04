@@ -2,6 +2,7 @@ package ru.vladigeras.weatherapp.network
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import ru.vladigeras.weatherapp.BuildConfig
@@ -32,6 +33,7 @@ class WeatherApiServiceImpl(
         forecastHours: Int
     ): WeatherResponse {
         return httpClient.get(BuildConfig.API_URL) {
+            timeout { requestTimeoutMillis = 15_000 }
             parameter("latitude", latitude)
             parameter("longitude", longitude)
             parameter("current", currentParams)

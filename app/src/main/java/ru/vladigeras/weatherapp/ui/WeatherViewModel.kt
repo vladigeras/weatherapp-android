@@ -104,7 +104,7 @@ class WeatherViewModel @Inject constructor(
 
     fun loadWeatherForCurrentLocation(forceRefresh: Boolean = false) {
         startLoad { version ->
-            val location = locationRepository.getLocation().getOrThrow()
+            val location = locationRepository.getLocation(forceRefresh).getOrThrow()
             currentCoroutineContext().ensureActive()
             if (version != generation) return@startLoad
             selectedLocationRepository.saveSelectedLocation(location.copy(isAutoDetected = true))
@@ -132,20 +132,23 @@ class WeatherViewModel @Inject constructor(
         val prefs = weatherDisplayPrefsRepository.getPrefs().first()
         val savedLocation = selectedLocationRepository.getSelectedLocation().first()
         val response = weatherRepository.getWeather(latitude, longitude, prefs, forceRefresh).getOrThrow()
-        val cityName = cityNameResolver.resolveCityName(latitude, longitude, savedLocation?.name, response.timezone ?: "")
+        val savedName = savedLocation?.takeIf { it.latitude == latitude && it.longitude == longitude }?.name
+        val cityName = cityNameResolver.resolveCityName(latitude, longitude, savedName, response.timezone ?: "")
         val daily = weatherMapper.mapToDailyForecast(response.daily)
         val hourly = weatherMapper.mapToHourlyForecast(response.hourly, response.timezone, prefs.hourlyForecastHours)
         currentCoroutineContext().ensureActive()
         if (version != generation || latestPrefs != prefs) return
         val current = response.current
+        WidgetPrefsManager.save(context, cityName, current.temperature, current.feelsLike, current.condition?.displayCode,
+            current.isDay, response.temperatureUnit, response.provider)
+        currentCoroutineContext().ensureActive()
+        if (version != generation || latestPrefs != prefs) return
         _uiState.value = WeatherUiState.Success(
             current.temperature, current.feelsLike, current.humidity, current.windSpeed, current.condition?.displayCode,
             current.isDay, response.timezone, cityName, response.temperatureUnit, daily, hourly,
             weatherRepository.capabilities(prefs.provider).effectivePrefs(prefs), weatherRepository.capabilities(prefs.provider).hourlyStepHours
         )
         _showUpdateToast.value = false
-        WidgetPrefsManager.save(context, cityName, current.temperature, current.feelsLike, current.condition?.displayCode,
-            current.isDay, response.temperatureUnit, response.provider)
         WeatherWidgetProvider.updateAllWidgets(context)
     }
 

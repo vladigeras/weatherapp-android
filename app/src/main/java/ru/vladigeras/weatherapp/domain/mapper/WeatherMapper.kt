@@ -11,6 +11,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,6 +22,7 @@ class WeatherMapper @Inject constructor(
 ) {
     suspend fun mapToDailyForecast(daily: List<ForecastDay>): List<DailyForecast> {
         val locale = languagePreferenceRepository.getAppLocale()
+        val today = clock.instant().atZone(ZoneId.systemDefault()).toLocalDate()
         return daily.map { day ->
             val date = LocalDate.parse(day.date)
             DailyForecast(
@@ -34,7 +36,8 @@ class WeatherMapper @Inject constructor(
                 sunset = day.sunset,
                 windSpeedMax = day.windSpeedMax,
                 windDirectionDominant = day.windDirectionDominant,
-                uvIndexMax = day.uvIndexMax
+                uvIndexMax = day.uvIndexMax,
+                relativeDay = ChronoUnit.DAYS.between(today, date)
             )
         }
     }

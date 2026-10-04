@@ -92,7 +92,7 @@ class LocationSelectionViewModelTest {
 
         coEvery { selectedLocationRepository.getSelectedLocation() } returns flowOf(mockManualLocation)
         coEvery { selectedLocationRepository.clearSelectedLocation() } returns Unit
-        coEvery { locationRepository.getLocation() } returns Result.success(mockAutoLocation)
+        coEvery { locationRepository.getLocation(any()) } returns Result.success(mockAutoLocation)
         coEvery { locationRepository.hasLocationPermission() } returns true
         coEvery { languagePreferenceRepository.getEffectiveLocaleCode() } returns "en"
         every { citySearchCache.get(any(), any(), any()) } returns null
@@ -161,7 +161,8 @@ class LocationSelectionViewModelTest {
 
     @Test
     fun `auto location failure sets error state`() = runTest {
-        coEvery { locationRepository.getLocation() } returns Result.failure(SecurityException("No permission"))
+        every { locationRepository.hasLocationPermission() } returns false
+        coEvery { locationRepository.getLocation(any()) } returns Result.failure(SecurityException("No permission"))
 
         val freshViewModel = LocationSelectionViewModel(
             context = context,
@@ -242,8 +243,10 @@ class LocationSelectionViewModelTest {
         advanceTimeBy(500)
         advanceUntilIdle()
 
-        val state = viewModel.uiState.first { it.error != null }
-        assertNotNull(state.error)
+        val state = viewModel.uiState.first { it.searchError != null }
+        assertNotNull(state.searchError)
+        assertFalse(state.searchCompleted)
+        assertFalse(state.searchLoading)
     }
 
     @Test
@@ -270,23 +273,29 @@ class LocationSelectionViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 0) { citySearchCache.put(any(), any(), any(), any()) }
+        assertTrue(viewModel.uiState.value.searchCompleted)
+        assertNull(viewModel.uiState.value.searchError)
     }
 
     @Test
-    fun `clearError removes error from state`() = runTest {
-        coEvery { geocodingService.searchCity("Unknown", "en") } returns Result.failure(IOException("Network error"))
+    fun `search can be retried after a timeout without changing the query`() = runTest {
+        coEvery { geocodingService.searchCity("Unknown", "en") } returns Result.failure(io.ktor.client.plugins.HttpRequestTimeoutException("https://example.com/search", 10_000))
 
         viewModel.updateSearchQuery("Unknown")
         advanceTimeBy(500)
         advanceUntilIdle()
 
-        val errorState = viewModel.uiState.first { it.error != null }
-        assertNotNull(errorState.error)
+        val errorState = viewModel.uiState.first { it.searchError != null }
+        assertEquals(context.getString(ru.vladigeras.weatherapp.R.string.request_timed_out), errorState.searchError)
+        assertFalse(errorState.searchCompleted)
 
-        viewModel.clearError()
+        coEvery { geocodingService.searchCity("Unknown", "en") } returns Result.success(GeocodingResponse(testSearchResults))
+        viewModel.submitSearch()
+        advanceUntilIdle()
 
         val clearedState = viewModel.uiState.first()
-        assertNull(clearedState.error)
+        assertNull(clearedState.searchError)
+        assertEquals(testSearchResults.map { it.asSearchLocation() }, clearedState.searchResults)
     }
 
     @Test
@@ -351,7 +360,7 @@ class LocationSelectionViewModelTest {
 
     @Test
     fun `useAutoLocation when auto location is null does not save`() = runTest {
-        coEvery { locationRepository.getLocation() } returns Result.failure(SecurityException("No permission"))
+        coEvery { locationRepository.getLocation(any()) } returns Result.failure(SecurityException("No permission"))
 
         val freshViewModel = LocationSelectionViewModel(
             context = context,
@@ -370,8 +379,22 @@ class LocationSelectionViewModelTest {
         coVerify(exactly = 0) { selectedLocationRepository.saveSelectedLocation(any()) }
 
         val state = freshViewModel.uiState.first()
-        assertFalse(state.isManualMode)
-        assertNull(state.activeLocation)
+        assertTrue(state.isManualMode)
+        assertEquals(mockManualLocation, state.activeLocation)
+    }
+
+    @Test
+    fun `granting permission after manual choice obtains and saves auto location`() = runTest {
+        coEvery { locationRepository.getLocation(any()) } returns Result.failure(SecurityException("No permission"))
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isManualMode)
+        coEvery { locationRepository.getLocation(any()) } returns Result.success(mockAutoLocation)
+        var completed = false
+        viewModel.useAutoLocation { completed = true }
+        advanceUntilIdle()
+        assertTrue(completed)
+        assertEquals(mockAutoLocation, viewModel.uiState.value.activeLocation)
+        coVerify { selectedLocationRepository.saveSelectedLocation(mockAutoLocation) }
     }
 
     @Test
@@ -379,12 +402,15 @@ class LocationSelectionViewModelTest {
         advanceUntilIdle()
 
         val newLocation = Location(59.93, 30.32, "Saint Petersburg", isAutoDetected = true)
-        coEvery { locationRepository.getLocation() } returns Result.success(newLocation)
+        coEvery { locationRepository.getLocation(any()) } returns Result.success(newLocation)
 
         viewModel.refreshAutoLocation()
         advanceUntilIdle()
 
-        coVerify(atLeast = 2) { locationRepository.getLocation() }
+        coVerify { locationRepository.getLocation(true) }
+        coVerify { selectedLocationRepository.saveSelectedLocation(newLocation) }
+        assertEquals(newLocation, viewModel.uiState.value.activeLocation)
+        assertFalse(viewModel.uiState.value.isManualMode)
     }
 
     @Test
@@ -460,6 +486,45 @@ class LocationSelectionViewModelTest {
         advanceUntilIdle()
         assertEquals(WeatherProviderId.WTTR, viewModel.uiState.value.provider)
         assertEquals(listOf(candidate), viewModel.uiState.value.searchResults)
+    }
+
+    @Test
+    fun `new GPS request rejects the late cancelled result`() = runTest {
+        advanceUntilIdle()
+        val old = kotlinx.coroutines.CompletableDeferred<Location>()
+        coEvery { locationRepository.getLocation(any()) } coAnswers {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { old.await() }.let { Result.success(it) }
+        }
+        viewModel.refreshAutoLocation()
+        runCurrent()
+        val latest = Location(59.93, 30.32, "Saint Petersburg", true)
+        coEvery { locationRepository.getLocation(any()) } returns Result.success(latest)
+        viewModel.refreshAutoLocation()
+        runCurrent()
+        old.complete(mockAutoLocation)
+        advanceUntilIdle()
+        assertEquals(latest, viewModel.uiState.value.autoLocation)
+    }
+
+    @Test
+    fun `GPS refresh finishes only after persisting and retains old place on failure`() = runTest {
+        advanceUntilIdle()
+        val persisted = kotlinx.coroutines.CompletableDeferred<Unit>()
+        coEvery { selectedLocationRepository.saveSelectedLocation(any()) } coAnswers { persisted.await() }
+        var completed = false
+        viewModel.refreshAutoLocation { completed = true }
+        runCurrent()
+        assertFalse(completed)
+        persisted.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(completed)
+        coEvery { locationRepository.getLocation(true) } returns Result.failure(Exception("GPS unavailable"))
+        completed = false
+        viewModel.refreshAutoLocation { completed = true }
+        advanceUntilIdle()
+        assertFalse(completed)
+        assertEquals(mockAutoLocation, viewModel.uiState.value.activeLocation)
+        coVerify(exactly = 1) { selectedLocationRepository.saveSelectedLocation(any()) }
     }
 
 }

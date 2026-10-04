@@ -3,6 +3,10 @@ package ru.vladigeras.weatherapp.repository
 import android.content.Context
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.awaitCancellation
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -197,7 +201,32 @@ class WeatherRepositoryImplTest {
         assertEquals(1, mockWeatherApiService.callCount)
     }
 
+    @Test
+    fun `weather chain stops at thirty seconds and returns a timeout failure`() = runTest {
+        mockWeatherApiService.suspendResponse = {
+            delay(20_000)
+            delay(20_000)
+        }
+        val result = weatherRepository.getWeather(55.7, 37.6, forceRefresh = true)
+        assertTrue(result.exceptionOrNull() is HttpRequestTimeoutException)
+        assertEquals(30_000L, testScheduler.currentTime)
+        assertTrue(mockWeatherApiService.cancelled)
+    }
+
+    @Test
+    fun `parent cancellation cancels the pending weather call`() = runTest {
+        mockWeatherApiService.suspendResponse = { awaitCancellation() }
+        val job = async { weatherRepository.getWeather(55.7, 37.6, forceRefresh = true) }
+        testScheduler.runCurrent()
+        job.cancel()
+        job.join()
+        assertTrue(job.isCancelled)
+        assertTrue(mockWeatherApiService.cancelled)
+    }
+
     private class TestWeatherApiService : WeatherApiService {
+        var suspendResponse: (suspend () -> Unit)? = null
+        var cancelled = false
         @Volatile var callCount: Int = 0
         private var responses: List<WeatherResponse> = emptyList()
         private var exceptionToThrow: Exception? = null
@@ -231,6 +260,12 @@ class WeatherRepositoryImplTest {
             forecastHours: Int
         ): WeatherResponse {
             callCount++
+            try {
+                suspendResponse?.invoke()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                cancelled = true
+                throw e
+            }
             if (exceptionToThrow != null) {
                 throw exceptionToThrow!!
             }

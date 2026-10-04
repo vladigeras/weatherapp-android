@@ -55,7 +55,8 @@ class LocationSelectionViewModel @Inject constructor(
         val provider: WeatherProviderId? = null,
         val searchLoading: Boolean = false,
         val explicitSearch: Boolean = false,
-        val searchCompleted: Boolean = false
+        val searchCompleted: Boolean = false,
+        val searchError: String? = null
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -64,13 +65,15 @@ class LocationSelectionViewModel @Inject constructor(
     private val _searchQuery = savedStateHandle.getStateFlow("search_query", "")
     val searchQuery: StateFlow<String> = _searchQuery
 
+    private var autoLocationJob: Job? = null
+
     init {
         loadInitialState()
         viewModelScope.launch {
             prefsRepository.getPrefs().collect { prefs ->
                 if (_uiState.value.provider != prefs.provider) {
                     cancelSearch()
-                    _uiState.value = _uiState.value.copy(provider = prefs.provider, searchResults = emptyList(), searchLoading = false, searchCompleted = false,
+                    _uiState.value = _uiState.value.copy(provider = prefs.provider, searchResults = emptyList(), searchLoading = false, searchCompleted = false, searchError = null,
                         explicitSearch = weatherRepository.capabilities(prefs.provider).explicitSearch)
                     if (!_uiState.value.explicitSearch && _searchQuery.value.length >= 2) search(_searchQuery.value)
                 }
@@ -117,36 +120,41 @@ class LocationSelectionViewModel @Inject constructor(
         }
     }
 
-    private fun loadAutoLocation() {
-        viewModelScope.launch {
+    private fun loadAutoLocation(forceRefresh: Boolean = false, onComplete: () -> Unit = {}) {
+        autoLocationJob?.cancel()
+        autoLocationJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(autoLocationLoading = true)
 
-            locationRepository.getLocation()
-                .onSuccess { location ->
+            val result = locationRepository.getLocation(forceRefresh)
+            currentCoroutineContext().ensureActive()
+            result.onSuccess { location ->
                     val autoDetectedLocation = location.copy(isAutoDetected = true)
+                    if (forceRefresh) selectedLocationRepository.saveSelectedLocation(autoDetectedLocation)
+                    currentCoroutineContext().ensureActive()
                     _uiState.value = _uiState.value.copy(
                         autoLocation = autoDetectedLocation,
                         autoLocationLoading = false,
                         isLoading = false,
                         locationPermissionGranted = true
                     )
-                    if (!_uiState.value.isManualMode) {
-                        _uiState.value = _uiState.value.copy(activeLocation = autoDetectedLocation)
+                    if (forceRefresh || !_uiState.value.isManualMode) {
+                        _uiState.value = _uiState.value.copy(activeLocation = autoDetectedLocation, isManualMode = false)
                     }
+                    onComplete()
                 }
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
                         error = ErrorMapper.mapToUiMessage(error, context),
                         autoLocationLoading = false,
                         isLoading = false,
-                        locationPermissionGranted = false
+                        locationPermissionGranted = locationRepository.hasLocationPermission()
                     )
                 }
         }
     }
 
-    fun refreshAutoLocation() {
-        loadAutoLocation()
+    fun refreshAutoLocation(onComplete: () -> Unit = {}) {
+        loadAutoLocation(forceRefresh = true, onComplete = onComplete)
     }
 
     fun refreshLocationPermission() {
@@ -159,9 +167,11 @@ class LocationSelectionViewModel @Inject constructor(
     fun useAutoLocation(onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             val autoLocation = _uiState.value.autoLocation
-            if (autoLocation != null) {
-                selectedLocationRepository.saveSelectedLocation(autoLocation)
+            if (autoLocation == null) {
+                loadAutoLocation { useAutoLocation(onComplete) }
+                return@launch
             }
+            selectedLocationRepository.saveSelectedLocation(autoLocation)
             _uiState.value = _uiState.value.copy(
                 isManualMode = false,
                 activeLocation = autoLocation
@@ -171,12 +181,14 @@ class LocationSelectionViewModel @Inject constructor(
     }
 
     fun selectLocation(location: Location, onComplete: () -> Unit = {}) {
+        autoLocationJob?.cancel()
         viewModelScope.launch {
             val manualLocation = location.copy(isAutoDetected = false)
             selectedLocationRepository.saveSelectedLocation(manualLocation)
             _uiState.value = _uiState.value.copy(
                 isManualMode = true,
                 activeLocation = manualLocation,
+                autoLocationLoading = false,
                 searchResults = emptyList()
             )
             savedStateHandle["search_query"] = ""
@@ -187,7 +199,7 @@ class LocationSelectionViewModel @Inject constructor(
     fun updateSearchQuery(query: String) {
         cancelSearch()
         savedStateHandle["search_query"] = query
-        _uiState.value = _uiState.value.copy(searchResults = emptyList(), searchLoading = false, searchCompleted = false)
+        _uiState.value = _uiState.value.copy(searchResults = emptyList(), searchLoading = false, searchCompleted = false, searchError = null)
     }
 
     fun submitSearch() {
@@ -199,7 +211,7 @@ class LocationSelectionViewModel @Inject constructor(
         cancelSearch()
         val version = searchGeneration
         searchJob = viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(searchLoading = true, searchCompleted = false, error = null)
+            _uiState.value = _uiState.value.copy(searchLoading = true, searchCompleted = false, searchError = null)
             try {
                 val language = languagePreferenceRepository.getEffectiveLocaleCode()
                 val results = weatherRepository.searchLocations(provider, query, language).getOrThrow()
@@ -208,7 +220,7 @@ class LocationSelectionViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (version == searchGeneration) _uiState.value = _uiState.value.copy(error = ErrorMapper.mapToUiMessage(e, context), searchLoading = false)
+                if (version == searchGeneration) _uiState.value = _uiState.value.copy(searchError = ErrorMapper.mapToUiMessage(e, context), searchLoading = false)
             }
         }
     }

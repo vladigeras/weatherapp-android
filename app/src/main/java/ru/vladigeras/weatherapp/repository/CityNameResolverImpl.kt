@@ -1,6 +1,7 @@
 package ru.vladigeras.weatherapp.repository
 
 import android.util.Log
+import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -11,14 +12,13 @@ class CityNameResolverImpl @Inject constructor(
 ) : CityNameResolver {
 
     override suspend fun resolveCityName(latitude: Double, longitude: Double, savedName: String?, timezone: String): String {
+        if (!savedName.isNullOrBlank()) return savedName
         val locale = languagePreferenceRepository.getAppLocale()
 
         val fallbackName = savedName ?: parseTimezone(timezone) ?: "Unknown"
 
         return try {
-            val addresses = runCatching {
-                androidGeocoder.getFromLocation(latitude, longitude, 1, locale)
-            }.getOrNull()
+            val addresses = androidGeocoder.getFromLocation(latitude, longitude, 1, locale)
 
             if (addresses.isNullOrEmpty()) {
                 return fallbackName
@@ -34,6 +34,8 @@ class CityNameResolverImpl @Inject constructor(
             }?.takeIf { it.isNotBlank() }
 
             resolvedName ?: fallbackName
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w("CityNameResolver", "Failed to resolve city name", e)
             fallbackName
