@@ -59,6 +59,9 @@ class LocationRepositoryImplTest {
         every {
             ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION)
         } returns PackageManager.PERMISSION_DENIED
+        every {
+            ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION)
+        } returns PackageManager.PERMISSION_DENIED
     }
 
     @Test
@@ -69,6 +72,17 @@ class LocationRepositoryImplTest {
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is SecurityException)
+    }
+
+    @Test
+    fun getLocation_withApproximatePermission_succeeds() = runBlocking {
+        denyPermission()
+        every { ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) } returns PackageManager.PERMISSION_GRANTED
+        coEvery { locationService.getCurrentLocation() } returns Result.success(Location(55.75, 37.62, null))
+        coEvery { androidGeocoder.getFromLocation(any(), any(), any()) } returns null
+
+        assertTrue(repository.hasLocationPermission())
+        assertTrue(repository.getLocation().isSuccess)
     }
 
     @Test

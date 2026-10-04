@@ -92,7 +92,8 @@ fun WeatherScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (hasLocationPermission) {
             showPermissionError = false
             viewModel.loadWeatherForCurrentLocation()
@@ -122,6 +123,8 @@ fun WeatherScreen(
             viewModel.loadSavedLocation()
         }
     }
+
+    if (showPermissionError) LocationPermissionDialog { showPermissionError = false }
 
     val pullToRefreshState = rememberPullToRefreshState()
     val isRefreshing = currentState is WeatherUiState.Loading

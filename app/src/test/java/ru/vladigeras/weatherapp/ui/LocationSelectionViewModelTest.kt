@@ -161,6 +161,7 @@ class LocationSelectionViewModelTest {
 
     @Test
     fun `auto location failure sets error state`() = runTest {
+        every { locationRepository.hasLocationPermission() } returns false
         coEvery { locationRepository.getLocation() } returns Result.failure(SecurityException("No permission"))
 
         val freshViewModel = LocationSelectionViewModel(
@@ -378,8 +379,22 @@ class LocationSelectionViewModelTest {
         coVerify(exactly = 0) { selectedLocationRepository.saveSelectedLocation(any()) }
 
         val state = freshViewModel.uiState.first()
-        assertFalse(state.isManualMode)
-        assertNull(state.activeLocation)
+        assertTrue(state.isManualMode)
+        assertEquals(mockManualLocation, state.activeLocation)
+    }
+
+    @Test
+    fun `granting permission after manual choice obtains and saves auto location`() = runTest {
+        coEvery { locationRepository.getLocation() } returns Result.failure(SecurityException("No permission"))
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isManualMode)
+        coEvery { locationRepository.getLocation() } returns Result.success(mockAutoLocation)
+        var completed = false
+        viewModel.useAutoLocation { completed = true }
+        advanceUntilIdle()
+        assertTrue(completed)
+        assertEquals(mockAutoLocation, viewModel.uiState.value.activeLocation)
+        coVerify { selectedLocationRepository.saveSelectedLocation(mockAutoLocation) }
     }
 
     @Test
