@@ -3,7 +3,9 @@ package ru.vladigeras.weatherapp.network
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.timeout
+import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.get
+import io.ktor.http.isSuccess
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.vladigeras.weatherapp.BuildConfig
@@ -23,8 +25,9 @@ class GeocodingService @Inject constructor(
                     parameters.append("language", languageCode)
                     parameters.append("format", "json")
                 }
-            }.body<GeocodingResponse>()
-            Result.success(response)
+            }
+            if (!response.status.isSuccess()) throw ResponseException(response, "HTTP ${response.status.value}")
+            Result.success(response.body<GeocodingResponse>())
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

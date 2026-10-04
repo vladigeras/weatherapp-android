@@ -139,6 +139,7 @@ fun LocationSelectionScreen(
                 explicitSearch = uiState.explicitSearch,
                 searchLoading = uiState.searchLoading,
                 searchCompleted = uiState.searchCompleted,
+                searchError = uiState.searchError,
                 onSearch = viewModel::submitSearch,
                 onResultSelected = { result ->
                     val fullName = buildString {
@@ -356,6 +357,7 @@ private fun SearchSection(
     explicitSearch: Boolean,
     searchLoading: Boolean,
     searchCompleted: Boolean,
+    searchError: String?,
     onSearch: () -> Unit,
     onResultSelected: (SearchLocation) -> Unit
 ) {
@@ -384,6 +386,12 @@ private fun SearchSection(
         }
     }
     if (searchLoading) CircularProgressIndicator(modifier = Modifier.padding(8.dp).size(24.dp))
+    if (searchError != null) {
+        Text(searchError, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp))
+        Button(onClick = onSearch, enabled = !searchLoading) {
+            Text(stringResource(R.string.location_retry))
+        }
+    }
     if (searchCompleted && searchResults.isEmpty()) Text(stringResource(R.string.city_not_found), modifier = Modifier.padding(vertical = 8.dp))
     if (searchResults.isNotEmpty()) {
         Spacer(modifier = Modifier.height(8.dp))

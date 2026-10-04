@@ -242,8 +242,10 @@ class LocationSelectionViewModelTest {
         advanceTimeBy(500)
         advanceUntilIdle()
 
-        val state = viewModel.uiState.first { it.error != null }
-        assertNotNull(state.error)
+        val state = viewModel.uiState.first { it.searchError != null }
+        assertNotNull(state.searchError)
+        assertFalse(state.searchCompleted)
+        assertFalse(state.searchLoading)
     }
 
     @Test
@@ -270,23 +272,29 @@ class LocationSelectionViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 0) { citySearchCache.put(any(), any(), any(), any()) }
+        assertTrue(viewModel.uiState.value.searchCompleted)
+        assertNull(viewModel.uiState.value.searchError)
     }
 
     @Test
-    fun `clearError removes error from state`() = runTest {
-        coEvery { geocodingService.searchCity("Unknown", "en") } returns Result.failure(IOException("Network error"))
+    fun `search can be retried after a timeout without changing the query`() = runTest {
+        coEvery { geocodingService.searchCity("Unknown", "en") } returns Result.failure(io.ktor.client.plugins.HttpRequestTimeoutException("https://example.com/search", 10_000))
 
         viewModel.updateSearchQuery("Unknown")
         advanceTimeBy(500)
         advanceUntilIdle()
 
-        val errorState = viewModel.uiState.first { it.error != null }
-        assertNotNull(errorState.error)
+        val errorState = viewModel.uiState.first { it.searchError != null }
+        assertEquals(context.getString(ru.vladigeras.weatherapp.R.string.request_timed_out), errorState.searchError)
+        assertFalse(errorState.searchCompleted)
 
-        viewModel.clearError()
+        coEvery { geocodingService.searchCity("Unknown", "en") } returns Result.success(GeocodingResponse(testSearchResults))
+        viewModel.submitSearch()
+        advanceUntilIdle()
 
         val clearedState = viewModel.uiState.first()
-        assertNull(clearedState.error)
+        assertNull(clearedState.searchError)
+        assertEquals(testSearchResults.map { it.asSearchLocation() }, clearedState.searchResults)
     }
 
     @Test
