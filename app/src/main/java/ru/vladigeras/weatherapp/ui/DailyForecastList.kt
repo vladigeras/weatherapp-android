@@ -1,6 +1,7 @@
 package ru.vladigeras.weatherapp.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -150,16 +151,10 @@ fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) {
 
                 val uvIndex = forecast.uvIndexMax
                 if (uvIndex != null) {
-                    val uvColor = when (uvIndex) {
-                        in 0.0..2.0 -> Color(0xFF4CAF50)
-                        in 2.1..5.0 -> Color(0xFFFFEB3B)
-                        in 5.1..7.0 -> Color(0xFFFF9800)
-                        else -> Color(0xFFF44336)
-                    }
                     Text(
                         text = "${stringResource(R.string.uv_label)} ${uvIndex.toInt()}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = uvColor,
+                        color = uvIndexColor(uvIndex, isSystemInDarkTheme()),
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                     )
                 }
@@ -198,4 +193,11 @@ fun DailyForecastItem(forecast: DailyForecast, temperatureUnit: String) {
             }
         }
     }
+}
+
+internal fun uvIndexColor(uvIndex: Double, darkTheme: Boolean): Color = when (uvIndex) {
+    in 0.0..2.0 -> if (darkTheme) Color(0xFF81C784) else Color(0xFF2E7D32)
+    in 2.1..5.0 -> if (darkTheme) Color(0xFFFFF176) else Color(0xFF8D6E00)
+    in 5.1..7.0 -> if (darkTheme) Color(0xFFFFB74D) else Color(0xFFA65300)
+    else -> if (darkTheme) Color(0xFFEF9A9A) else Color(0xFFC62828)
 }
