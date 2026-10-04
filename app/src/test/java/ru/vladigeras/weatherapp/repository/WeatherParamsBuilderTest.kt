@@ -70,9 +70,10 @@ class WeatherParamsBuilderTest {
             showHourlyForecast = false
         )
 
-        val (_, hourly, _) = builder.build(prefs)
+        val (current, hourly, _) = builder.build(prefs)
 
         assertTrue(hourly.contains("relativehumidity_2m"))
+        assertTrue(current.contains("relativehumidity_2m"))
     }
 
     @Test
@@ -246,17 +247,18 @@ class WeatherParamsBuilderTest {
     }
 
     @Test
-    fun `build includes weathercode in daily when showHourlyForecast is true`() {
+    fun `build includes hourly weathercode independently of daily forecast`() {
         val prefs = WeatherDisplayPrefs(
             showHumidity = false,
             showWind = false,
+            showForecastDays = false,
             showHourlyForecast = true,
             hourlyForecastHours = 24
         )
 
-        val (_, _, daily) = builder.build(prefs)
+        val (_, hourly, _) = builder.build(prefs)
 
-        assertTrue(daily.contains("weathercode"))
+        assertTrue(hourly.contains("weathercode"))
     }
 
     @Test

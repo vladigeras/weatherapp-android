@@ -98,7 +98,7 @@ class WeatherMapperTest {
     private fun rawWeather(zone: String, offset: Int) = WeatherResponse(
         latitude = 55.7, longitude = 37.6, generationtimeMs = 0.1, utcOffsetSeconds = offset,
         timezone = zone, elevation = 0.0,
-        hourly = HourlyWeather(listOf("2026-04-27T10:00"), listOf(20.0), listOf(65), listOf(10.0)),
+        hourly = HourlyWeather(listOf("2026-04-27T10:00"), listOf(20.0), listOf(65), listOf(10.0), weatherCode = listOf(0)),
         daily = DailyWeather(
             time = listOf("2026-04-27"), weatherCode = listOf(0), temperature2mMin = listOf(15.0),
             temperature2mMax = listOf(25.0), precipitationSum = listOf(2.5),

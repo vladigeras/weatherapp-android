@@ -12,13 +12,14 @@ class WeatherParamsBuilder @Inject constructor() {
         val daily = mutableListOf<String>()
 
         current += "temperature_2m,is_day"
-        hourly += "temperature_2m"
+        hourly += "temperature_2m,weathercode"
         daily += "temperature_2m_max,temperature_2m_min"
 
         current += "weathercode,apparent_temperature"
         daily += "weathercode"
 
         if (prefs.showHumidity) {
+            current += "relativehumidity_2m"
             hourly += "relativehumidity_2m"
         }
         if (prefs.showWind) {

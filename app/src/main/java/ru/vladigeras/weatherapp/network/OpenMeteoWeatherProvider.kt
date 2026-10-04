@@ -51,7 +51,7 @@ class OpenMeteoWeatherProvider @Inject constructor(
             current = CurrentWeather(
                 temperature = response.current?.temperature,
                 feelsLike = response.current?.apparentTemperature,
-                humidity = hourly?.relativehumidity2m?.firstOrNull { it != null },
+                humidity = response.current?.humidity,
                 windSpeed = response.current?.windSpeed,
                 condition = condition(response.current?.weatherCode),
                 isDay = response.current?.isDay
@@ -71,7 +71,7 @@ class OpenMeteoWeatherProvider @Inject constructor(
             hourly = if (!prefs.showHourlyForecast) emptyList() else hourly?.time.orEmpty().take(prefs.hourlyForecastHours + 1).mapIndexed { i, time ->
                 val local = LocalDateTime.parse(time)
                 ForecastHour(
-                    local.atZone(zone).toEpochSecond(), conditionsByDate[local.toLocalDate().toString()],
+                    local.atZone(zone).toEpochSecond(), condition(hourly?.weatherCode?.getOrNull(i)),
                     hourly?.temperature2m?.getOrNull(i), hourly?.relativehumidity2m?.getOrNull(i), hourly?.windspeed10m?.getOrNull(i)
                 )
             }
