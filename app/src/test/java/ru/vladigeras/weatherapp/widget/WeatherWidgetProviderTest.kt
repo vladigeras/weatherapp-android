@@ -45,6 +45,7 @@ class WeatherWidgetProviderTest {
     private lateinit var context: Context
     private lateinit var provider: WeatherWidgetProvider
     private lateinit var mockManager: AppWidgetManager
+    private val receiverCompletions = mutableListOf<CompletableDeferred<Unit>>()
 
     @Before
     fun setup() {
@@ -57,8 +58,27 @@ class WeatherWidgetProviderTest {
     }
 
     @After
-    fun tearDown() {
-        unmockkAll()
+    fun tearDown() = runBlocking {
+        try {
+            withTimeout(5000) { receiverCompletions.forEach { it.await() } }
+        } finally {
+            unmockkAll()
+        }
+    }
+
+    private fun receiverCompletion(pending: BroadcastReceiver.PendingResult = mockk(relaxed = true)): CompletableDeferred<Unit> {
+        val completed = CompletableDeferred<Unit>()
+        receiverCompletions.add(completed)
+        every { pending.finish() } answers { completed.complete(Unit) }
+        BroadcastReceiver::class.java.getDeclaredMethod("setPendingResult", BroadcastReceiver.PendingResult::class.java)
+            .apply { isAccessible = true }.invoke(provider, pending)
+        return completed
+    }
+
+    private suspend fun updateReceiver(update: () -> Unit) {
+        val completed = receiverCompletion()
+        update()
+        withTimeout(5000) { completed.await() }
     }
 
     @Test
@@ -75,7 +95,7 @@ class WeatherWidgetProviderTest {
                 putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, width)
                 putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 100)
             }
-            provider.onAppWidgetOptionsChanged(context, mockManager, 1, options)
+            updateReceiver { provider.onAppWidgetOptionsChanged(context, mockManager, 1, options) }
             val views = withTimeout(2000) { completed.await() }
             val root = views.apply(context, FrameLayout(context))
             val container = if (width < 260) R.id.vertical_container else R.id.horizontal_container
@@ -100,12 +120,12 @@ class WeatherWidgetProviderTest {
         every { mockManager.getAppWidgetOptions(1) } returns options1
         every { mockManager.getAppWidgetOptions(2) } returns options2
 
-        provider.onUpdate(context, mockManager, intArrayOf(1, 2))
+        updateReceiver { provider.onUpdate(context, mockManager, intArrayOf(1, 2)) }
 
-        verify(timeout = 2000) { mockManager.getAppWidgetOptions(1) }
-        verify(timeout = 2000) { mockManager.getAppWidgetOptions(2) }
-        verify(timeout = 2000) { mockManager.updateAppWidget(1, any()) }
-        verify(timeout = 2000) { mockManager.updateAppWidget(2, any()) }
+        verify { mockManager.getAppWidgetOptions(1) }
+        verify { mockManager.getAppWidgetOptions(2) }
+        verify { mockManager.updateAppWidget(1, any()) }
+        verify { mockManager.updateAppWidget(2, any()) }
     }
 
     @Test
@@ -113,10 +133,10 @@ class WeatherWidgetProviderTest {
         val emptyOptions = Bundle.EMPTY
         every { mockManager.getAppWidgetOptions(42) } returns emptyOptions
 
-        provider.onUpdate(context, mockManager, intArrayOf(42))
+        updateReceiver { provider.onUpdate(context, mockManager, intArrayOf(42)) }
 
-        verify(timeout = 2000) { mockManager.getAppWidgetOptions(42) }
-        verify(timeout = 2000) { mockManager.updateAppWidget(42, any()) }
+        verify { mockManager.getAppWidgetOptions(42) }
+        verify { mockManager.updateAppWidget(42, any()) }
     }
 
     @Test
@@ -126,9 +146,9 @@ class WeatherWidgetProviderTest {
             putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 100)
         }
 
-        provider.onAppWidgetOptionsChanged(context, mockManager, 1, options)
+        updateReceiver { provider.onAppWidgetOptionsChanged(context, mockManager, 1, options) }
 
-        verify(timeout = 2000) { mockManager.updateAppWidget(1, any()) }
+        verify { mockManager.updateAppWidget(1, any()) }
     }
 
     @Test
@@ -170,9 +190,9 @@ class WeatherWidgetProviderTest {
         }
         every { mockManager.getAppWidgetOptions(1) } returns wideOptions
 
-        provider.onUpdate(context, mockManager, intArrayOf(1))
+        updateReceiver { provider.onUpdate(context, mockManager, intArrayOf(1)) }
 
-        verify(timeout = 2000) { mockManager.updateAppWidget(1, any()) }
+        verify { mockManager.updateAppWidget(1, any()) }
     }
 
     @Test
@@ -183,9 +203,9 @@ class WeatherWidgetProviderTest {
         }
         every { mockManager.getAppWidgetOptions(1) } returns tallOptions
 
-        provider.onUpdate(context, mockManager, intArrayOf(1))
+        updateReceiver { provider.onUpdate(context, mockManager, intArrayOf(1)) }
 
-        verify(timeout = 2000) { mockManager.updateAppWidget(1, any()) }
+        verify { mockManager.updateAppWidget(1, any()) }
     }
 
     @Test
@@ -196,9 +216,9 @@ class WeatherWidgetProviderTest {
         }
         every { mockManager.getAppWidgetOptions(1) } returns options
 
-        provider.onUpdate(context, mockManager, intArrayOf(1))
+        updateReceiver { provider.onUpdate(context, mockManager, intArrayOf(1)) }
 
-        verify(timeout = 2000) { mockManager.updateAppWidget(1, any()) }
+        verify { mockManager.updateAppWidget(1, any()) }
     }
 
     @Test
@@ -209,9 +229,9 @@ class WeatherWidgetProviderTest {
         }
         every { mockManager.getAppWidgetOptions(1) } returns options
 
-        provider.onUpdate(context, mockManager, intArrayOf(1))
+        updateReceiver { provider.onUpdate(context, mockManager, intArrayOf(1)) }
 
-        verify(timeout = 2000) { mockManager.updateAppWidget(1, any()) }
+        verify { mockManager.updateAppWidget(1, any()) }
     }
 
     @Test
@@ -222,9 +242,9 @@ class WeatherWidgetProviderTest {
         }
         every { mockManager.getAppWidgetOptions(1) } returns options
 
-        provider.onUpdate(context, mockManager, intArrayOf(1))
+        updateReceiver { provider.onUpdate(context, mockManager, intArrayOf(1)) }
 
-        verify(timeout = 2000) { mockManager.updateAppWidget(1, any()) }
+        verify { mockManager.updateAppWidget(1, any()) }
     }
 
     @Test
@@ -235,9 +255,9 @@ class WeatherWidgetProviderTest {
         }
         every { mockManager.getAppWidgetOptions(1) } returns options
 
-        provider.onUpdate(context, mockManager, intArrayOf(1))
+        updateReceiver { provider.onUpdate(context, mockManager, intArrayOf(1)) }
 
-        verify(timeout = 2000) { mockManager.updateAppWidget(1, any()) }
+        verify { mockManager.updateAppWidget(1, any()) }
     }
 
     @Test
@@ -248,9 +268,9 @@ class WeatherWidgetProviderTest {
         }
         every { mockManager.getAppWidgetOptions(1) } returns options
 
-        provider.onUpdate(context, mockManager, intArrayOf(1))
+        updateReceiver { provider.onUpdate(context, mockManager, intArrayOf(1)) }
 
-        verify(timeout = 2000) { mockManager.updateAppWidget(1, any()) }
+        verify { mockManager.updateAppWidget(1, any()) }
     }
 
     @Test
@@ -278,20 +298,19 @@ class WeatherWidgetProviderTest {
             putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 200)
         }
 
-        provider.onAppWidgetOptionsChanged(context, mockManager, 1, options)
+        updateReceiver { provider.onAppWidgetOptionsChanged(context, mockManager, 1, options) }
 
-        verify(timeout = 2000) { mockManager.updateAppWidget(1, any()) }
+        verify { mockManager.updateAppWidget(1, any()) }
     }
     @Test
     fun `receiver remains responsive and publishes concurrent updates in order`() = runBlocking {
         val entered = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
-        val published = CompletableDeferred<Unit>()
         val reads = AtomicInteger()
         val cities = Collections.synchronizedList(mutableListOf<String>())
         val pending = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
-        BroadcastReceiver::class.java.getDeclaredMethod("setPendingResult", BroadcastReceiver.PendingResult::class.java)
-            .apply { isAccessible = true }.invoke(provider, pending)
+        val firstFinished = receiverCompletion(pending)
+        lateinit var secondFinished: CompletableDeferred<Unit>
         coEvery { WidgetPrefsManager.getData(context) } coAnswers {
             if (reads.incrementAndGet() == 1) {
                 entered.complete(Unit)
@@ -303,28 +322,27 @@ class WeatherWidgetProviderTest {
         every { mockManager.updateAppWidget(1, any<RemoteViews>()) } answers {
             val root = secondArg<RemoteViews>().apply(context, FrameLayout(context))
             cities.add(root.findViewById<TextView>(R.id.widget_city).text.toString())
-            if (cities.size == 2) published.complete(Unit)
         }
         try {
             provider.onUpdate(context, mockManager, intArrayOf(1))
             withTimeout(2000) { entered.await() }
             verify(exactly = 0) { pending.finish() }
+            secondFinished = receiverCompletion()
             provider.onUpdate(context, mockManager, intArrayOf(1))
             delay(100)
             assertEquals(1, reads.get())
         } finally {
             release.complete(Unit)
         }
-        withTimeout(2000) { published.await() }
+        withTimeout(5000) { firstFinished.await(); secondFinished.await() }
         assertEquals(listOf("Old", "New"), cities.toList())
-        verify(timeout = 2000, exactly = 1) { pending.finish() }
+        verify(exactly = 1) { pending.finish() }
     }
     @Test
     fun `latest resize remains the final layout`() = runBlocking {
         val readingOldOptions = CompletableDeferred<Unit>()
         val releaseOldOptions = CountDownLatch(1)
         val newerPublished = CompletableDeferred<Unit>()
-        val bothPublished = CompletableDeferred<Unit>()
         val layouts = Collections.synchronizedList(mutableListOf<Int>())
         val oldOptions = Bundle().apply {
             putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 180)
@@ -343,17 +361,19 @@ class WeatherWidgetProviderTest {
             val root = secondArg<RemoteViews>().apply(context, FrameLayout(context))
             layouts.add(root.findViewById<View>(R.id.horizontal_container).visibility)
             if (layouts.size == 1) newerPublished.complete(Unit)
-            if (layouts.size == 2) bothPublished.complete(Unit)
         }
+        val firstFinished = receiverCompletion()
+        lateinit var secondFinished: CompletableDeferred<Unit>
         try {
             provider.onUpdate(context, mockManager, intArrayOf(1))
             withTimeout(2000) { readingOldOptions.await() }
+            secondFinished = receiverCompletion()
             provider.onAppWidgetOptionsChanged(context, mockManager, 1, newOptions)
             withTimeoutOrNull(500) { newerPublished.await() }
         } finally {
             releaseOldOptions.countDown()
         }
-        withTimeout(2000) { bothPublished.await() }
+        withTimeout(5000) { firstFinished.await(); secondFinished.await() }
         assertEquals(View.VISIBLE, layouts.last())
     }
 }
