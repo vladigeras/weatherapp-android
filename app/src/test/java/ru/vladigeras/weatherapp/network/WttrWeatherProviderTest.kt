@@ -58,6 +58,7 @@ class WttrWeatherProviderTest {
         val formats = mutableListOf<String>()
         val client = HttpClient(MockEngine { request ->
             formats += request.url.parameters["format"]!!
+            assertEquals(Url(BuildConfig.WTTR_API_URL).host, request.url.host)
             assertFalse(request.url.parameters.contains("days"))
             assertFalse(request.url.parameters.contains("tp"))
             respond(if (formats.last() == "%Z") "Europe/Moscow\n" else fixture(true), headers = headers)
@@ -109,6 +110,7 @@ class WttrWeatherProviderTest {
         val client = HttpClient(MockEngine { request ->
             calls++
             assertEquals(name, request.url.segments.last())
+            assertEquals(Url(BuildConfig.WTTR_API_URL).host, request.url.host)
             assertEquals("ru", request.url.parameters["lang"])
             assertEquals("j2", request.url.parameters["format"])
             respond(fixture(false), headers = headers)

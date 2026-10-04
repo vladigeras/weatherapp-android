@@ -29,7 +29,7 @@ android {
         versionName = if (tag.isNotEmpty()) cleanTag else "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "WTTR_API_URL", "\"https://wttr.in\"")
+        buildConfigField("String", "WTTR_API_URL", "\"https://wttr.is\"")
         buildConfigField("String", "API_URL", "\"https://api.open-meteo.com/v1/forecast\"")
         buildConfigField("String", "GEOCODING_API_URL", "\"https://geocoding-api.open-meteo.com/v1\"")
     }
