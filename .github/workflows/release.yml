@@ -37,7 +37,6 @@ jobs:
       - name: Verify Keystore
         run: |
           echo "Keystore size: $(wc -c < app/release.keystore) bytes"
-          head -c 100 app/release.keystore | xxd | head -5
           keytool -list -keystore app/release.keystore \
             -storepass "$KEYSTORE_PASSWORD" \
             -keypass "$KEY_PASSWORD" \
