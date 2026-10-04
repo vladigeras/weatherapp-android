@@ -1,5 +1,8 @@
 package ru.vladigeras.weatherapp.repository
 
+import io.ktor.client.plugins.HttpRequestTimeoutException
+import kotlinx.coroutines.withTimeoutOrNull
+import ru.vladigeras.weatherapp.BuildConfig
 import ru.vladigeras.weatherapp.data.ProviderWeather
 import ru.vladigeras.weatherapp.data.ProviderCapabilities
 import ru.vladigeras.weatherapp.data.SearchLocation
@@ -30,7 +33,12 @@ class WeatherRepositoryImpl @Inject constructor(
             weatherCache.getWeather(latitude, longitude, effectivePrefs)?.let { return Result.success(it) }
         }
         return try {
-            val response = provider.getWeather(latitude, longitude, effectivePrefs)
+            val response = withTimeoutOrNull(30_000) {
+                provider.getWeather(latitude, longitude, effectivePrefs)
+            } ?: throw HttpRequestTimeoutException(
+                if (prefs.provider == WeatherProviderId.WTTR) BuildConfig.WTTR_API_URL else BuildConfig.API_URL,
+                30_000
+            )
             weatherCache.putWeather(latitude, longitude, response, effectivePrefs)
             Result.success(response)
         } catch (e: CancellationException) {

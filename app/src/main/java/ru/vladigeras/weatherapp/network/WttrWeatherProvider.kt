@@ -2,6 +2,7 @@ package ru.vladigeras.weatherapp.network
 
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.ResponseException
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.appendPathSegments
@@ -32,7 +33,7 @@ class WttrWeatherProvider @Inject constructor(
         val location = "$latitude,$longitude"
         val response = json.decodeFromString<WttrResponse>(request(location, if (prefs.showHourlyForecast) "j1" else "j2"))
         val zone = if (prefs.showHourlyForecast) {
-            val timezone = request(location, "%Z").trim()
+            val timezone = request(location, "%Z", timeoutMillis = 5_000).trim()
             require(timezone in ZoneId.getAvailableZoneIds()) { "Invalid weather timezone" }
             ZoneId.of(timezone)
         } else null
@@ -67,7 +68,7 @@ class WttrWeatherProvider @Inject constructor(
     }
 
     override suspend fun searchLocations(query: String, languageCode: String): List<SearchLocation> {
-        val response = json.decodeFromString<WttrResponse>(request(query, "j2", languageCode))
+        val response = json.decodeFromString<WttrResponse>(request(query, "j2", languageCode, 10_000))
         return response.areas.take(1).map { area ->
             val latitude = requireNotNull(area.latitude.toDoubleOrNull())
             val longitude = requireNotNull(area.longitude.toDoubleOrNull())
@@ -79,8 +80,9 @@ class WttrWeatherProvider @Inject constructor(
         }
     }
 
-    private suspend fun request(location: String, format: String, language: String? = null): String {
+    private suspend fun request(location: String, format: String, language: String? = null, timeoutMillis: Long = 15_000): String {
         val response = client.get(BuildConfig.WTTR_API_URL) {
+            timeout { requestTimeoutMillis = timeoutMillis }
             url {
                 appendPathSegments(location, encodeSlash = true)
                 parameters.append("format", format)

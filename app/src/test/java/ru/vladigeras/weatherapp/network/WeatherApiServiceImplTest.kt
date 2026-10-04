@@ -3,6 +3,7 @@ package ru.vladigeras.weatherapp.network
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.HttpTimeoutCapability
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -30,6 +31,7 @@ class WeatherApiServiceImplTest {
     fun getWeather_buildsCorrectUrlAndParsesResponse() = runTest {
         val mockEngine = MockEngine { request ->
             val url = request.url
+            assertEquals(15_000L, request.getCapabilityOrNull(HttpTimeoutCapability)?.requestTimeoutMillis)
             assertEquals("55.75", url.parameters["latitude"])
             assertEquals("37.62", url.parameters["longitude"])
             assertEquals("temperature_2m", url.parameters["current"])

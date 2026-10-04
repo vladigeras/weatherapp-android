@@ -3,6 +3,7 @@ package ru.vladigeras.weatherapp.network
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.HttpTimeoutCapability
 import io.ktor.http.*
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -27,6 +28,7 @@ class WttrWeatherProviderTest {
         val client = HttpClient(MockEngine { request ->
             calls++
             assertEquals("j2", request.url.parameters["format"])
+            assertEquals(15_000L, request.getCapabilityOrNull(HttpTimeoutCapability)?.requestTimeoutMillis)
             assertEquals(Url(BuildConfig.WTTR_API_URL).host, request.url.host)
             assertEquals("55.7,37.6", request.url.segments.last())
             respond(fixture(false), headers = headers)
@@ -58,6 +60,7 @@ class WttrWeatherProviderTest {
         val formats = mutableListOf<String>()
         val client = HttpClient(MockEngine { request ->
             formats += request.url.parameters["format"]!!
+            assertEquals(if (formats.last() == "%Z") 5_000L else 15_000L, request.getCapabilityOrNull(HttpTimeoutCapability)?.requestTimeoutMillis)
             assertEquals(Url(BuildConfig.WTTR_API_URL).host, request.url.host)
             assertFalse(request.url.parameters.contains("days"))
             assertFalse(request.url.parameters.contains("tp"))
@@ -113,6 +116,7 @@ class WttrWeatherProviderTest {
             assertEquals(Url(BuildConfig.WTTR_API_URL).host, request.url.host)
             assertEquals("ru", request.url.parameters["lang"])
             assertEquals("j2", request.url.parameters["format"])
+            assertEquals(10_000L, request.getCapabilityOrNull(HttpTimeoutCapability)?.requestTimeoutMillis)
             respond(fixture(false), headers = headers)
         })
         val results = WttrWeatherProvider(client, json).searchLocations(name, "ru")

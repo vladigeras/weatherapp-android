@@ -3,6 +3,7 @@ package ru.vladigeras.weatherapp.network
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.HttpTimeoutCapability
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -30,6 +31,7 @@ class GeocodingServiceTest {
     @Test
     fun searchCity_success_parsesResponse() = runTest {
         val mockEngine = MockEngine { request ->
+            assertEquals(10_000L, request.getCapabilityOrNull(HttpTimeoutCapability)?.requestTimeoutMillis)
             respond(
                 content = """
                     {
