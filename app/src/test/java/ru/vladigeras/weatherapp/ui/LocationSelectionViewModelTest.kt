@@ -1,6 +1,10 @@
 package ru.vladigeras.weatherapp.ui
 
 import android.content.Context
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.joinAll
 import androidx.lifecycle.SavedStateHandle
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -66,6 +70,9 @@ class LocationSelectionViewModelTest {
     private lateinit var weatherRepository: WeatherRepository
     private lateinit var prefsRepository: WeatherDisplayPrefsRepository
     private lateinit var viewModel: LocationSelectionViewModel
+    private val testDispatcher = StandardTestDispatcher()
+    private val viewModelStore = ViewModelStore()
+    private val viewModelJobs = mutableListOf<Job>()
 
     private val mockManualLocation = Location(40.7128, -74.0060, "New York", isAutoDetected = false)
     private val mockAutoLocation = Location(55.7558, 37.6173, "Moscow", isAutoDetected = true)
@@ -78,7 +85,6 @@ class LocationSelectionViewModelTest {
 
     @Before
     fun setup() {
-        val testDispatcher = StandardTestDispatcher()
         Dispatchers.setMain(testDispatcher)
 
         savedStateHandle = SavedStateHandle()
@@ -113,12 +119,23 @@ class LocationSelectionViewModelTest {
             prefsRepository = prefsRepository,
             selectedLocationRepository = selectedLocationRepository,
             languagePreferenceRepository = languagePreferenceRepository
-        )
+        ).tracked()
     }
 
     @After
-    fun tearDown() {
-        Dispatchers.resetMain()
+    fun tearDown() = runTest(testDispatcher) {
+        try {
+            viewModelStore.clear()
+            viewModelJobs.joinAll()
+            assertTrue(viewModelJobs.all { it.isCompleted })
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    private fun LocationSelectionViewModel.tracked(): LocationSelectionViewModel = apply {
+        viewModelStore.put("location-${viewModelJobs.size}", this)
+        viewModelJobs.add(viewModelScope.coroutineContext[Job]!!)
     }
 
     @Test
@@ -141,7 +158,7 @@ class LocationSelectionViewModelTest {
             prefsRepository = prefsRepository,
             selectedLocationRepository = selectedLocationRepository,
             languagePreferenceRepository = languagePreferenceRepository
-        )
+        ).tracked()
 
         advanceUntilIdle()
 
@@ -172,7 +189,7 @@ class LocationSelectionViewModelTest {
             prefsRepository = prefsRepository,
             selectedLocationRepository = selectedLocationRepository,
             languagePreferenceRepository = languagePreferenceRepository
-        )
+        ).tracked()
 
         advanceUntilIdle()
 
@@ -370,7 +387,7 @@ class LocationSelectionViewModelTest {
             prefsRepository = prefsRepository,
             selectedLocationRepository = selectedLocationRepository,
             languagePreferenceRepository = languagePreferenceRepository
-        )
+        ).tracked()
         advanceUntilIdle()
 
         freshViewModel.useAutoLocation()
@@ -428,7 +445,7 @@ class LocationSelectionViewModelTest {
         val loadedPrefs = kotlinx.coroutines.CompletableDeferred<WeatherDisplayPrefs>()
         every { prefsRepository.getPrefs() } returns kotlinx.coroutines.flow.flow { emit(loadedPrefs.await()) }
         val vm = LocationSelectionViewModel(context, SavedStateHandle(mapOf("search_query" to "Moscow")),
-            locationRepository, weatherRepository, prefsRepository, selectedLocationRepository, languagePreferenceRepository)
+            locationRepository, weatherRepository, prefsRepository, selectedLocationRepository, languagePreferenceRepository).tracked()
         advanceTimeBy(301)
         runCurrent()
         vm.submitSearch()
@@ -470,40 +487,48 @@ class LocationSelectionViewModelTest {
     fun `provider change rejects late old city result`() = runTest {
         advanceUntilIdle()
         val old = kotlinx.coroutines.CompletableDeferred<GeocodingResponse>()
-        coEvery { geocodingService.searchCity("Moscow", "en") } coAnswers {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { old.await() }.let { Result.success(it) }
+        try {
+            coEvery { geocodingService.searchCity("Moscow", "en") } coAnswers {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { old.await() }.let { Result.success(it) }
+            }
+            viewModel.updateSearchQuery("Moscow")
+            advanceTimeBy(301)
+            runCurrent()
+            prefs.value = prefs.value.copy(provider = WeatherProviderId.WTTR)
+            runCurrent()
+            val candidate = testSearchResults.first().asSearchLocation()
+            coEvery { wttrProvider.searchLocations("Moscow", "en") } returns listOf(candidate)
+            viewModel.submitSearch()
+            runCurrent()
+            old.complete(GeocodingResponse(testSearchResults))
+            advanceUntilIdle()
+            assertEquals(WeatherProviderId.WTTR, viewModel.uiState.value.provider)
+            assertEquals(listOf(candidate), viewModel.uiState.value.searchResults)
+        } finally {
+            old.complete(GeocodingResponse(testSearchResults))
         }
-        viewModel.updateSearchQuery("Moscow")
-        advanceTimeBy(301)
-        runCurrent()
-        prefs.value = prefs.value.copy(provider = WeatherProviderId.WTTR)
-        runCurrent()
-        val candidate = testSearchResults.first().asSearchLocation()
-        coEvery { wttrProvider.searchLocations("Moscow", "en") } returns listOf(candidate)
-        viewModel.submitSearch()
-        runCurrent()
-        old.complete(GeocodingResponse(testSearchResults))
-        advanceUntilIdle()
-        assertEquals(WeatherProviderId.WTTR, viewModel.uiState.value.provider)
-        assertEquals(listOf(candidate), viewModel.uiState.value.searchResults)
     }
 
     @Test
     fun `new GPS request rejects the late cancelled result`() = runTest {
         advanceUntilIdle()
         val old = kotlinx.coroutines.CompletableDeferred<Location>()
-        coEvery { locationRepository.getLocation(any()) } coAnswers {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { old.await() }.let { Result.success(it) }
+        try {
+            coEvery { locationRepository.getLocation(any()) } coAnswers {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { old.await() }.let { Result.success(it) }
+            }
+            viewModel.refreshAutoLocation()
+            runCurrent()
+            val latest = Location(59.93, 30.32, "Saint Petersburg", true)
+            coEvery { locationRepository.getLocation(any()) } returns Result.success(latest)
+            viewModel.refreshAutoLocation()
+            runCurrent()
+            old.complete(mockAutoLocation)
+            advanceUntilIdle()
+            assertEquals(latest, viewModel.uiState.value.autoLocation)
+        } finally {
+            old.complete(mockAutoLocation)
         }
-        viewModel.refreshAutoLocation()
-        runCurrent()
-        val latest = Location(59.93, 30.32, "Saint Petersburg", true)
-        coEvery { locationRepository.getLocation(any()) } returns Result.success(latest)
-        viewModel.refreshAutoLocation()
-        runCurrent()
-        old.complete(mockAutoLocation)
-        advanceUntilIdle()
-        assertEquals(latest, viewModel.uiState.value.autoLocation)
     }
 
     @Test

@@ -307,7 +307,7 @@ class WeatherWidgetProviderTest {
         val entered = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
         val reads = AtomicInteger()
-        val cities = Collections.synchronizedList(mutableListOf<String>())
+        val publishedViews = Collections.synchronizedList(mutableListOf<RemoteViews>())
         val pending = mockk<BroadcastReceiver.PendingResult>(relaxed = true)
         val firstFinished = receiverCompletion(pending)
         lateinit var secondFinished: CompletableDeferred<Unit>
@@ -320,8 +320,7 @@ class WeatherWidgetProviderTest {
         }
         every { mockManager.getAppWidgetOptions(1) } returns Bundle.EMPTY
         every { mockManager.updateAppWidget(1, any<RemoteViews>()) } answers {
-            val root = secondArg<RemoteViews>().apply(context, FrameLayout(context))
-            cities.add(root.findViewById<TextView>(R.id.widget_city).text.toString())
+            publishedViews.add(secondArg())
         }
         try {
             provider.onUpdate(context, mockManager, intArrayOf(1))
@@ -335,7 +334,10 @@ class WeatherWidgetProviderTest {
             release.complete(Unit)
         }
         withTimeout(5000) { firstFinished.await(); secondFinished.await() }
-        assertEquals(listOf("Old", "New"), cities.toList())
+        val cities = publishedViews.map { views ->
+            views.apply(context, FrameLayout(context)).findViewById<TextView>(R.id.widget_city).text.toString()
+        }
+        assertEquals(listOf("Old", "New"), cities)
         verify(exactly = 1) { pending.finish() }
     }
     @Test
@@ -343,7 +345,7 @@ class WeatherWidgetProviderTest {
         val readingOldOptions = CompletableDeferred<Unit>()
         val releaseOldOptions = CountDownLatch(1)
         val newerPublished = CompletableDeferred<Unit>()
-        val layouts = Collections.synchronizedList(mutableListOf<Int>())
+        val publishedViews = Collections.synchronizedList(mutableListOf<RemoteViews>())
         val oldOptions = Bundle().apply {
             putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 180)
             putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 100)
@@ -358,9 +360,8 @@ class WeatherWidgetProviderTest {
             oldOptions
         }
         every { mockManager.updateAppWidget(1, any<RemoteViews>()) } answers {
-            val root = secondArg<RemoteViews>().apply(context, FrameLayout(context))
-            layouts.add(root.findViewById<View>(R.id.horizontal_container).visibility)
-            if (layouts.size == 1) newerPublished.complete(Unit)
+            publishedViews.add(secondArg())
+            if (publishedViews.size == 1) newerPublished.complete(Unit)
         }
         val firstFinished = receiverCompletion()
         lateinit var secondFinished: CompletableDeferred<Unit>
@@ -374,6 +375,8 @@ class WeatherWidgetProviderTest {
             releaseOldOptions.countDown()
         }
         withTimeout(5000) { firstFinished.await(); secondFinished.await() }
-        assertEquals(View.VISIBLE, layouts.last())
+        assertEquals(2, publishedViews.size)
+        val latest = publishedViews.last().apply(context, FrameLayout(context))
+        assertEquals(View.VISIBLE, latest.findViewById<View>(R.id.horizontal_container).visibility)
     }
 }

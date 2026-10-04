@@ -15,15 +15,28 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.After
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.runBlocking
 
 class WeatherApiServiceImplTest {
+
+    private val clients = mutableListOf<HttpClient>()
+
+    @After
+    fun tearDown() = runBlocking {
+        val jobs = clients.map { it.coroutineContext[Job]!! }
+        clients.forEach { it.close() }
+        jobs.joinAll()
+    }
 
     private fun createService(mockEngine: MockEngine): WeatherApiService {
         val httpClient = HttpClient(mockEngine) {
             install(ContentNegotiation) {
                 json(Json { ignoreUnknownKeys = true })
             }
-        }
+        }.also(clients::add)
         return WeatherApiServiceImpl(httpClient)
     }
 
@@ -81,7 +94,7 @@ class WeatherApiServiceImplTest {
         assertEquals(25.0, result.current?.temperature ?: 0.0, 0.01)
     }
 
-    @Test(expected = Exception::class)
+    @Test(expected = io.ktor.serialization.JsonConvertException::class)
     fun getWeather_invalidResponse_throwsException() = runTest {
         val mockEngine = MockEngine { request ->
             respond(

@@ -5,7 +5,9 @@ import androidx.datastore.preferences.core.Preferences
 import app.cash.turbine.test
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -49,9 +51,9 @@ class WeatherDisplayPrefsRepositoryTest {
     }
 
     @After
-    fun tearDown() {
-        dataStoreScope.cancel()
-        TestDataStoreFactory.cleanupWithRetry(tempDir)
+    fun tearDown() = runBlocking {
+        dataStoreScope.coroutineContext[Job]!!.cancelAndJoin()
+        TestDataStoreFactory.cleanup(tempDir)
     }
 
     @Test

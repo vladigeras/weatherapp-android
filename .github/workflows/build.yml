@@ -32,41 +32,7 @@ jobs:
         run: ./gradlew assembleDebug
 
       - name: Run unit tests
-        timeout-minutes: 10
-        run: |
-          cat > "$RUNNER_TEMP/test-diagnostics.gradle" <<'EOF'
-          allprojects {
-              tasks.withType(Test).configureEach {
-                  testLogging {
-                      events 'started', 'passed', 'failed'
-                      exceptionFormat 'full'
-                      showStandardStreams = true
-                  }
-              }
-          }
-          EOF
-          ./gradlew test --init-script "$RUNNER_TEMP/test-diagnostics.gradle" &
-          test_pid=$!
-          (
-            for snapshot in $(seq 1 18); do
-              sleep 30
-              kill -0 "$test_pid" 2>/dev/null || break
-              for worker_pid in $(jcmd -l | awk '/org.gradle.process.internal.worker.GradleWorkerMain/ { print $1 }'); do
-                jcmd "$worker_pid" Thread.print -l > "$RUNNER_TEMP/test-threads-$snapshot-$worker_pid.txt" 2>&1 || true
-              done
-            done
-          ) &
-          diagnostics_pid=$!
-          trap 'kill "$diagnostics_pid" 2>/dev/null || true' EXIT
-          wait "$test_pid"
-
-      - name: Upload test diagnostics
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: test-thread-diagnostics
-          path: ${{ runner.temp }}/test-threads-*.txt
-          if-no-files-found: ignore
+        run: ./gradlew test
         
       - name: Publish Test Report
         if: always()
