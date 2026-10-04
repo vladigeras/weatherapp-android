@@ -104,7 +104,7 @@ class WeatherViewModel @Inject constructor(
 
     fun loadWeatherForCurrentLocation(forceRefresh: Boolean = false) {
         startLoad { version ->
-            val location = locationRepository.getLocation().getOrThrow()
+            val location = locationRepository.getLocation(forceRefresh).getOrThrow()
             currentCoroutineContext().ensureActive()
             if (version != generation) return@startLoad
             selectedLocationRepository.saveSelectedLocation(location.copy(isAutoDetected = true))

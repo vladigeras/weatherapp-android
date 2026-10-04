@@ -241,4 +241,17 @@ class LocationRepositoryImplTest {
         coVerify(exactly = 0) { androidGeocoder.getFromLocation(any(), any(), any(), any()) }
     }
 
+    @Test
+    fun getLocation_forceRefresh_bypassesFreshCache() = runBlocking {
+        grantPermission()
+        coEvery { androidGeocoder.getFromLocation(any(), any(), any()) } returns null
+        val old = Location(55.75, 37.62, null)
+        val updated = Location(59.93, 30.32, null)
+        coEvery { locationService.getCurrentLocation() } returnsMany listOf(Result.success(old), Result.success(updated))
+        assertEquals(old, repository.getLocation().getOrThrow())
+        assertEquals(updated, repository.getLocation(true).getOrThrow())
+        assertEquals(updated, repository.getLocation().getOrThrow())
+        coVerify(exactly = 2) { locationService.getCurrentLocation() }
+    }
+
 }

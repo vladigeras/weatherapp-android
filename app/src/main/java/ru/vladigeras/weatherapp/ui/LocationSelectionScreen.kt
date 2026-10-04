@@ -95,11 +95,22 @@ fun LocationSelectionScreen(
         }
     }
 
+    fun refreshAutoLocation() {
+        viewModel.refreshAutoLocation {
+            val location = viewModel.uiState.value.activeLocation
+            if (location != null) {
+                navController.previousBackStackEntry?.savedStateHandle?.set("latitude", location.latitude)
+                navController.previousBackStackEntry?.savedStateHandle?.set("longitude", location.longitude)
+                navController.previousBackStackEntry?.savedStateHandle?.set("location_update_trigger", System.currentTimeMillis())
+            }
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         viewModel.refreshLocationPermission()
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
             permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
-            if (selectAutoAfterPermission) selectAutoLocation() else viewModel.refreshAutoLocation()
+            if (selectAutoAfterPermission) selectAutoLocation() else refreshAutoLocation()
         } else {
             showPermissionError = true
         }
@@ -171,7 +182,7 @@ fun LocationSelectionScreen(
                     if (uiState.locationPermissionGranted) selectAutoLocation() else requestPermission(true)
                 },
                 onRefreshAuto = {
-                    if (uiState.locationPermissionGranted) viewModel.refreshAutoLocation() else requestPermission(false)
+                    if (uiState.locationPermissionGranted) refreshAutoLocation() else requestPermission(false)
                 }
             )
 

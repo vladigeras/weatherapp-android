@@ -120,23 +120,25 @@ class LocationSelectionViewModel @Inject constructor(
         }
     }
 
-    private fun loadAutoLocation(onComplete: () -> Unit = {}) {
+    private fun loadAutoLocation(forceRefresh: Boolean = false, onComplete: () -> Unit = {}) {
         autoLocationJob?.cancel()
         autoLocationJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(autoLocationLoading = true)
 
-            val result = locationRepository.getLocation()
+            val result = locationRepository.getLocation(forceRefresh)
             currentCoroutineContext().ensureActive()
             result.onSuccess { location ->
                     val autoDetectedLocation = location.copy(isAutoDetected = true)
+                    if (forceRefresh) selectedLocationRepository.saveSelectedLocation(autoDetectedLocation)
+                    currentCoroutineContext().ensureActive()
                     _uiState.value = _uiState.value.copy(
                         autoLocation = autoDetectedLocation,
                         autoLocationLoading = false,
                         isLoading = false,
                         locationPermissionGranted = true
                     )
-                    if (!_uiState.value.isManualMode) {
-                        _uiState.value = _uiState.value.copy(activeLocation = autoDetectedLocation)
+                    if (forceRefresh || !_uiState.value.isManualMode) {
+                        _uiState.value = _uiState.value.copy(activeLocation = autoDetectedLocation, isManualMode = false)
                     }
                     onComplete()
                 }
@@ -151,8 +153,8 @@ class LocationSelectionViewModel @Inject constructor(
         }
     }
 
-    fun refreshAutoLocation() {
-        loadAutoLocation()
+    fun refreshAutoLocation(onComplete: () -> Unit = {}) {
+        loadAutoLocation(forceRefresh = true, onComplete = onComplete)
     }
 
     fun refreshLocationPermission() {

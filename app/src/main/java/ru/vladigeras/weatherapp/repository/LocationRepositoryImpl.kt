@@ -27,12 +27,12 @@ class LocationRepositoryImpl @Inject constructor(
     private val cache = MutableStateFlow<CachedLocation?>(null)
     private val cacheValidity = 10.minutes
 
-    override suspend fun getLocation(): Result<Location> {
+    override suspend fun getLocation(forceRefresh: Boolean): Result<Location> {
         if (!hasLocationPermission()) {
             return Result.failure(SecurityException("Location permission not granted"))
         }
 
-        cache.value?.let { cached ->
+        if (!forceRefresh) cache.value?.let { cached ->
             if (System.currentTimeMillis() - cached.timestamp < cacheValidity.inWholeMilliseconds) {
                 return Result.success(cached.location)
             }
