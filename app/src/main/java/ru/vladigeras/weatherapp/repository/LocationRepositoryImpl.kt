@@ -5,6 +5,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.location.LocationService
@@ -40,8 +43,11 @@ class LocationRepositoryImpl @Inject constructor(
             val locationName = getLocationNameAsync(loc.latitude, loc.longitude)
             val locationWithName = loc.copy(name = locationName)
 
+            currentCoroutineContext().ensureActive()
             cache.value = CachedLocation(locationWithName, System.currentTimeMillis())
             Result.success(locationWithName)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -58,6 +64,8 @@ class LocationRepositoryImpl @Inject constructor(
                     address.countryName?.let { append(", $it") }
                 }.takeIf { it.isNotBlank() }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             null
         }

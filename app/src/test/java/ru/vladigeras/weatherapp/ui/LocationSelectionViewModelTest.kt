@@ -485,4 +485,22 @@ class LocationSelectionViewModelTest {
         assertEquals(listOf(candidate), viewModel.uiState.value.searchResults)
     }
 
+    @Test
+    fun `new GPS request rejects the late cancelled result`() = runTest {
+        advanceUntilIdle()
+        val old = kotlinx.coroutines.CompletableDeferred<Location>()
+        coEvery { locationRepository.getLocation() } coAnswers {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { old.await() }.let { Result.success(it) }
+        }
+        viewModel.refreshAutoLocation()
+        runCurrent()
+        val latest = Location(59.93, 30.32, "Saint Petersburg", true)
+        coEvery { locationRepository.getLocation() } returns Result.success(latest)
+        viewModel.refreshAutoLocation()
+        runCurrent()
+        old.complete(mockAutoLocation)
+        advanceUntilIdle()
+        assertEquals(latest, viewModel.uiState.value.autoLocation)
+    }
+
 }

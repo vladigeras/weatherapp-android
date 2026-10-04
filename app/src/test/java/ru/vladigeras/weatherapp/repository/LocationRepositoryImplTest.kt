@@ -219,4 +219,12 @@ class LocationRepositoryImplTest {
         assertTrue(result.isSuccess)
         assertNull(result.getOrNull()?.name)
     }
+    @Test
+    fun getLocation_cancellation_isNotConvertedToFailure() = runBlocking {
+        grantPermission()
+        coEvery { locationService.getCurrentLocation() } throws kotlinx.coroutines.CancellationException("cancelled")
+        val result = runCatching { repository.getLocation() }
+        assertTrue(result.exceptionOrNull() is kotlinx.coroutines.CancellationException)
+    }
+
 }

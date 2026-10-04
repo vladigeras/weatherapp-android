@@ -65,6 +65,8 @@ class LocationSelectionViewModel @Inject constructor(
     private val _searchQuery = savedStateHandle.getStateFlow("search_query", "")
     val searchQuery: StateFlow<String> = _searchQuery
 
+    private var autoLocationJob: Job? = null
+
     init {
         loadInitialState()
         viewModelScope.launch {
@@ -119,11 +121,13 @@ class LocationSelectionViewModel @Inject constructor(
     }
 
     private fun loadAutoLocation(onComplete: () -> Unit = {}) {
-        viewModelScope.launch {
+        autoLocationJob?.cancel()
+        autoLocationJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(autoLocationLoading = true)
 
-            locationRepository.getLocation()
-                .onSuccess { location ->
+            val result = locationRepository.getLocation()
+            currentCoroutineContext().ensureActive()
+            result.onSuccess { location ->
                     val autoDetectedLocation = location.copy(isAutoDetected = true)
                     _uiState.value = _uiState.value.copy(
                         autoLocation = autoDetectedLocation,
@@ -175,12 +179,14 @@ class LocationSelectionViewModel @Inject constructor(
     }
 
     fun selectLocation(location: Location, onComplete: () -> Unit = {}) {
+        autoLocationJob?.cancel()
         viewModelScope.launch {
             val manualLocation = location.copy(isAutoDetected = false)
             selectedLocationRepository.saveSelectedLocation(manualLocation)
             _uiState.value = _uiState.value.copy(
                 isManualMode = true,
                 activeLocation = manualLocation,
+                autoLocationLoading = false,
                 searchResults = emptyList()
             )
             savedStateHandle["search_query"] = ""
