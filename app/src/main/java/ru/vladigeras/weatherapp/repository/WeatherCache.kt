@@ -3,6 +3,8 @@ package ru.vladigeras.weatherapp.repository
 import android.content.Context
 import androidx.annotation.VisibleForTesting
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
@@ -36,15 +38,15 @@ class WeatherCache @Inject constructor(
 
     private fun getCurrentTimeMillis(): Long = timeProvider()
 
-    suspend fun getWeather(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()): ProviderWeather? {
+    suspend fun getWeather(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()): ProviderWeather? = withContext(Dispatchers.IO) {
         val key = createKey(latitude, longitude, prefs)
         val cacheFile = File(cacheDir, key)
 
         if (!cacheFile.exists()) {
-            return null
+            return@withContext null
         }
 
-        return try {
+        try {
             val jsonString = cacheFile.readText()
             val cached = Json.decodeFromString<CachedWeatherData>(jsonString)
 
@@ -60,7 +62,7 @@ class WeatherCache @Inject constructor(
         }
     }
 
-    suspend fun putWeather(latitude: Double, longitude: Double, response: ProviderWeather, prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()) {
+    suspend fun putWeather(latitude: Double, longitude: Double, response: ProviderWeather, prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()): Unit = withContext(Dispatchers.IO) {
         val key = createKey(latitude, longitude, prefs)
         val cacheFile = File(cacheDir, key)
         val cached = CachedWeatherData(response, getCurrentTimeMillis())
@@ -68,7 +70,7 @@ class WeatherCache @Inject constructor(
         cacheFile.writeText(jsonString)
     }
 
-    suspend fun evict(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()) {
+    suspend fun evict(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()): Unit = withContext(Dispatchers.IO) {
         val key = createKey(latitude, longitude, prefs)
         val cacheFile = File(cacheDir, key)
         cacheFile.delete()

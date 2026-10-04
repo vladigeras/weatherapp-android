@@ -2,6 +2,14 @@ package ru.vladigeras.weatherapp.widget
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.edit
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import java.util.concurrent.Executors
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
@@ -23,13 +31,13 @@ class WidgetPrefsManagerTest {
     private lateinit var context: Context
 
     @Before
-    fun setUp() {
+    fun setUp() = runBlocking {
         context = RuntimeEnvironment.getApplication()
         WidgetPrefsManager.clear(context)
     }
 
     @Test
-    fun save_and_read_returnsCorrectData() {
+    fun save_and_read_returnsCorrectData() = runBlocking {
         WidgetPrefsManager.save(
             context = context,
             cityName = "Moscow",
@@ -49,7 +57,7 @@ class WidgetPrefsManagerTest {
     }
 
     @Test
-    fun save_withNullFeelsLike_doesNotPersistKey() {
+    fun save_withNullFeelsLike_doesNotPersistKey() = runBlocking {
         WidgetPrefsManager.save(context, "Moscow", 25.5, 24.0, 0, 1, "°C")
         assertEquals("24°C", WidgetPrefsManager.getFeelsLike(context))
         WidgetPrefsManager.save(
@@ -67,7 +75,7 @@ class WidgetPrefsManagerTest {
     }
 
     @Test
-    fun clear_removesAllKeys() {
+    fun clear_removesAllKeys() = runBlocking {
         WidgetPrefsManager.save(
             context = context,
             cityName = "Moscow",
@@ -85,21 +93,21 @@ class WidgetPrefsManagerTest {
     }
 
     @Test
-    fun hasData_returnsFalseWhenEmpty() {
+    fun hasData_returnsFalseWhenEmpty() = runBlocking {
         assertFalse(WidgetPrefsManager.hasData(context))
     }
 
     @Test
-    fun getWeatherCode_returnsNullWhenNotSet() {
+    fun getWeatherCode_returnsNullWhenNotSet() = runBlocking {
         assertEquals(null, WidgetPrefsManager.getWeatherCode(context))
     }
 
     @Test
-    fun getIsDay_returnsNullWhenNotSet() {
+    fun getIsDay_returnsNullWhenNotSet() = runBlocking {
         assertEquals(null, WidgetPrefsManager.getIsDay(context))
     }
     @Test
-    fun providerChange_clearsOldWeatherAndRejectsStaleSave() {
+    fun providerChange_clearsOldWeatherAndRejectsStaleSave() = runBlocking {
         val context = RuntimeEnvironment.getApplication()
         val wttr = ru.vladigeras.weatherapp.data.WeatherProviderId.WTTR
         val openMeteo = ru.vladigeras.weatherapp.data.WeatherProviderId.OPEN_METEO
@@ -115,12 +123,40 @@ class WidgetPrefsManagerTest {
         assertEquals(false, WidgetPrefsManager.hasData(context))
     }
 
-    private fun readStoredPrefs(): Preferences = runBlocking {
+    private fun storedDataStore(): DataStore<Preferences> {
         val method = WidgetPrefsManager::class.java.getDeclaredMethod("getDataStore", Context::class.java)
         method.isAccessible = true
         @Suppress("UNCHECKED_CAST")
         val store = method.invoke(WidgetPrefsManager, context) as DataStore<Preferences>
-        store.data.first()
+        return store
     }
 
+    private fun readStoredPrefs(): Preferences = runBlocking { storedDataStore().data.first() }
+
+    @Test
+    fun save_suspendsWithoutBlockingTheCallerThread() = runBlocking {
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val blockedEdit = launch(Dispatchers.IO) {
+            storedDataStore().edit { entered.complete(Unit); release.await() }
+        }
+        entered.await()
+        val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        try {
+            val save = async(dispatcher) { WidgetPrefsManager.save(context, "New", 20.0, null, 0, 1, "°C") }
+            val probe = async(dispatcher) { "responsive" }
+            try {
+                assertEquals("responsive", withTimeout(1000) { probe.await() })
+                assertFalse(save.isCompleted)
+            } finally {
+                release.complete(Unit)
+            }
+            save.await()
+            assertEquals("New", WidgetPrefsManager.getData(context)?.cityName)
+        } finally {
+            release.complete(Unit)
+            blockedEdit.join()
+            dispatcher.close()
+        }
+    }
 }

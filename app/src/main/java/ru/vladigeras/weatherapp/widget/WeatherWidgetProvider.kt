@@ -10,6 +10,13 @@ import android.os.Bundle
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import ru.vladigeras.weatherapp.MainActivity
 import ru.vladigeras.weatherapp.R
 import ru.vladigeras.weatherapp.util.WeatherCodeMapper
@@ -21,11 +28,13 @@ class WeatherWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
-        for (widgetId in appWidgetIds) {
-            val options = appWidgetManager.getAppWidgetOptions(widgetId)
-            val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 180)
-            val heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 70)
-            updateWidget(context, appWidgetManager, widgetId, widthDp, heightDp)
+        launchUpdate {
+            for (widgetId in appWidgetIds) {
+                val options = appWidgetManager.getAppWidgetOptions(widgetId)
+                val widthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 180)
+                val heightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 70)
+                updateWidget(context, appWidgetManager, widgetId, widthDp, heightDp)
+            }
         }
     }
 
@@ -37,24 +46,36 @@ class WeatherWidgetProvider : AppWidgetProvider() {
     ) {
         val widthDp = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
         val heightDp = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
-        updateWidget(context, appWidgetManager, appWidgetId, widthDp, heightDp)
+        launchUpdate { updateWidget(context, appWidgetManager, appWidgetId, widthDp, heightDp) }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action == "ru.vladigeras.weatherapp.UPDATE_WIDGETS_ON_LANGUAGE_CHANGE") {
-            updateAllWidgets(context)
+            launchUpdate { updateAllWidgetsUnlocked(context) }
         }
     }
 
-    private fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int, widthDp: Int, heightDp: Int) {
+    private fun launchUpdate(block: suspend () -> Unit) {
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.Default).launch(start = CoroutineStart.UNDISPATCHED) {
+            try {
+                updateMutex.withLock { withContext(Dispatchers.IO) { block() } }
+            } finally {
+                pendingResult?.finish()
+            }
+        }
+    }
+
+    private suspend fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int, widthDp: Int, heightDp: Int) {
         val views = RemoteViews(context.packageName, R.layout.widget_weather)
 
         val layoutMode = if (widthDp >= 260) LayoutMode.HORIZONTAL else LayoutMode.VERTICAL
         views.setViewVisibility(R.id.vertical_container, if (layoutMode == LayoutMode.VERTICAL) View.VISIBLE else View.GONE)
         views.setViewVisibility(R.id.horizontal_container, if (layoutMode == LayoutMode.HORIZONTAL) View.VISIBLE else View.GONE)
 
-        if (!WidgetPrefsManager.hasData(context)) {
+        val data = WidgetPrefsManager.getData(context)
+        if (data == null) {
             if (layoutMode == LayoutMode.VERTICAL) {
                 views.setTextViewText(R.id.widget_city, context.getString(R.string.widget_no_data))
                 views.setTextViewText(R.id.widget_description, "")
@@ -66,10 +87,10 @@ class WeatherWidgetProvider : AppWidgetProvider() {
             }
             views.setViewVisibility(R.id.widget_icon, View.GONE)
         } else {
-            val cityName = WidgetPrefsManager.getCityName(context) ?: ""
-            val temperature = WidgetPrefsManager.getTemperature(context)
-            val weatherCode = WidgetPrefsManager.getWeatherCode(context) ?: -1
-            val isDay = WidgetPrefsManager.getIsDay(context) ?: -1
+            val cityName = data.cityName
+            val temperature = data.temperature
+            val weatherCode = data.weatherCode ?: -1
+            val isDay = data.isDay ?: -1
 
             val descriptionResId = WeatherCodeMapper.getWeatherCodeStringResId(weatherCode)
             val description = context.getString(descriptionResId)
@@ -153,7 +174,13 @@ class WeatherWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
-        fun updateAllWidgets(context: Context) {
+        private val updateMutex = Mutex()
+
+        suspend fun updateAllWidgets(context: Context) = updateMutex.withLock {
+            withContext(Dispatchers.IO) { updateAllWidgetsUnlocked(context) }
+        }
+
+        private suspend fun updateAllWidgetsUnlocked(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val componentName = ComponentName(context, WeatherWidgetProvider::class.java)
             val widgetIds = manager.getAppWidgetIds(componentName)

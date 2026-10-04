@@ -1,5 +1,9 @@
 package ru.vladigeras.weatherapp.repository
 
+import io.mockk.every
+import io.mockk.mockk
+import android.content.Context
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -173,6 +177,21 @@ class WeatherCacheTest {
         assertNull(cache.getWeather(testLatitude, testLongitude, prefs.copy(showHumidity = false)))
         assertNull(cache.getWeather(testLatitude, testLongitude, prefs.copy(forecastDays = 3)))
         assertNull(cache.getWeather(testLatitude, testLongitude, prefs.copy(hourlyForecastHours = 48)))
+    }
+
+    @Test
+    fun `cache file operations leave the caller thread`() = runTest {
+        val caller = Thread.currentThread()
+        val fileThreads = ConcurrentLinkedQueue<Thread>()
+        val context = mockk<Context>()
+        every { context.cacheDir } answers { fileThreads.add(Thread.currentThread()); tempDir }
+        val weather = createTestWeatherResponse()
+        WeatherCache(context).putWeather(testLatitude, testLongitude, weather)
+        assertEquals(weather, WeatherCache(context).getWeather(testLatitude, testLongitude))
+        WeatherCache(context).evict(testLatitude, testLongitude)
+        assertEquals(3, fileThreads.size)
+        assertTrue(fileThreads.all { it !== caller })
+        assertNull(cache.getWeather(testLatitude, testLongitude))
     }
 
 }

@@ -139,14 +139,16 @@ class WeatherViewModel @Inject constructor(
         currentCoroutineContext().ensureActive()
         if (version != generation || latestPrefs != prefs) return
         val current = response.current
+        WidgetPrefsManager.save(context, cityName, current.temperature, current.feelsLike, current.condition?.displayCode,
+            current.isDay, response.temperatureUnit, response.provider)
+        currentCoroutineContext().ensureActive()
+        if (version != generation || latestPrefs != prefs) return
         _uiState.value = WeatherUiState.Success(
             current.temperature, current.feelsLike, current.humidity, current.windSpeed, current.condition?.displayCode,
             current.isDay, response.timezone, cityName, response.temperatureUnit, daily, hourly,
             weatherRepository.capabilities(prefs.provider).effectivePrefs(prefs), weatherRepository.capabilities(prefs.provider).hourlyStepHours
         )
         _showUpdateToast.value = false
-        WidgetPrefsManager.save(context, cityName, current.temperature, current.feelsLike, current.condition?.displayCode,
-            current.isDay, response.temperatureUnit, response.provider)
         WeatherWidgetProvider.updateAllWidgets(context)
     }
 

@@ -135,6 +135,7 @@ class WeatherViewModelTest {
        
     @Before
     fun setup() {
+        Dispatchers.setMain(Dispatchers.Unconfined)
         weatherRepository = mockk { every { capabilities(any()) } returns ProviderCapabilities(16, 1) }
         locationRepository = mockk()
         selectedLocationRepository = mockk {
@@ -159,7 +160,6 @@ class WeatherViewModelTest {
         }
         weatherViewModel = WeatherViewModel(context, weatherRepository, locationRepository, selectedLocationRepository, weatherDisplayPrefsRepository, cityNameResolver, weatherMapper)
     
-        Dispatchers.setMain(Dispatchers.Unconfined)
     }
         
     @After
@@ -418,11 +418,13 @@ class WeatherViewModelTest {
         
         weatherViewModel.refreshActiveLocation()
 
+        weatherViewModel.uiState.first { it is WeatherUiState.Success }
         assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
         assertEquals(false, weatherViewModel.showUpdateToast.value)
 
         weatherViewModel.loadWeather(48.8566, 2.3522)
 
+        weatherViewModel.uiState.first { it is WeatherUiState.Success }
         assertTrue(weatherViewModel.uiState.value is WeatherUiState.Success)
         assertEquals(false, weatherViewModel.showUpdateToast.value)
         
