@@ -6,6 +6,7 @@ import app.cash.turbine.test
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -101,4 +102,26 @@ class SelectedLocationRepositoryImplTest {
             assertNull(result)
         }
     }
+    @Test
+    fun newCoordinatesWithoutName_clearOldNameAcrossRestart() = runTest {
+        repository.saveSelectedLocation(Location(55.75, 37.62, "Moscow"))
+        val unnamed = Location(59.93, 30.32, null, true)
+        repository.saveSelectedLocation(unnamed)
+        repository.getSelectedLocation().first()
+        dataStoreScope.coroutineContext[kotlinx.coroutines.Job]!!.cancel()
+        dataStoreScope.coroutineContext[kotlinx.coroutines.Job]!!.join()
+        dataStoreScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
+        dataStore = TestDataStoreFactory.createTestDataStore(dataStoreScope, tempDir)
+        val restarted = SelectedLocationRepositoryImpl(RuntimeEnvironment.getApplication(), dataStore)
+        assertEquals(unnamed, restarted.getSelectedLocation().first())
+    }
+
+    @Test
+    fun sameCoordinatesWithoutName_keepKnownName() = runTest {
+        val known = Location(55.75, 37.62, "Moscow")
+        repository.saveSelectedLocation(known)
+        repository.saveSelectedLocation(known.copy(name = null, isAutoDetected = true))
+        assertEquals("Moscow", repository.getSelectedLocation().first()?.name)
+    }
+
 }
