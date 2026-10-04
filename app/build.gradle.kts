@@ -47,9 +47,11 @@ android {
 
     buildTypes {
         debug {
+            manifestPlaceholders["debugNetworkSecurityConfig"] = "@null"
             val mockBase = providers.gradleProperty("weatherMockBaseUrl").orNull?.trimEnd('/')
             if (mockBase != null) {
                 require(mockBase.matches(Regex("http://(10\\.0\\.2\\.2|127\\.0\\.0\\.1|localhost):[0-9]+")))
+                manifestPlaceholders["debugNetworkSecurityConfig"] = "@xml/debug_network_security"
                 buildConfigField("String", "WTTR_API_URL", "\"$mockBase/wttr\"")
                 buildConfigField("String", "API_URL", "\"$mockBase/open-meteo/forecast\"")
                 buildConfigField("String", "GEOCODING_API_URL", "\"$mockBase/open-meteo\"")
