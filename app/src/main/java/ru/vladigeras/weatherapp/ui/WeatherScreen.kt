@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import ru.vladigeras.weatherapp.R
+import ru.vladigeras.weatherapp.data.WeatherProviderId
 import ru.vladigeras.weatherapp.util.WeatherCodeMapper
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -288,16 +289,20 @@ private fun SuccessContent(state: WeatherUiState.Success) {
 
         item { Spacer(modifier = Modifier.height(12.dp)) }
 
-        if (state.prefs.showHourlyForecast && state.hourlyForecast.isNotEmpty()) {
+        if (state.prefs.showHourlyForecast && (state.hourlyForecast.isNotEmpty() || state.prefs.provider == WeatherProviderId.WTTR)) {
             item {
                 SectionHeader(title = if (state.hourlyStepHours == 1) stringResource(R.string.hourly_forecast) else stringResource(R.string.forecast_step, state.hourlyStepHours))
             }
             item {
-                HourlyForecastList(
-                    forecast = state.hourlyForecast,
-                    temperatureUnit = state.temperatureUnit,
-                    prefs = state.prefs
-                )
+                if (state.hourlyForecast.isEmpty()) {
+                    Text(stringResource(R.string.hourly_forecast_unavailable), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    HourlyForecastList(
+                        forecast = state.hourlyForecast,
+                        temperatureUnit = state.temperatureUnit,
+                        prefs = state.prefs
+                    )
+                }
             }
 
             item { Spacer(modifier = Modifier.height(8.dp)) }

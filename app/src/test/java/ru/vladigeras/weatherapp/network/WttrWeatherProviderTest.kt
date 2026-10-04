@@ -7,6 +7,9 @@ import io.ktor.client.plugins.HttpTimeoutCapability
 import io.ktor.http.*
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.serialization.json.Json
 import org.junit.Assert.*
 import org.junit.Test
@@ -83,17 +86,72 @@ class WttrWeatherProviderTest {
     }
 
     @Test
-    fun `hourly timezone errors fail instead of using device timezone`() = runTest {
+    fun `hourly timezone errors preserve current and daily weather without invented hours`() = runTest {
         for (zone in listOf("", "not-a-zone", "+03:00")) {
             val client = HttpClient(MockEngine { request -> respond(if (request.url.parameters["format"] == "%Z") zone else fixture(true), headers = headers) })
-            assertTrue(runCatching { WttrWeatherProvider(client, json).getWeather(55.7, 37.6, prefs) }.isFailure)
+            val weather = WttrWeatherProvider(client, json).getWeather(55.7, 37.6, prefs)
+            assertEquals(12.0, weather.current.temperature!!, 0.001)
+            assertEquals(3, weather.daily.size)
+            assertTrue(weather.hourly.isEmpty())
+            assertNull(weather.timezone)
             client.close()
         }
         val client = HttpClient(MockEngine { request ->
             if (request.url.parameters["format"] == "%Z") respond("Unavailable", HttpStatusCode.ServiceUnavailable, headers)
             else respond(fixture(true), headers = headers)
         })
-        assertTrue(runCatching { WttrWeatherProvider(client, json).getWeather(55.7, 37.6, prefs) }.isFailure)
+        val weather = WttrWeatherProvider(client, json).getWeather(55.7, 37.6, prefs)
+        assertEquals(3, weather.daily.size)
+        assertTrue(weather.hourly.isEmpty())
+        client.close()
+    }
+
+    @Test
+    fun `partial or incomplete j1 falls back to j2 without a timezone call`() = runTest {
+        for (body in listOf("{\"weather\":[", "{}")) {
+            val formats = mutableListOf<String>()
+            val client = HttpClient(MockEngine { request ->
+                val format = request.url.parameters["format"]!!
+                formats += format
+                respond(if (format == "j1") body else fixture(false), headers = headers)
+            })
+            val weather = WttrWeatherProvider(client, json).getWeather(55.7, 37.6, prefs)
+            assertEquals(listOf("j1", "j2"), formats)
+            assertEquals(12.0, weather.current.temperature!!, 0.001)
+            assertEquals(3, weather.daily.size)
+            assertTrue(weather.hourly.isEmpty())
+            assertTrue(prefs.showHourlyForecast)
+            client.close()
+        }
+    }
+
+    @Test
+    fun `failure of both j1 and j2 is reported`() = runTest {
+        val formats = mutableListOf<String>()
+        val client = HttpClient(MockEngine { request ->
+            formats += request.url.parameters["format"]!!
+            respond("Unavailable", HttpStatusCode.ServiceUnavailable, headers)
+        })
+        val result = runCatching { WttrWeatherProvider(client, json).getWeather(55.7, 37.6, prefs) }
+        assertTrue(result.exceptionOrNull() is io.ktor.client.plugins.ResponseException)
+        assertEquals(listOf("j1", "j2"), formats)
+        client.close()
+    }
+
+    @Test
+    fun `cancelling j1 does not start fallback`() = runTest {
+        val entered = CompletableDeferred<Unit>()
+        val formats = mutableListOf<String>()
+        val client = HttpClient(MockEngine { request ->
+            formats += request.url.parameters["format"]!!
+            entered.complete(Unit)
+            awaitCancellation()
+        })
+        val job = async { WttrWeatherProvider(client, json).getWeather(55.7, 37.6, prefs) }
+        entered.await()
+        job.cancel()
+        job.join()
+        assertEquals(listOf("j1"), formats)
         client.close()
     }
 

@@ -71,7 +71,7 @@ class ProviderSwitchingTest {
                     } else WttrWeatherProviderTest.fixture(format == "j1"), headers = headersOf(HttpHeaders.ContentType, "text/plain"))
                 }
             }
-        }) { install(ContentNegotiation) { json(json) } }
+        }.apply { config.dispatcher = StandardTestDispatcher(testScheduler) }) { install(ContentNegotiation) { json(json) } }
         val prefsRepository = WeatherDisplayPrefsRepository(context)
         val selected = SelectedLocationRepositoryImpl(context)
         var locale = Locale.ENGLISH
@@ -130,7 +130,7 @@ class ProviderSwitchingTest {
             val beforeRetry = requests.size
             vm.refreshActiveLocation()
             vm.uiState.first { it is WeatherUiState.Error }
-            assertEquals(beforeRetry + 1, requests.size)
+            assertEquals(beforeRetry + 2, requests.size)
             assertEquals(openCalls, requests.count { it.startsWith("open-") })
             wttrFailed = false
             vm.refreshActiveLocation()

@@ -3,6 +3,7 @@ package ru.vladigeras.weatherapp.network
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.plugins.timeout
+import kotlinx.coroutines.CancellationException
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.appendPathSegments
@@ -31,11 +32,26 @@ class WttrWeatherProvider @Inject constructor(
 
     override suspend fun getWeather(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs): ProviderWeather {
         val location = "$latitude,$longitude"
-        val response = json.decodeFromString<WttrResponse>(request(location, if (prefs.showHourlyForecast) "j1" else "j2"))
-        val zone = if (prefs.showHourlyForecast) {
-            val timezone = request(location, "%Z", timeoutMillis = 5_000).trim()
-            require(timezone in ZoneId.getAvailableZoneIds()) { "Invalid weather timezone" }
-            ZoneId.of(timezone)
+        var includeHourly = prefs.showHourlyForecast
+        val response = try {
+            loadResponse(location, if (includeHourly) "j1" else "j2")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (!includeHourly) throw e
+            includeHourly = false
+            loadResponse(location, "j2")
+        }
+        val zone = if (includeHourly) {
+            try {
+                val timezone = request(location, "%Z", timeoutMillis = 5_000).trim()
+                require(timezone in ZoneId.getAvailableZoneIds()) { "Invalid weather timezone" }
+                ZoneId.of(timezone)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
         } else null
         val current = requireNotNull(response.current.firstOrNull()) { "Missing current weather" }
         return ProviderWeather(
@@ -79,6 +95,11 @@ class WttrWeatherProvider @Inject constructor(
             )
         }
     }
+
+    private suspend fun loadResponse(location: String, format: String): WttrResponse =
+        json.decodeFromString<WttrResponse>(request(location, format)).also {
+            require(it.current.isNotEmpty()) { "Missing current weather" }
+        }
 
     private suspend fun request(location: String, format: String, language: String? = null, timeoutMillis: Long = 15_000): String {
         val response = client.get(BuildConfig.WTTR_API_URL) {
