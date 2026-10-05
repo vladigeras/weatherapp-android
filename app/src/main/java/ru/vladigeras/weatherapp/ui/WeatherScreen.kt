@@ -43,11 +43,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -65,6 +68,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import ru.vladigeras.weatherapp.R
 import ru.vladigeras.weatherapp.data.WeatherProviderId
 import ru.vladigeras.weatherapp.util.WeatherCodeMapper
@@ -78,6 +84,14 @@ fun WeatherScreen(
     viewModel: WeatherViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.reloadIfTimeZoneChanged()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val currentState = uiState
     val showUpdateToast by viewModel.showUpdateToast.collectAsState()
     val context = LocalContext.current
@@ -272,6 +286,7 @@ private fun SkeletonCard(modifier: Modifier = Modifier) {
 
 @Composable
 private fun SuccessContent(state: WeatherUiState.Success) {
+    val uriHandler = LocalUriHandler.current
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -292,6 +307,20 @@ private fun SuccessContent(state: WeatherUiState.Success) {
         }
 
         item { Spacer(modifier = Modifier.height(12.dp)) }
+
+        if (state.prefs.provider == WeatherProviderId.YR) {
+            item {
+                Text(stringResource(R.string.met_attribution), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = { uriHandler.openUri("https://creativecommons.org/licenses/by/4.0/") }) { Text("CC BY 4.0") }
+            }
+        }
+        if (state.prefs.provider in listOf(WeatherProviderId.SEVEN_TIMER, WeatherProviderId.YR) &&
+            (state.prefs.showHourlyForecast && state.hourlyForecast.isNotEmpty() || state.prefs.showForecastDays && state.dailyForecast.isNotEmpty())) {
+            item {
+                Text(stringResource(R.string.phone_forecast_time), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
 
         if (state.prefs.showHourlyForecast && (state.hourlyForecast.isNotEmpty() || state.prefs.provider == WeatherProviderId.WTTR)) {
             item {

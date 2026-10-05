@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class WeatherProviderId(val value: String) {
-    OPEN_METEO("open_meteo"), WTTR("wttr"), SEVEN_TIMER("7timer");
+    OPEN_METEO("open_meteo"), WTTR("wttr"), SEVEN_TIMER("7timer"), YR("yr");
 
     companion object {
         fun fromValue(value: String?) = entries.firstOrNull { it.value == value } ?: OPEN_METEO

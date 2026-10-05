@@ -60,6 +60,7 @@ class ProviderSwitchingTest {
             val requests = mutableListOf<String>()
             var wttrFailed = false
             var sevenTimerFailed = false
+            var metFailed = false
             val clock = Clock.fixed(Instant.parse("2026-10-03T17:25:00Z"), ZoneOffset.UTC)
             val openMeteo = WeatherResponse(55.7, 37.6, 0.1, 10800, "Europe/Moscow", elevation = 100.0,
                 current = Current(temperature = 18.0, apparentTemperature = 17.0, weatherCode = 2, isDay = 1),
@@ -79,6 +80,14 @@ class ProviderSwitchingTest {
                         requests += "7timer"
                         if (sevenTimerFailed) respond("Unavailable", HttpStatusCode.ServiceUnavailable)
                         else respond(SevenTimerWeatherProviderTest.fixture())
+                    }
+                    Url(BuildConfig.MET_FORECAST_API_URL).encodedPath -> {
+                        assertEquals(Url(BuildConfig.MET_FORECAST_API_URL).host, request.url.host)
+                        assertEquals("40.7128", request.url.parameters["lat"])
+                        assertEquals("-74.0060", request.url.parameters["lon"])
+                        requests += "met"
+                        if (metFailed) respond("Unavailable", HttpStatusCode.ServiceUnavailable)
+                        else respond(MetWeatherProviderTest.fixture())
                     }
                     else -> {
                         assertEquals(Url(BuildConfig.WTTR_API_URL).host, request.url.host)
@@ -102,7 +111,7 @@ class ProviderSwitchingTest {
             val resolver = mockk<CityNameResolver> { coEvery { resolveCityName(any(), any(), any(), any()) } coAnswers { thirdArg<String?>() ?: "Unknown" } }
             fun repository() = WeatherRepositoryImpl(WeatherProviders(listOf(
                 OpenMeteoWeatherProvider(WeatherApiServiceImpl(client), WeatherParamsBuilder()),
-                WttrWeatherProvider(client, json), SevenTimerWeatherProvider(client, json, clock))), WeatherCache(context))
+                WttrWeatherProvider(client, json), SevenTimerWeatherProvider(client, json, clock), MetWeatherProvider(client, json, clock))), WeatherCache(context))
             fun viewModel(repo: WeatherRepository) = WeatherViewModel(context, repo, mockk(), selected, prefsRepository, resolver,
                 WeatherMapper(language, clock))
                 .also { viewModelJobs.add(it.viewModelScope.coroutineContext[Job]!!) }
@@ -248,12 +257,53 @@ class ProviderSwitchingTest {
             assertEquals(sevenTimerPrefs, prefsRepository.getPrefs().first())
             assertEquals(beforeSevenTimerRestart, requests.size)
             assertEquals(listOf("7timer", "7timer", "7timer"), requests.drop(beforeSevenTimer))
+            val beforeMet = requests.size
+            val metPrefs = original.copy(provider = WeatherProviderId.YR, forecastDays = 14, hourlyForecastHours = 48, showSunTimes = false)
+            prefsRepository.updatePrefs(metPrefs)
+            val met = success(WeatherProviderId.YR)
+            assertEquals(listOf("met"), requests.drop(beforeMet))
+            assertEquals(9, met.dailyForecast.size)
+            assertEquals(17.0, met.temperature!!, 0.0)
+            assertEquals(16.0, met.feelsLike!!, 0.0)
+            assertEquals(7.2, met.windSpeed!!, 0.0)
+            assertFalse(met.prefs.showUvIndex)
+            assertEquals("21:00", met.hourlyForecast.first().time)
+            assertEquals(WeatherProviderId.YR, WidgetPrefsManager.getProvider(context))
+            assertEquals("17°C", WidgetPrefsManager.getTemperature(context))
+            vm.reloadIfTimeZoneChanged()
+            assertSame(met, vm.uiState.value)
+            vm.viewModelScope.coroutineContext[Job]!!.cancelAndJoin()
+            vm = viewModel(repository())
+            vm.loadSavedLocation()
+            assertEquals("New York", success(WeatherProviderId.YR).cityName)
+            assertEquals(metPrefs, prefsRepository.getPrefs().first())
+            assertEquals(beforeMet + 1, requests.size)
+            TimeZone.setDefault(TimeZone.getTimeZone("Pacific/Honolulu"))
+            vm.reloadIfTimeZoneChanged()
+            val rezoned = success(WeatherProviderId.YR)
+            assertEquals("Pacific/Honolulu", rezoned.timezone)
+            assertEquals("08:00", rezoned.hourlyForecast.first().time)
+            assertEquals(beforeMet + 2, requests.size)
+            TimeZone.setDefault(TimeZone.getTimeZone("Europe/Moscow"))
+            metFailed = true
+            vm.refreshActiveLocation()
+            vm.uiState.first { it is WeatherUiState.Error }
+            assertTrue(WidgetPrefsManager.hasData(context))
+            assertEquals(WeatherProviderId.YR, WidgetPrefsManager.getProvider(context))
+            assertEquals("17°C", WidgetPrefsManager.getTemperature(context))
+            metFailed = false
+            vm.refreshActiveLocation()
+            assertEquals("Europe/Moscow", success(WeatherProviderId.YR).timezone)
+            assertEquals(listOf("met", "met", "met", "met"), requests.drop(beforeMet))
+            assertEquals(2, geocoderCalls)
             prefsRepository.updatePrefs(original)
             val afterSevenTimer = success(WeatherProviderId.OPEN_METEO)
             assertTrue(afterSevenTimer.prefs.showWind)
             assertTrue(afterSevenTimer.prefs.showSunTimes)
             assertTrue(afterSevenTimer.prefs.showPrecipitation)
             assertTrue(afterSevenTimer.prefs.showUvIndex)
+            vm.reloadIfTimeZoneChanged()
+            assertSame(afterSevenTimer, vm.uiState.value)
         } finally {
             try {
                 withContext(NonCancellable) {

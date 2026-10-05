@@ -238,6 +238,7 @@ private fun SettingsProviderItem(provider: WeatherProviderId, onChanged: (Weathe
 
 private fun providerName(provider: WeatherProviderId) = when (provider) {
     WeatherProviderId.OPEN_METEO -> "Open-Meteo"
+    WeatherProviderId.YR -> "yr.no (MET Norway)"
     WeatherProviderId.WTTR -> "wttr.in"
     WeatherProviderId.SEVEN_TIMER -> "7Timer"
 }
@@ -349,7 +350,7 @@ fun SettingsForecastDaysItem(
     onDaysChanged: (Int) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val availableDays = listOf(1, 2, 3, 5, 7, 10, 14, 16)
+    val availableDays = listOf(1, 2, 3, 5, 7, 9, 10, 14, 16)
     val context = LocalContext.current
 
     Row(

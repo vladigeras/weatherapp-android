@@ -21,6 +21,13 @@ import ru.vladigeras.weatherapp.data.WeatherCondition
 class WeatherCodeMapperTest {
 
     @Test
+    fun `sleet uses snow and precipitation icons`() {
+        assertEquals(Icons.Filled.AcUnit, WeatherCodeMapper.getIconVector(WeatherCondition.SLEET.displayCode))
+        assertEquals(Icons.Filled.Grain, WeatherCodeMapper.getPrecipitationIconVector(WeatherCondition.SLEET.displayCode))
+        assertEquals(R.string.weather_sleet, WeatherCodeMapper.getWeatherCodeStringResId(WeatherCondition.SLEET.displayCode))
+    }
+
+    @Test
     fun `precipitation without intensity has general labels and matching icons`() {
         val cases = listOf(
             Triple(WeatherCondition.FREEZING_RAIN_UNSPECIFIED, R.string.weather_freezing_rain, Icons.Filled.WaterDrop),

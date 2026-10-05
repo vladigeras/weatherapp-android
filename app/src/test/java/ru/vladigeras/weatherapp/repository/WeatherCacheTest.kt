@@ -23,6 +23,9 @@ import ru.vladigeras.weatherapp.data.WeatherProviderId
 import ru.vladigeras.weatherapp.util.asProviderWeather
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
+import java.time.Instant
+import java.util.TimeZone
+import ru.vladigeras.weatherapp.data.ForecastDay
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -157,6 +160,42 @@ class WeatherCacheTest {
         assertNull(cache.getWeather(testLatitude, testLongitude, prefs.copy(showHumidity = false)))
         assertNull(cache.getWeather(testLatitude, testLongitude, prefs.copy(forecastDays = 3)))
         assertNull(cache.getWeather(testLatitude, testLongitude, prefs.copy(hourlyForecastHours = 48)))
+    }
+
+    @Test
+    fun `phone zone forecasts reject fresh cache after zone change while place zone providers keep it`() = runTest {
+        val original = TimeZone.getDefault()
+        try {
+            for (provider in WeatherProviderId.entries) {
+                TimeZone.setDefault(TimeZone.getTimeZone("Europe/Moscow"))
+                val prefs = WeatherDisplayPrefs(provider = provider)
+                val weather = createTestWeatherResponse().copy(provider = provider, timezone = "Europe/Moscow")
+                cache.putWeather(testLatitude, testLongitude, weather, prefs)
+                assertEquals(weather, cache.getWeather(testLatitude, testLongitude, prefs))
+                TimeZone.setDefault(TimeZone.getTimeZone("Pacific/Honolulu"))
+                val cached = cache.getWeather(testLatitude, testLongitude, prefs)
+                if (provider in listOf(WeatherProviderId.SEVEN_TIMER, WeatherProviderId.YR)) assertNull(cached)
+                else assertEquals(weather, cached)
+            }
+        } finally { TimeZone.setDefault(original) }
+    }
+
+    @Test
+    fun `phone zone daily cache expires at local midnight while place zone providers keep it`() = runTest {
+        val original = TimeZone.getDefault()
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("Europe/Moscow"))
+            for (provider in WeatherProviderId.entries) {
+                timeMillis.set(Instant.parse("2026-10-03T20:55:00Z").toEpochMilli())
+                val prefs = WeatherDisplayPrefs(provider = provider)
+                val weather = createTestWeatherResponse().copy(provider = provider, timezone = "Europe/Moscow", daily = listOf(ForecastDay("2026-10-03")))
+                cache.putWeather(testLatitude, testLongitude, weather, prefs)
+                advanceCacheTime(10)
+                val cached = cache.getWeather(testLatitude, testLongitude, prefs)
+                if (provider in listOf(WeatherProviderId.SEVEN_TIMER, WeatherProviderId.YR)) assertNull(cached)
+                else assertEquals(weather, cached)
+            }
+        } finally { TimeZone.setDefault(original) }
     }
 
     @Test

@@ -11,6 +11,9 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import ru.vladigeras.weatherapp.data.ProviderWeather
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
+import ru.vladigeras.weatherapp.data.WeatherProviderId
+import java.time.Instant
+import java.time.ZoneId
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -50,7 +53,12 @@ class WeatherCache @Inject constructor(
             val jsonString = cacheFile.readText()
             val cached = Json.decodeFromString<CachedWeatherData>(jsonString)
 
-            if (getCurrentTimeMillis() - cached.timestamp > CACHE_TTL_MS) {
+            val now = getCurrentTimeMillis()
+            val phoneZone = ZoneId.systemDefault()
+            val usesPhoneZone = prefs.provider in listOf(WeatherProviderId.SEVEN_TIMER, WeatherProviderId.YR)
+            val changedPhoneDate = cached.response.daily.isNotEmpty() &&
+                Instant.ofEpochMilli(cached.timestamp).atZone(phoneZone).toLocalDate() != Instant.ofEpochMilli(now).atZone(phoneZone).toLocalDate()
+            if (now - cached.timestamp > CACHE_TTL_MS || usesPhoneZone && (cached.response.timezone != phoneZone.id || changedPhoneDate)) {
                 cacheFile.delete()
                 null
             } else {

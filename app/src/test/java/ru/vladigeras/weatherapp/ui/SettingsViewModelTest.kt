@@ -36,6 +36,7 @@ import ru.vladigeras.weatherapp.repository.WeatherRepository
 class SettingsViewModelTest {
     private val weatherRepository = mockk<WeatherRepository> { every { capabilities(any()) } answers {
         when (firstArg<WeatherProviderId>()) {
+            WeatherProviderId.YR -> ProviderCapabilities(9, 1, dailyUv = false)
             WeatherProviderId.OPEN_METEO -> ProviderCapabilities(16, 1)
             WeatherProviderId.WTTR -> ProviderCapabilities(3, 3, false, false, false, false)
             WeatherProviderId.SEVEN_TIMER -> ProviderCapabilities(7, 3, false, false, false, wind = false, sunTimes = false)
@@ -240,5 +241,25 @@ class SettingsViewModelTest {
         viewModel.setProvider(WeatherProviderId.SEVEN_TIMER)
         viewModel.setForecastDays(7)
         assertEquals(7, viewModel.localPrefs.value.forecastDays)
+    }
+
+    @Test
+    fun `yr permits nine days and masks UV without overwriting shared choices`() = runTest {
+        advanceUntilIdle()
+        viewModel.setForecastDays(16)
+        viewModel.setProvider(WeatherProviderId.YR)
+        val effective = viewModel.capabilities().effectivePrefs(viewModel.localPrefs.value)
+        assertEquals(9, effective.forecastDays)
+        assertFalse(effective.showUvIndex)
+        assertTrue(effective.showWind && effective.showSunTimes && effective.showPrecipitation)
+        viewModel.toggleItem("uv_index", false)
+        viewModel.setForecastDays(10)
+        assertEquals(16, viewModel.localPrefs.value.forecastDays)
+        assertTrue(viewModel.localPrefs.value.showUvIndex)
+        viewModel.setForecastDays(9)
+        viewModel.savePrefsAndCheckLanguage()
+        io.mockk.coVerify { prefsRepository.updatePrefs(match { it.provider == WeatherProviderId.YR && it.forecastDays == 9 && it.showUvIndex }) }
+        viewModel.setProvider(WeatherProviderId.OPEN_METEO)
+        assertTrue(viewModel.capabilities().effectivePrefs(viewModel.localPrefs.value).showUvIndex)
     }
 }

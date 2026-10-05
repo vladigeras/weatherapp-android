@@ -1,6 +1,7 @@
 import argparse
 import json
 from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse, unquote
 from pathlib import Path
@@ -60,15 +61,44 @@ def seven_timer(params):
     return {"product": "civil", "init": init.strftime("%Y%m%d%H"), "dataseries": points}
 
 
+def met_forecast():
+    start = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    points = []
+    for hour in list(range(61)) + list(range(66, 241, 6)):
+        instant = start + timedelta(hours=hour)
+        data = {"instant": {"details": {"air_temperature": 18.0, "apparent_air_temperature": 17.0,
+                                      "relative_humidity": 72.0, "wind_speed": 3.0, "ultraviolet_index_clear_sky": 9.0}}}
+        for step in ([1, 6] if hour < 60 else [6]) if hour < 240 else []:
+            data[f"next_{step}_hours"] = {"summary": {"symbol_code": "sleet_day"},
+                                        "details": {"precipitation_amount": float(step), "air_temperature_min": 12.0, "air_temperature_max": 22.0}}
+        points.append({"time": instant.isoformat().replace("+00:00", "Z"), "data": data})
+    return {"properties": {"timeseries": points}}
+
+
+def met_sun(params):
+    date = datetime.fromisoformat(params["date"][0]).replace(tzinfo=timezone.utc)
+    polar = abs(float(params["lat"][0])) > 66
+    return {"properties": {
+        "sunrise": {"time": None if polar else (date + timedelta(hours=10)).isoformat()},
+        "sunset": {"time": None if polar else (date + timedelta(hours=22)).isoformat()}
+    }}
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         request = urlparse(self.path)
         params = parse_qs(request.query)
-        print(json.dumps({"path": request.path, "params": params}), flush=True)
+        print(json.dumps({"path": request.path, "params": params, "if_modified_since": self.headers.get("If-Modified-Since"), "user_agent": self.headers.get("User-Agent")}), flush=True)
         failure = Path(tempfile.gettempdir(), "weather_mock_failure")
-        source = "wttr" if request.path.startswith("/wttr/") else "7timer" if request.path == "/7timer/forecast" else "open-meteo"
+        source = "met" if request.path.startswith("/met/") else "wttr" if request.path.startswith("/wttr/") else "7timer" if request.path == "/7timer/forecast" else "open-meteo"
         if failure.exists() and failure.read_text().strip() == source:
             self.send_error(503)
+            return
+        modified = format_datetime(datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0), usegmt=True)
+        if source == "met" and self.headers.get("If-Modified-Since") == modified:
+            self.send_response(304)
+            self.send_header("Expires", format_datetime(datetime.now(timezone.utc) + timedelta(minutes=10), usegmt=True))
+            self.end_headers()
             return
         content_type = "application/json"
         if request.path.startswith("/wttr/"):
@@ -82,6 +112,10 @@ class Handler(BaseHTTPRequestHandler):
             body = open_meteo(params)
         elif request.path == "/7timer/forecast":
             body = seven_timer(params)
+        elif request.path == "/met/forecast":
+            body = met_forecast()
+        elif request.path == "/met/sun":
+            body = met_sun(params)
         else:
             self.send_error(404)
             return
@@ -89,6 +123,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
+        if source == "met":
+            expired = Path(tempfile.gettempdir(), "weather_mock_met_expired").exists()
+            self.send_header("Expires", format_datetime(datetime.now(timezone.utc) + timedelta(seconds=-1 if expired else 600), usegmt=True))
+            self.send_header("Last-Modified", modified)
         self.end_headers()
         self.wfile.write(payload)
 
