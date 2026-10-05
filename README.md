@@ -41,5 +41,3 @@ Contributions are welcome! Follow the project style and include tests for change
 ## 📄 License
 
 MIT — see [LICENSE](LICENSE).
-
-Weather data from [MET Norway](https://www.met.no/) is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The app calculates daily summaries.
