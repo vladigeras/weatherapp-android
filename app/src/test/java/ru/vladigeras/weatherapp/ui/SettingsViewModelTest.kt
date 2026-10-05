@@ -35,7 +35,7 @@ import ru.vladigeras.weatherapp.repository.WeatherRepository
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
     private val weatherRepository = mockk<WeatherRepository> { every { capabilities(any()) } answers {
-        if (firstArg<WeatherProviderId>() == WeatherProviderId.WTTR) ProviderCapabilities(3, 3, true, false, false, false, false) else ProviderCapabilities(16, 1)
+        if (firstArg<WeatherProviderId>() == WeatherProviderId.WTTR) ProviderCapabilities(3, 3, false, false, false, false) else ProviderCapabilities(16, 1)
     } }
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var prefsRepository: WeatherDisplayPrefsRepository

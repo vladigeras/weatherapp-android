@@ -6,7 +6,6 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
@@ -192,7 +191,6 @@ fun LocationSelectionScreen(
                 query = query,
                 onQueryChange = { viewModel.updateSearchQuery(it) },
                 searchResults = uiState.searchResults,
-                explicitSearch = uiState.explicitSearch,
                 searchLoading = uiState.searchLoading,
                 searchCompleted = uiState.searchCompleted,
                 searchError = uiState.searchError,
@@ -405,7 +403,6 @@ private fun SearchSection(
     query: String,
     onQueryChange: (String) -> Unit,
     searchResults: List<SearchLocation>,
-    explicitSearch: Boolean,
     searchLoading: Boolean,
     searchCompleted: Boolean,
     searchError: String?,
@@ -430,11 +427,8 @@ private fun SearchSection(
         }
     )
 
-    if (explicitSearch) {
-        Text(stringResource(R.string.single_location_search), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 8.dp))
-        Button(onClick = onSearch, enabled = query.length >= 2 && !searchLoading, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.find_city))
-        }
+    Button(onClick = onSearch, enabled = query.length >= 2 && !searchLoading, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.find_city))
     }
     if (searchLoading) CircularProgressIndicator(modifier = Modifier.padding(8.dp).size(24.dp))
     if (searchError != null) {
@@ -455,8 +449,7 @@ private fun SearchSection(
             searchResults.forEach { result ->
                 SearchResultItem(
                     result = result,
-                    onClick = { onResultSelected(result) },
-                    needsConfirmation = explicitSearch
+                    onClick = { onResultSelected(result) }
                 )
             }
         }
@@ -466,14 +459,12 @@ private fun SearchSection(
 @Composable
 private fun SearchResultItem(
     result: SearchLocation,
-    onClick: () -> Unit,
-    needsConfirmation: Boolean
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clickable(enabled = !needsConfirmation) { onClick() }
     ) {
         Row(
             modifier = Modifier
@@ -503,7 +494,7 @@ private fun SearchResultItem(
                     )
                 }
             }
-            if (needsConfirmation) TextButton(onClick = onClick) { Text(stringResource(R.string.confirm_location)) }
+            TextButton(onClick = onClick) { Text(stringResource(R.string.confirm_location)) }
         }
     }
 }

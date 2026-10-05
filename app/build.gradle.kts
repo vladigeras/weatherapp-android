@@ -33,7 +33,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "WTTR_API_URL", "\"https://wttr.is\"")
         buildConfigField("String", "API_URL", "\"https://api.open-meteo.com/v1/forecast\"")
-        buildConfigField("String", "GEOCODING_API_URL", "\"https://geocoding-api.open-meteo.com/v1\"")
     }
 
     signingConfigs {
@@ -56,7 +55,6 @@ android {
                 manifestPlaceholders["debugNetworkSecurityConfig"] = "@xml/debug_network_security"
                 buildConfigField("String", "WTTR_API_URL", "\"$mockBase/wttr\"")
                 buildConfigField("String", "API_URL", "\"$mockBase/open-meteo/forecast\"")
-                buildConfigField("String", "GEOCODING_API_URL", "\"$mockBase/open-meteo\"")
             }
         }
 

@@ -5,21 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.vladigeras.weatherapp.data.Location
 import ru.vladigeras.weatherapp.data.SearchLocation
-import ru.vladigeras.weatherapp.data.WeatherProviderId
-import ru.vladigeras.weatherapp.repository.WeatherRepository
-import ru.vladigeras.weatherapp.repository.WeatherDisplayPrefsRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -29,16 +21,15 @@ import ru.vladigeras.weatherapp.repository.LocationRepository
 import ru.vladigeras.weatherapp.repository.SelectedLocationRepository
 import android.content.Context
 import ru.vladigeras.weatherapp.core.error.ErrorMapper
+import ru.vladigeras.weatherapp.repository.CitySearchRepository
 import javax.inject.Inject
 
-@OptIn(FlowPreview::class)
 @HiltViewModel
 class LocationSelectionViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val savedStateHandle: SavedStateHandle,
     private val locationRepository: LocationRepository,
-    private val weatherRepository: WeatherRepository,
-    private val prefsRepository: WeatherDisplayPrefsRepository,
+    private val citySearchRepository: CitySearchRepository,
     private val selectedLocationRepository: SelectedLocationRepository,
     private val languagePreferenceRepository: LanguagePreferenceRepository
 ) : ViewModel() {
@@ -52,9 +43,7 @@ class LocationSelectionViewModel @Inject constructor(
         val error: String? = null,
         val searchResults: List<SearchLocation> = emptyList(),
         val locationPermissionGranted: Boolean = false,
-        val provider: WeatherProviderId? = null,
         val searchLoading: Boolean = false,
-        val explicitSearch: Boolean = false,
         val searchCompleted: Boolean = false,
         val searchError: String? = null
     )
@@ -69,21 +58,6 @@ class LocationSelectionViewModel @Inject constructor(
 
     init {
         loadInitialState()
-        viewModelScope.launch {
-            prefsRepository.getPrefs().collect { prefs ->
-                if (_uiState.value.provider != prefs.provider) {
-                    cancelSearch()
-                    _uiState.value = _uiState.value.copy(provider = prefs.provider, searchResults = emptyList(), searchLoading = false, searchCompleted = false, searchError = null,
-                        explicitSearch = weatherRepository.capabilities(prefs.provider).explicitSearch)
-                    if (!_uiState.value.explicitSearch && _searchQuery.value.length >= 2) search(_searchQuery.value)
-                }
-            }
-        }
-        viewModelScope.launch {
-            searchQuery.debounce(300).distinctUntilChanged().collect { query ->
-                if (query.length >= 2 && !_uiState.value.explicitSearch) search(query)
-            }
-        }
     }
 
     private var searchJob: Job? = null
@@ -181,6 +155,7 @@ class LocationSelectionViewModel @Inject constructor(
     }
 
     fun selectLocation(location: Location, onComplete: () -> Unit = {}) {
+        cancelSearch()
         autoLocationJob?.cancel()
         viewModelScope.launch {
             val manualLocation = location.copy(isAutoDetected = false)
@@ -189,7 +164,10 @@ class LocationSelectionViewModel @Inject constructor(
                 isManualMode = true,
                 activeLocation = manualLocation,
                 autoLocationLoading = false,
-                searchResults = emptyList()
+                searchResults = emptyList(),
+                searchLoading = false,
+                searchCompleted = false,
+                searchError = null
             )
             savedStateHandle["search_query"] = ""
             onComplete()
@@ -207,14 +185,13 @@ class LocationSelectionViewModel @Inject constructor(
     }
 
     private fun search(query: String) {
-        val provider = _uiState.value.provider ?: return
         cancelSearch()
         val version = searchGeneration
         searchJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(searchLoading = true, searchCompleted = false, searchError = null)
             try {
                 val language = languagePreferenceRepository.getEffectiveLocaleCode()
-                val results = weatherRepository.searchLocations(provider, query, language).getOrThrow()
+                val results = citySearchRepository.searchLocations(query, language).getOrThrow()
                 currentCoroutineContext().ensureActive()
                 if (version == searchGeneration) _uiState.value = _uiState.value.copy(searchResults = results, searchLoading = false, searchCompleted = true)
             } catch (e: CancellationException) {

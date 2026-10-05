@@ -7,6 +7,7 @@ import io.ktor.client.plugins.ResponseException
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.network.sockets.SocketTimeoutException
 import ru.vladigeras.weatherapp.R
+import ru.vladigeras.weatherapp.repository.CitySearchUnavailableException
 import java.io.IOException
 
 object ErrorMapper {
@@ -14,6 +15,7 @@ object ErrorMapper {
     fun mapToUiMessage(throwable: Throwable, context: Context): String {
         return try {
             when (throwable) {
+                is CitySearchUnavailableException -> context.getString(R.string.city_search_unavailable)
                 is SecurityException -> context.getString(R.string.location_permission_required)
                 is HttpRequestTimeoutException, is ConnectTimeoutException, is SocketTimeoutException,
                 is java.net.SocketTimeoutException -> context.getString(R.string.request_timed_out)

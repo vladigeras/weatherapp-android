@@ -7,7 +7,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.vladigeras.weatherapp.data.SearchLocation
-import ru.vladigeras.weatherapp.data.WeatherProviderId
 import java.util.concurrent.TimeUnit
 
 class CitySearchCacheTest {
@@ -23,7 +22,7 @@ class CitySearchCacheTest {
     
     @Test
     fun `caches search results`() = runTest {
-        val results = listOf(SearchLocation("1", "Moscow", 55.7, 37.6, "Russia", "RU", null))
+        val results = listOf(SearchLocation("Moscow", 55.7, 37.6, "Russia"))
         
         cache.put("moscow", results)
         
@@ -34,7 +33,7 @@ class CitySearchCacheTest {
     @Test
     fun `case insensitive`() = runTest {
         val cache = CitySearchCache({ fakeTime })
-        val results = listOf(SearchLocation("1", "Moscow", 55.7, 37.6, "Russia", "RU", null))
+        val results = listOf(SearchLocation("Moscow", 55.7, 37.6, "Russia"))
         
         cache.put("Moscow", results)
         
@@ -47,7 +46,7 @@ class CitySearchCacheTest {
         val cache = CitySearchCache({ fakeTime })
         
         repeat(101) { i ->
-            val results = listOf(SearchLocation(i.toString(), "City$i", 55.0 + i, 37.0 + i, "Country$i", "C$i", null))
+            val results = listOf(SearchLocation("City$i", 55.0 + i, 37.0 + i, "Country$i"))
             cache.put("city$i", results)
         }
         
@@ -57,7 +56,7 @@ class CitySearchCacheTest {
     
     @Test
     fun `returns null for expired entries`() = runTest {
-        val results = listOf(SearchLocation("1", "London", 51.5, -0.1, "UK", "GB", null))
+        val results = listOf(SearchLocation("London", 51.5, -0.1, "UK"))
         
         // Put item at time 0
         cache.put("london", results)
@@ -72,7 +71,7 @@ class CitySearchCacheTest {
     
     @Test
     fun `removes expired entries from cache on access`() = runTest {
-        val results = listOf(SearchLocation("1", "Paris", 48.9, 2.4, "France", "FR", null))
+        val results = listOf(SearchLocation("Paris", 48.9, 2.4, "France"))
         
         // Put item at time 0
         cache.put("paris", results)
@@ -87,7 +86,7 @@ class CitySearchCacheTest {
         
         // Try to add new item and check if old one was removed (LRU behavior)
         repeat(50) { i ->
-            val newResults = listOf(SearchLocation(i.toString(), "City$i", 55.0 + i, 37.0 + i, "Country$i", "C$i", null))
+            val newResults = listOf(SearchLocation("City$i", 55.0 + i, 37.0 + i, "Country$i"))
             cache.put("city$i", newResults)
         }
         
@@ -98,12 +97,11 @@ class CitySearchCacheTest {
         assertTrue(recentCity != null && recentCity.size == 1)
     }
     @Test
-    fun `source and language isolate search entries`() {
-        val results = listOf(SearchLocation("1", "Moscow", 55.7, 37.6))
-        cache.put("Moscow", results, WeatherProviderId.OPEN_METEO, "ru")
-        assertNull(cache.get("Moscow", WeatherProviderId.WTTR, "ru"))
-        assertNull(cache.get("Moscow", WeatherProviderId.OPEN_METEO, "en"))
-        assertEquals(results, cache.get("MOSCOW", WeatherProviderId.OPEN_METEO, "ru"))
+    fun `language isolates search entries`() {
+        val results = listOf(SearchLocation("Moscow", 55.7, 37.6))
+        cache.put("Moscow", results, "ru")
+        assertNull(cache.get("Moscow", "en"))
+        assertEquals(results, cache.get("MOSCOW", "ru"))
     }
 
 }

@@ -180,25 +180,6 @@ class WttrWeatherProviderTest {
     }
 
     @Test
-    fun `search sends encoded name and language and returns one candidate`() = runTest {
-        val name = "São Paulo / centre"
-        var calls = 0
-        val client = createClient(MockEngine { request ->
-            calls++
-            assertEquals(name, request.url.segments.last())
-            assertEquals(Url(BuildConfig.WTTR_API_URL).host, request.url.host)
-            assertEquals("ru", request.url.parameters["lang"])
-            assertEquals("j2", request.url.parameters["format"])
-            assertEquals(10_000L, request.getCapabilityOrNull(HttpTimeoutCapability)?.requestTimeoutMillis)
-            respond(fixture(false), headers = headers)
-        })
-        val results = WttrWeatherProvider(client, json).searchLocations(name, "ru")
-        assertEquals(1, calls)
-        assertEquals(listOf(SearchLocation("55.752,37.616", "Москва", 55.752, 37.616, "Russia", admin1 = "Moscow City")), results)
-        client.close()
-    }
-
-    @Test
     fun `missing optional numbers and astronomy remain absent`() = runTest {
         val client = createClient(MockEngine { respond("""{"current_condition":[{"temp_C":"N/A","weatherCode":"999"}],"weather":[{"date":"2026-10-03","astronomy":[{"sunrise":"No sunrise","sunset":"No sunset"}]}]}""", headers = headers) })
         val weather = WttrWeatherProvider(client, json).getWeather(55.7, 37.6, prefs.copy(showHourlyForecast = false))
@@ -232,7 +213,7 @@ class WttrWeatherProviderTest {
                 val hours = if (!hourly) "" else ",\"hourly\":[" + (0..21 step 3).joinToString(",") { hour -> """{"time":"${hour*100}","tempC":"12","humidity":"50","windspeedKmph":"9","weatherCode":"116","precipMM":"2","uvIndex":"8"}""" } + "]"
                 """{"date":"2026-10-0$day","mintempC":"8","maxtempC":"15","uvIndex":"8","astronomy":[{"sunrise":"06:36 AM","sunset":"06:00 PM"}]$hours}"""
             }
-            return """{"current_condition":[{"temp_C":"12","FeelsLikeC":"8","humidity":"39","windspeedKmph":"14","weatherCode":"113"}],"nearest_area":[{"areaName":[{"value":"Москва"}],"latitude":"55.752","longitude":"37.616","country":[{"value":"Russia"}],"region":[{"value":"Moscow City"}]}],"weather":[$days]}"""
+            return """{"current_condition":[{"temp_C":"12","FeelsLikeC":"8","humidity":"39","windspeedKmph":"14","weatherCode":"113"}],"weather":[$days]}"""
         }
     }
 }

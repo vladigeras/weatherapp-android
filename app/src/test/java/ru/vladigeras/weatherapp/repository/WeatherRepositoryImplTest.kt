@@ -77,7 +77,7 @@ class WeatherRepositoryImplTest {
     fun setup() {
         mockWeatherApiService = TestWeatherApiService()
         weatherCache = WeatherCache(context)
-        weatherRepository = WeatherRepositoryImpl(WeatherProviders(listOf(OpenMeteoWeatherProvider(mockWeatherApiService, mockk(), WeatherParamsBuilder()))), weatherCache, CitySearchCache())
+        weatherRepository = WeatherRepositoryImpl(WeatherProviders(listOf(OpenMeteoWeatherProvider(mockWeatherApiService, WeatherParamsBuilder()))), weatherCache)
     }
 
     @Test
