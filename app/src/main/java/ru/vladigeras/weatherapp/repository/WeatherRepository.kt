@@ -37,6 +37,7 @@ class WeatherRepositoryImpl @Inject constructor(
                     WeatherProviderId.OPEN_METEO -> BuildConfig.API_URL
                     WeatherProviderId.WTTR -> BuildConfig.WTTR_API_URL
                     WeatherProviderId.SEVEN_TIMER -> BuildConfig.SEVEN_TIMER_API_URL
+                    WeatherProviderId.YR -> BuildConfig.MET_FORECAST_API_URL
                 },
                 30_000
             )

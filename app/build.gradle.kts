@@ -34,6 +34,8 @@ android {
         buildConfigField("String", "WTTR_API_URL", "\"https://wttr.is\"")
         buildConfigField("String", "API_URL", "\"https://api.open-meteo.com/v1/forecast\"")
         buildConfigField("String", "SEVEN_TIMER_API_URL", "\"https://www.7timer.info/bin/api.pl\"")
+        buildConfigField("String", "MET_FORECAST_API_URL", "\"https://api.met.no/weatherapi/locationforecast/2.0/complete\"")
+        buildConfigField("String", "MET_SUN_API_URL", "\"https://api.met.no/weatherapi/sunrise/3.0/sun\"")
     }
 
     signingConfigs {
@@ -57,6 +59,8 @@ android {
                 buildConfigField("String", "WTTR_API_URL", "\"$mockBase/wttr\"")
                 buildConfigField("String", "API_URL", "\"$mockBase/open-meteo/forecast\"")
                 buildConfigField("String", "SEVEN_TIMER_API_URL", "\"$mockBase/7timer/forecast\"")
+                buildConfigField("String", "MET_FORECAST_API_URL", "\"$mockBase/met/forecast\"")
+                buildConfigField("String", "MET_SUN_API_URL", "\"$mockBase/met/sun\"")
             }
         }
 

@@ -28,7 +28,7 @@ object WeatherCodeMapper {
 
     private val CODE_MAP = mapOf(
         -2 to WeatherCodeConfig(Icons.Filled.Cloud, R.string.weather_cloudy, null),
-        -3 to WeatherCodeConfig(Icons.Filled.Hail, R.string.weather_sleet, Icons.Filled.Hail),
+        -3 to WeatherCodeConfig(Icons.Filled.AcUnit, R.string.weather_sleet, Icons.Filled.Grain),
         -4 to WeatherCodeConfig(Icons.Filled.Grain, R.string.weather_ice_pellets, Icons.Filled.Grain),
         -5 to WeatherCodeConfig(Icons.Filled.WaterDrop, R.string.weather_freezing_rain, Icons.Filled.WaterDrop),
         -6 to WeatherCodeConfig(Icons.Filled.WaterDrop, R.string.weather_rain, Icons.Filled.WaterDrop),

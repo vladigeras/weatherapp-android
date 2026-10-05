@@ -27,6 +27,7 @@ import ru.vladigeras.weatherapp.repository.WeatherRepository
 import ru.vladigeras.weatherapp.widget.WeatherWidgetProvider
 import ru.vladigeras.weatherapp.widget.WidgetPrefsManager
 import javax.inject.Inject
+import java.time.ZoneId
 import kotlin.coroutines.cancellation.CancellationException
 
 sealed interface WeatherUiState {
@@ -100,6 +101,13 @@ class WeatherViewModel @Inject constructor(
         _showUpdateToast.value = true
         coordinates?.let { (latitude, longitude) -> loadWeather(latitude, longitude, true) }
             ?: loadWeatherForCurrentLocation(true)
+    }
+
+    fun reloadIfTimeZoneChanged() {
+        val state = _uiState.value as? WeatherUiState.Success ?: return
+        if (state.prefs.provider in listOf(WeatherProviderId.SEVEN_TIMER, WeatherProviderId.YR) && state.timezone != ZoneId.systemDefault().id) {
+            coordinates?.let { (latitude, longitude) -> loadWeather(latitude, longitude) }
+        }
     }
 
     fun loadWeatherForCurrentLocation(forceRefresh: Boolean = false) {
