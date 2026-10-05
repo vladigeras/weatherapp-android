@@ -41,3 +41,5 @@ Contributions are welcome! Follow the project style and include tests for change
 ## 📄 License
 
 MIT — see [LICENSE](LICENSE).
+
+*yr.no weather data: MET Norway, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).*
