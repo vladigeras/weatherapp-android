@@ -18,6 +18,7 @@ import ru.vladigeras.weatherapp.network.WeatherApiServiceImpl
 import ru.vladigeras.weatherapp.network.OpenMeteoWeatherProvider
 import ru.vladigeras.weatherapp.network.WeatherProviders
 import ru.vladigeras.weatherapp.network.WttrWeatherProvider
+import ru.vladigeras.weatherapp.network.SevenTimerWeatherProvider
 import ru.vladigeras.weatherapp.repository.CitySearchCache
 import javax.inject.Singleton
 import java.time.Clock
@@ -67,5 +68,6 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideWeatherProviders(openMeteo: OpenMeteoWeatherProvider, wttr: WttrWeatherProvider) = WeatherProviders(listOf(openMeteo, wttr))
+    fun provideWeatherProviders(openMeteo: OpenMeteoWeatherProvider, wttr: WttrWeatherProvider, sevenTimer: SevenTimerWeatherProvider) =
+        WeatherProviders(listOf(openMeteo, wttr, sevenTimer))
 }

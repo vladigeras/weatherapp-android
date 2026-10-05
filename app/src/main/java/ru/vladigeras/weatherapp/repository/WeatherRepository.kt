@@ -33,7 +33,11 @@ class WeatherRepositoryImpl @Inject constructor(
             val response = withTimeoutOrNull(30_000) {
                 provider.getWeather(latitude, longitude, effectivePrefs)
             } ?: throw HttpRequestTimeoutException(
-                if (prefs.provider == WeatherProviderId.WTTR) BuildConfig.WTTR_API_URL else BuildConfig.API_URL,
+                when (prefs.provider) {
+                    WeatherProviderId.OPEN_METEO -> BuildConfig.API_URL
+                    WeatherProviderId.WTTR -> BuildConfig.WTTR_API_URL
+                    WeatherProviderId.SEVEN_TIMER -> BuildConfig.SEVEN_TIMER_API_URL
+                },
                 30_000
             )
             weatherCache.putWeather(latitude, longitude, response, effectivePrefs)

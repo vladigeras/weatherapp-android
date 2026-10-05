@@ -128,6 +128,9 @@
     <string name="weather_cloudy">Облачно</string>
     <string name="weather_sleet">Дождь со снегом</string>
     <string name="weather_ice_pellets">Ледяная крупа</string>
+    <string name="weather_freezing_rain">Ледяной дождь</string>
+    <string name="weather_rain">Дождь</string>
+    <string name="weather_snow">Снег</string>
     <string name="hourly_forecast_unavailable">Почасовой прогноз недоступен</string>
     <string name="request_timed_out">Сервис не ответил вовремя. Попробуйте ещё раз.</string>
     <string name="service_unavailable">Сервис недоступен. Попробуйте позже.</string>

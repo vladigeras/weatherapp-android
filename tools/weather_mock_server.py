@@ -1,6 +1,6 @@
 import argparse
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse, unquote
 from pathlib import Path
@@ -47,13 +47,26 @@ def wttr(query, include_hourly):
     }
 
 
+def seven_timer(params):
+    zone = ZoneInfo(location(params.get("lon", [""])[0])[-1])
+    now = datetime.now(timezone.utc)
+    init = now.replace(hour=now.hour // 6 * 6, minute=0, second=0, microsecond=0)
+    points = []
+    for hour in range(3, 193, 3):
+        local = (init + timedelta(hours=hour)).astimezone(zone)
+        suffix = "day" if 6 <= local.hour < 18 else "night"
+        points.append({"timepoint": hour, "temp2m": 11 + hour // 3 % 4, "rh2m": "72%", "weather": "pcloudy" + suffix,
+                       "prec_type": "none", "prec_amount": 0, "wind10m": {"direction": "N", "speed": 2}})
+    return {"product": "civil", "init": init.strftime("%Y%m%d%H"), "dataseries": points}
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         request = urlparse(self.path)
         params = parse_qs(request.query)
         print(json.dumps({"path": request.path, "params": params}), flush=True)
         failure = Path(tempfile.gettempdir(), "weather_mock_failure")
-        source = "wttr" if request.path.startswith("/wttr/") else "open-meteo"
+        source = "wttr" if request.path.startswith("/wttr/") else "7timer" if request.path == "/7timer/forecast" else "open-meteo"
         if failure.exists() and failure.read_text().strip() == source:
             self.send_error(503)
             return
@@ -67,6 +80,8 @@ class Handler(BaseHTTPRequestHandler):
                 body = wttr(query, params.get("format") == ["j1"])
         elif request.path == "/open-meteo/forecast":
             body = open_meteo(params)
+        elif request.path == "/7timer/forecast":
+            body = seven_timer(params)
         else:
             self.send_error(404)
             return

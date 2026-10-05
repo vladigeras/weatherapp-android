@@ -15,8 +15,29 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
+import ru.vladigeras.weatherapp.R
+import ru.vladigeras.weatherapp.data.WeatherCondition
 
 class WeatherCodeMapperTest {
+
+    @Test
+    fun `precipitation without intensity has general labels and matching icons`() {
+        val cases = listOf(
+            Triple(WeatherCondition.FREEZING_RAIN_UNSPECIFIED, R.string.weather_freezing_rain, Icons.Filled.WaterDrop),
+            Triple(WeatherCondition.RAIN_UNSPECIFIED, R.string.weather_rain, Icons.Filled.WaterDrop),
+            Triple(WeatherCondition.SNOW_UNSPECIFIED, R.string.weather_snow, Icons.Filled.AcUnit)
+        )
+        cases.forEach { (condition, label, icon) ->
+            assertEquals(label, WeatherCodeMapper.getWeatherCodeStringResId(condition.displayCode))
+            assertEquals(icon, WeatherCodeMapper.getIconVector(condition.displayCode))
+        }
+        assertEquals(WeatherType.RAIN, WeatherCodeMapper.getWeatherType(WeatherCondition.RAIN_UNSPECIFIED.displayCode))
+        assertEquals(WeatherType.SNOW, WeatherCodeMapper.getWeatherType(WeatherCondition.SNOW_UNSPECIFIED.displayCode))
+        assertEquals(WeatherType.SNOW, WeatherCodeMapper.getWeatherType(WeatherCondition.FREEZING_RAIN_UNSPECIFIED.displayCode))
+        assertEquals(R.string.weather_code_63, WeatherCodeMapper.getWeatherCodeStringResId(WeatherCondition.RAIN.displayCode))
+        assertEquals(R.string.weather_code_73, WeatherCodeMapper.getWeatherCodeStringResId(WeatherCondition.SNOW.displayCode))
+        assertEquals(R.string.weather_code_66, WeatherCodeMapper.getWeatherCodeStringResId(WeatherCondition.FREEZING_RAIN.displayCode))
+    }
 
     @Test
     fun `getWeatherType returns CLEAR for code 0`() {

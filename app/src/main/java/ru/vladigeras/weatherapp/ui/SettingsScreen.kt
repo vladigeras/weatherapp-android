@@ -239,6 +239,7 @@ private fun SettingsProviderItem(provider: WeatherProviderId, onChanged: (Weathe
 private fun providerName(provider: WeatherProviderId) = when (provider) {
     WeatherProviderId.OPEN_METEO -> "Open-Meteo"
     WeatherProviderId.WTTR -> "wttr.in"
+    WeatherProviderId.SEVEN_TIMER -> "7Timer"
 }
 
 @Composable
@@ -486,8 +487,13 @@ private fun settingsItems(
         SettingsItem.Toggle(
             key = "wind",
             titleRes = R.string.wind,
-            descriptionRes = if (capabilities.dailyWind) R.string.wind_description else R.string.daily_wind_unavailable,
-            checked = prefs.showWind,
+            descriptionRes = when {
+                !capabilities.wind -> R.string.provider_unavailable
+                capabilities.dailyWind -> R.string.wind_description
+                else -> R.string.daily_wind_unavailable
+            },
+            checked = effective.showWind,
+            enabled = capabilities.wind,
             icon = { Icon(Icons.Filled.Air, contentDescription = null) }
         ),
         SettingsItem.Toggle(
@@ -501,8 +507,9 @@ private fun settingsItems(
         SettingsItem.Toggle(
             key = "sun_times",
             titleRes = R.string.sun_times,
-            descriptionRes = R.string.sun_times_description,
-            checked = prefs.showSunTimes,
+            descriptionRes = if (capabilities.sunTimes) R.string.sun_times_description else R.string.provider_unavailable,
+            checked = effective.showSunTimes,
+            enabled = capabilities.sunTimes,
             icon = { Icon(Icons.Filled.WbSunny, contentDescription = null) }
         ),
         SettingsItem.Toggle(
@@ -584,7 +591,14 @@ class SettingsViewModel @Inject constructor(
 
     fun toggleItem(key: String, checked: Boolean) {
         val current = localPrefs.value
-        if (key == "precipitation" && !capabilities().dailyPrecipitation || key == "uv_index" && !capabilities().dailyUv) return
+        val available = when (key) {
+            "wind" -> capabilities().wind
+            "sun_times" -> capabilities().sunTimes
+            "precipitation" -> capabilities().dailyPrecipitation
+            "uv_index" -> capabilities().dailyUv
+            else -> true
+        }
+        if (!available) return
         localPrefs.value = when (key) {
             "humidity" -> current.copy(showHumidity = checked)
             "wind" -> current.copy(showWind = checked)

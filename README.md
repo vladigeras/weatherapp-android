@@ -11,7 +11,8 @@ Weather for your location or a city of your choice.
 Current weather, hourly and daily forecasts, and a choice of language and weather details.
 
 - **Open-Meteo:** forecasts for up to 16 days.
-- **wttr.in:** uses `wttr.is`, with 3 forecast days and 3-hour intervals. If hourly data is unavailable, the app shows a notice and keeps the current and daily weather.
+- **wttr.in:** forecasts for up to 3 days at 3-hour intervals. If hourly data is unavailable, the app shows a notice and keeps the current and daily weather.
+- **7Timer:** forecasts for up to 7 days at 3-hour intervals.
 
 ## 🧩 Home Screen Widget
 
@@ -20,12 +21,6 @@ Shows the city, weather, and temperature. Resizes to fit your home screen and up
 ## ⚙️ Requirements
 
 Android 15 or newer. Download the APK from [Releases](https://github.com/vladigeras/weatherapp-android/releases).
-
-To build from source, open the project in Android Studio or run:
-
-```sh
-./gradlew assembleDebug
-```
 
 ## 🔒 Privacy
 

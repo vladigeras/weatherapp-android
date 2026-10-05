@@ -35,7 +35,11 @@ import ru.vladigeras.weatherapp.repository.WeatherRepository
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
     private val weatherRepository = mockk<WeatherRepository> { every { capabilities(any()) } answers {
-        if (firstArg<WeatherProviderId>() == WeatherProviderId.WTTR) ProviderCapabilities(3, 3, false, false, false, false) else ProviderCapabilities(16, 1)
+        when (firstArg<WeatherProviderId>()) {
+            WeatherProviderId.OPEN_METEO -> ProviderCapabilities(16, 1)
+            WeatherProviderId.WTTR -> ProviderCapabilities(3, 3, false, false, false, false)
+            WeatherProviderId.SEVEN_TIMER -> ProviderCapabilities(7, 3, false, false, false, wind = false, sunTimes = false)
+        }
     } }
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var prefsRepository: WeatherDisplayPrefsRepository
@@ -213,4 +217,28 @@ class SettingsViewModelTest {
         assertFalse(viewModel.localPrefs.value.showHumidity)
     }
 
+    @Test
+    fun `7Timer disables unavailable choices while preserving preferences for other providers`() = runTest {
+        advanceUntilIdle()
+        viewModel.setForecastDays(14)
+        viewModel.setProvider(WeatherProviderId.SEVEN_TIMER)
+        val effective = viewModel.capabilities().effectivePrefs(viewModel.localPrefs.value)
+        assertEquals(7, effective.forecastDays)
+        assertFalse(effective.showWind)
+        assertFalse(effective.showSunTimes)
+        assertFalse(effective.showPrecipitation)
+        assertFalse(effective.showUvIndex)
+        listOf("wind", "sun_times", "precipitation", "uv_index").forEach { viewModel.toggleItem(it, false) }
+        viewModel.setForecastDays(10)
+        assertEquals(14, viewModel.localPrefs.value.forecastDays)
+        viewModel.savePrefsAndCheckLanguage()
+        io.mockk.coVerify { prefsRepository.updatePrefs(match {
+            it.provider == WeatherProviderId.SEVEN_TIMER && it.forecastDays == 14 && it.showWind && it.showSunTimes && it.showUvIndex && it.showPrecipitation
+        }) }
+        viewModel.setProvider(WeatherProviderId.OPEN_METEO)
+        assertEquals(WeatherDisplayPrefs(forecastDays = 14), viewModel.capabilities().effectivePrefs(viewModel.localPrefs.value))
+        viewModel.setProvider(WeatherProviderId.SEVEN_TIMER)
+        viewModel.setForecastDays(7)
+        assertEquals(7, viewModel.localPrefs.value.forecastDays)
+    }
 }
