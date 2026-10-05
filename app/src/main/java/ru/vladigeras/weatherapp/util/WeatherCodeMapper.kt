@@ -30,6 +30,9 @@ object WeatherCodeMapper {
         -2 to WeatherCodeConfig(Icons.Filled.Cloud, R.string.weather_cloudy, null),
         -3 to WeatherCodeConfig(Icons.Filled.Hail, R.string.weather_sleet, Icons.Filled.Hail),
         -4 to WeatherCodeConfig(Icons.Filled.Grain, R.string.weather_ice_pellets, Icons.Filled.Grain),
+        -5 to WeatherCodeConfig(Icons.Filled.WaterDrop, R.string.weather_freezing_rain, Icons.Filled.WaterDrop),
+        -6 to WeatherCodeConfig(Icons.Filled.WaterDrop, R.string.weather_rain, Icons.Filled.WaterDrop),
+        -7 to WeatherCodeConfig(Icons.Filled.AcUnit, R.string.weather_snow, Icons.Filled.Grain),
         0 to WeatherCodeConfig(
             icon = Icons.Filled.WbSunny,
             stringRes = R.string.weather_code_0,
@@ -182,8 +185,8 @@ object WeatherCodeMapper {
         return when (code) {
             0 -> WeatherType.CLEAR
             -2, 1, 2, 3, 45, 48 -> WeatherType.CLOUDY
-            51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99 -> WeatherType.RAIN
-            -3, -4, 56, 57, 66, 67, 71, 73, 75, 77, 85, 86 -> WeatherType.SNOW
+            -6, 51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99 -> WeatherType.RAIN
+            -3, -4, -5, -7, 56, 57, 66, 67, 71, 73, 75, 77, 85, 86 -> WeatherType.SNOW
             else -> WeatherType.CLOUDY
         }
     }

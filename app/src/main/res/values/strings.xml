@@ -126,6 +126,9 @@
     <string name="weather_cloudy">Cloudy</string>
     <string name="weather_sleet">Sleet</string>
     <string name="weather_ice_pellets">Ice pellets</string>
+    <string name="weather_freezing_rain">Freezing rain</string>
+    <string name="weather_rain">Rain</string>
+    <string name="weather_snow">Snow</string>
     <string name="hourly_forecast_unavailable">Hourly forecast is unavailable</string>
     <string name="request_timed_out">The service took too long to respond. Try again.</string>
     <string name="service_unavailable">The service is unavailable. Try again later.</string>

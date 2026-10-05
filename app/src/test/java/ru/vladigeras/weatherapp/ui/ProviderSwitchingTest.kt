@@ -41,6 +41,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Locale
+import java.util.TimeZone
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -51,11 +52,15 @@ class ProviderSwitchingTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val clients = mutableListOf<HttpClient>()
         val viewModelJobs = mutableListOf<Job>()
+        val originalZone = TimeZone.getDefault()
+        TimeZone.setDefault(TimeZone.getTimeZone("Europe/Moscow"))
         try {
             val context: Context = RuntimeEnvironment.getApplication()
             val json = Json { ignoreUnknownKeys = true }
             val requests = mutableListOf<String>()
             var wttrFailed = false
+            var sevenTimerFailed = false
+            val clock = Clock.fixed(Instant.parse("2026-10-03T17:25:00Z"), ZoneOffset.UTC)
             val openMeteo = WeatherResponse(55.7, 37.6, 0.1, 10800, "Europe/Moscow", elevation = 100.0,
                 current = Current(temperature = 18.0, apparentTemperature = 17.0, weatherCode = 2, isDay = 1),
                 hourly = HourlyWeather(listOf("2026-10-03T21:00"), listOf(19.0)),
@@ -66,6 +71,14 @@ class ProviderSwitchingTest {
                     Url(BuildConfig.API_URL).encodedPath -> {
                         requests += "open-weather"
                         respond(json.encodeToString(openMeteo), headers = headersOf(HttpHeaders.ContentType, "application/json"))
+                    }
+                    Url(BuildConfig.SEVEN_TIMER_API_URL).encodedPath -> {
+                        assertEquals(Url(BuildConfig.SEVEN_TIMER_API_URL).host, request.url.host)
+                        assertEquals("40.7128", request.url.parameters["lat"])
+                        assertEquals("-74.006", request.url.parameters["lon"])
+                        requests += "7timer"
+                        if (sevenTimerFailed) respond("Unavailable", HttpStatusCode.ServiceUnavailable)
+                        else respond(SevenTimerWeatherProviderTest.fixture())
                     }
                     else -> {
                         assertEquals(Url(BuildConfig.WTTR_API_URL).host, request.url.host)
@@ -89,9 +102,9 @@ class ProviderSwitchingTest {
             val resolver = mockk<CityNameResolver> { coEvery { resolveCityName(any(), any(), any(), any()) } coAnswers { thirdArg<String?>() ?: "Unknown" } }
             fun repository() = WeatherRepositoryImpl(WeatherProviders(listOf(
                 OpenMeteoWeatherProvider(WeatherApiServiceImpl(client), WeatherParamsBuilder()),
-                WttrWeatherProvider(client, json))), WeatherCache(context))
+                WttrWeatherProvider(client, json), SevenTimerWeatherProvider(client, json, clock))), WeatherCache(context))
             fun viewModel(repo: WeatherRepository) = WeatherViewModel(context, repo, mockk(), selected, prefsRepository, resolver,
-                WeatherMapper(language, Clock.fixed(Instant.parse("2026-10-03T17:25:00Z"), ZoneOffset.UTC)))
+                WeatherMapper(language, clock))
                 .also { viewModelJobs.add(it.viewModelScope.coroutineContext[Job]!!) }
             var geocoderCalls = 0
             val geocoder = mockk<AndroidGeocoder> {
@@ -198,6 +211,49 @@ class ProviderSwitchingTest {
             assertEquals(nextPrefs, prefsRepository.getPrefs().first())
             assertEquals(beforeRestart, requests.size)
             assertEquals(openCalls, requests.count { it.startsWith("open-") })
+
+            val beforeSevenTimer = requests.size
+            val sevenTimerPrefs = original.copy(provider = WeatherProviderId.SEVEN_TIMER, forecastDays = 14, hourlyForecastHours = 48)
+            prefsRepository.updatePrefs(sevenTimerPrefs)
+            val sevenTimer = success(WeatherProviderId.SEVEN_TIMER)
+            assertEquals(listOf("7timer"), requests.drop(beforeSevenTimer))
+            assertEquals(18.0, sevenTimer.temperature!!, 0.0)
+            assertEquals("New York", sevenTimer.cityName)
+            assertEquals("Europe/Moscow", sevenTimer.timezone)
+            assertEquals(7, sevenTimer.dailyForecast.size)
+            assertEquals(16, sevenTimer.hourlyForecast.size)
+            assertEquals("21:00", sevenTimer.hourlyForecast.first().time)
+            assertEquals(3, sevenTimer.hourlyStepHours)
+            assertNull(sevenTimer.feelsLike)
+            assertNull(sevenTimer.windSpeed)
+            assertFalse(sevenTimer.prefs.showWind)
+            assertFalse(sevenTimer.prefs.showSunTimes)
+            assertFalse(sevenTimer.prefs.showPrecipitation)
+            assertFalse(sevenTimer.prefs.showUvIndex)
+            assertEquals(WeatherProviderId.SEVEN_TIMER, WidgetPrefsManager.getProvider(context))
+            assertEquals("18°C", WidgetPrefsManager.getTemperature(context))
+            assertEquals(2, geocoderCalls)
+            sevenTimerFailed = true
+            vm.refreshActiveLocation()
+            vm.uiState.first { it is WeatherUiState.Error }
+            assertEquals(beforeSevenTimer + 2, requests.size)
+            sevenTimerFailed = false
+            vm.refreshActiveLocation()
+            assertEquals(16, success(WeatherProviderId.SEVEN_TIMER).hourlyForecast.size)
+            val beforeSevenTimerRestart = requests.size
+            vm.viewModelScope.coroutineContext[Job]!!.cancelAndJoin()
+            vm = viewModel(repository())
+            vm.loadSavedLocation()
+            assertEquals("New York", success(WeatherProviderId.SEVEN_TIMER).cityName)
+            assertEquals(sevenTimerPrefs, prefsRepository.getPrefs().first())
+            assertEquals(beforeSevenTimerRestart, requests.size)
+            assertEquals(listOf("7timer", "7timer", "7timer"), requests.drop(beforeSevenTimer))
+            prefsRepository.updatePrefs(original)
+            val afterSevenTimer = success(WeatherProviderId.OPEN_METEO)
+            assertTrue(afterSevenTimer.prefs.showWind)
+            assertTrue(afterSevenTimer.prefs.showSunTimes)
+            assertTrue(afterSevenTimer.prefs.showPrecipitation)
+            assertTrue(afterSevenTimer.prefs.showUvIndex)
         } finally {
             try {
                 withContext(NonCancellable) {
@@ -208,6 +264,7 @@ class ProviderSwitchingTest {
                     clientJobs.joinAll()
                 }
             } finally {
+                TimeZone.setDefault(originalZone)
                 Dispatchers.resetMain()
             }
         }

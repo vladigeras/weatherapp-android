@@ -1,47 +1,30 @@
 # Weatherapp Android
 
-Weather for your location or a city of your choice.
+Weather for your location or a city of your choice, with hourly and daily forecasts and a home screen widget.
 
-![Build](https://github.com/vladigeras/weatherapp-android/actions/workflows/build.yml/badge.svg)
-![GitHub release](https://img.shields.io/github/v/release/vladigeras/weatherapp-android)
-![GitHub downloads](https://img.shields.io/github/downloads/vladigeras/weatherapp-android/total)
+Requires Android 15 or newer. [Download the APK](https://github.com/vladigeras/weatherapp-android/releases).
 
-## 📱 About
+## Getting started
 
-Current weather, hourly and daily forecasts, and a choice of language and weather details.
+1. Find a city and select it, or allow location access. Approximate location works too.
+2. Pull down to refresh the weather. On the location screen, **Refresh** saves your new coordinates.
+3. Choose your provider, weather details, forecast length, and language in **Settings**, then tap **Save**.
+4. To add the widget, hold your home screen → **Widgets** → **Weatherapp**. Tap the widget to open the app.
 
-- **Open-Meteo:** forecasts for up to 16 days.
-- **wttr.in:** uses `wttr.is`, with 3 forecast days and 3-hour intervals. If hourly data is unavailable, the app shows a notice and keeps the current and daily weather.
+## Weather providers
 
-## 🧩 Home Screen Widget
+| Provider | Daily forecast | Hourly interval |
+| --- | --- | --- |
+| Open-Meteo | Up to 16 days | 1 hour |
+| wttr.in | Up to 3 days | 3 hours |
+| 7Timer | Up to 7 days | 3 hours |
 
-Shows the city, weather, and temperature. Resizes to fit your home screen and updates with the app. Tap it to open the weather screen.
+Available details depend on your provider. Unsupported options are disabled in settings, and missing values stay hidden. If wttr.in cannot provide hourly weather, the app shows a notice.
 
-## ⚙️ Requirements
+7Timer uses the nearest forecast for the main weather card. Its times and daily boundaries follow your phone's time zone.
 
-Android 15 or newer. Download the APK from [Releases](https://github.com/vladigeras/weatherapp-android/releases).
+## Privacy
 
-To build from source, open the project in Android Studio or run:
+No ads or analytics. Your weather provider receives coordinates. Android services search for cities and can detect your location and its name. Settings and cached weather stay on your device.
 
-```sh
-./gradlew assembleDebug
-```
-
-## 🔒 Privacy
-
-**No ads or analytics.** Your selected provider receives coordinates for weather requests. Android services search for cities by name and language, and can detect your location and its name. Settings and cached weather stay on your device.
-
-## 📦 Usage
-
-1. Find a city and select a result, or allow location access. Approximate location works too.
-2. Pull down to refresh the weather. **Refresh** on the location screen saves your new coordinates.
-3. In **Settings**, choose the provider, forecast, weather details, and language. Tap **Save** to apply changes.
-4. To add the widget, hold your home screen → **Widgets** → **Weatherapp**.
-
-## 🤝 Contributing
-
-Contributions are welcome! Follow the project style and include tests for changed behavior.
-
-## 📄 License
-
-MIT — see [LICENSE](LICENSE).
+Licensed under [MIT](LICENSE).
