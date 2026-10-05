@@ -1,6 +1,8 @@
 package ru.vladigeras.weatherapp.ui
 
 import android.content.Context
+import android.location.Address
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -21,6 +23,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.serialization.json.Json
 import org.junit.Assert.*
 import org.junit.Test
@@ -64,14 +67,11 @@ class ProviderSwitchingTest {
                         requests += "open-weather"
                         respond(json.encodeToString(openMeteo), headers = headersOf(HttpHeaders.ContentType, "application/json"))
                     }
-                    Url("${BuildConfig.GEOCODING_API_URL}/search").encodedPath -> {
-                        requests += "open-search"
-                        respond(json.encodeToString(GeocodingResponse(listOf(GeocodingResult(1, "Moscow", 55.7, 37.6)))), headers = headersOf(HttpHeaders.ContentType, "application/json"))
-                    }
                     else -> {
                         assertEquals(Url(BuildConfig.WTTR_API_URL).host, request.url.host)
                         val format = request.url.parameters["format"]!!
-                        requests += "wttr-$format-${request.url.parameters["lang"].orEmpty()}-${request.url.segments.last()}"
+                        assertNull(request.url.parameters["lang"])
+                        requests += "wttr-$format-${request.url.segments.last()}"
                         if (wttrFailed) respond("Unavailable", HttpStatusCode.ServiceUnavailable)
                         else respond(if (format == "%Z") {
                             if (request.url.segments.last().contains("-74")) "America/New_York" else "Europe/Moscow"
@@ -82,13 +82,34 @@ class ProviderSwitchingTest {
             val prefsRepository = WeatherDisplayPrefsRepository(context)
             val selected = SelectedLocationRepositoryImpl(context)
             var locale = Locale.ENGLISH
-            val language = mockk<LanguagePreferenceRepository> { coEvery { getAppLocale() } coAnswers { locale } }
+            val language = mockk<LanguagePreferenceRepository> {
+                coEvery { getAppLocale() } coAnswers { locale }
+                coEvery { getEffectiveLocaleCode() } coAnswers { locale.toLanguageTag() }
+            }
             val resolver = mockk<CityNameResolver> { coEvery { resolveCityName(any(), any(), any(), any()) } coAnswers { thirdArg<String?>() ?: "Unknown" } }
             fun repository() = WeatherRepositoryImpl(WeatherProviders(listOf(
-                OpenMeteoWeatherProvider(WeatherApiServiceImpl(client), GeocodingService(client), WeatherParamsBuilder()),
-                WttrWeatherProvider(client, json))), WeatherCache(context), CitySearchCache())
+                OpenMeteoWeatherProvider(WeatherApiServiceImpl(client), WeatherParamsBuilder()),
+                WttrWeatherProvider(client, json))), WeatherCache(context))
             fun viewModel(repo: WeatherRepository) = WeatherViewModel(context, repo, mockk(), selected, prefsRepository, resolver,
                 WeatherMapper(language, Clock.fixed(Instant.parse("2026-10-03T17:25:00Z"), ZoneOffset.UTC)))
+                .also { viewModelJobs.add(it.viewModelScope.coroutineContext[Job]!!) }
+            var geocoderCalls = 0
+            val geocoder = mockk<AndroidGeocoder> {
+                coEvery { getFromLocationName("Moscow", 5, any()) } coAnswers {
+                    geocoderCalls++
+                    listOf(Address(thirdArg<Locale>()).apply {
+                        locality = if (locale.language == "ru") "Москва" else "Moscow"
+                        latitude = 55.7
+                        longitude = 37.6
+                    })
+                }
+            }
+            val cities = CitySearchRepository(geocoder, CitySearchCache())
+            val locations = mockk<LocationRepository> {
+                coEvery { hasLocationPermission() } returns false
+                coEvery { getLocation(any()) } returns Result.failure(SecurityException())
+            }
+            val cityVm = LocationSelectionViewModel(context, SavedStateHandle(), locations, cities, selected, language)
                 .also { viewModelJobs.add(it.viewModelScope.coroutineContext[Job]!!) }
             val repo = repository()
             val original = WeatherDisplayPrefs()
@@ -100,7 +121,15 @@ class ProviderSwitchingTest {
             } as WeatherUiState.Success
             vm.loadSavedLocation()
             assertEquals(18.0, success(WeatherProviderId.OPEN_METEO).temperature!!, 0.001)
-            assertEquals("Moscow", repo.searchLocations(WeatherProviderId.OPEN_METEO, "Moscow", "en").getOrThrow().single().name)
+            val weatherCalls = requests.size
+            cityVm.updateSearchQuery("Moscow")
+            advanceUntilIdle()
+            assertEquals(0, geocoderCalls)
+            cityVm.submitSearch()
+            advanceUntilIdle()
+            assertEquals("Moscow", cityVm.uiState.value.searchResults.single().name)
+            assertEquals(1, geocoderCalls)
+            assertEquals(weatherCalls, requests.size)
             val openCalls = requests.count { it.startsWith("open-") }
 
             prefsRepository.updatePrefs(original.copy(provider = WeatherProviderId.WTTR))
@@ -113,12 +142,22 @@ class ProviderSwitchingTest {
             assertNull(wttr.isDay)
             assertEquals("12°C", WidgetPrefsManager.getTemperature(context))
             assertEquals(WeatherProviderId.WTTR, WidgetPrefsManager.getProvider(context))
-            repo.searchLocations(WeatherProviderId.WTTR, "Moscow", "ru").getOrThrow()
+            assertEquals("Moscow", cityVm.uiState.value.searchResults.single().name)
+            assertEquals(1, geocoderCalls)
             val cachedCalls = requests.size
-            repo.searchLocations(WeatherProviderId.WTTR, "Moscow", "ru").getOrThrow()
+            cityVm.submitSearch()
+            advanceUntilIdle()
+            assertEquals(1, geocoderCalls)
+            locale = Locale.forLanguageTag("ru")
+            cityVm.submitSearch()
+            advanceUntilIdle()
+            assertEquals("Москва", cityVm.uiState.value.searchResults.single().name)
+            assertEquals(2, geocoderCalls)
+            cityVm.submitSearch()
+            advanceUntilIdle()
+            assertEquals(2, geocoderCalls)
+            locale = Locale.ENGLISH
             assertEquals(cachedCalls, requests.size)
-            repo.searchLocations(WeatherProviderId.WTTR, "Moscow", "en").getOrThrow()
-            assertEquals(cachedCalls + 1, requests.size)
             assertEquals(openCalls, requests.count { it.startsWith("open-") })
 
             val beforeReturning = requests.size

@@ -7,7 +7,6 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpHeaders
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
-import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.*
@@ -33,7 +32,7 @@ class OpenMeteoWeatherProviderTest {
                 }""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
             }) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } }
             try {
-                val weather = OpenMeteoWeatherProvider(WeatherApiServiceImpl(client), mockk(), WeatherParamsBuilder())
+                val weather = OpenMeteoWeatherProvider(WeatherApiServiceImpl(client), WeatherParamsBuilder())
                     .getWeather(55.7, 37.6, WeatherDisplayPrefs(showForecastDays = days, showHourlyForecast = hours))
                 assertEquals(73, weather.current.humidity)
                 assertEquals(WeatherCondition.CLEAR, weather.current.condition)

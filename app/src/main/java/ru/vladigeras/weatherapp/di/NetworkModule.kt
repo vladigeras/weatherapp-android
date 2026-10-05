@@ -13,14 +13,12 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import ru.vladigeras.weatherapp.BuildConfig
-import ru.vladigeras.weatherapp.network.GeocodingService
 import ru.vladigeras.weatherapp.network.WeatherApiService
 import ru.vladigeras.weatherapp.network.WeatherApiServiceImpl
 import ru.vladigeras.weatherapp.network.OpenMeteoWeatherProvider
 import ru.vladigeras.weatherapp.network.WeatherProviders
 import ru.vladigeras.weatherapp.network.WttrWeatherProvider
 import ru.vladigeras.weatherapp.repository.CitySearchCache
-import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import javax.inject.Singleton
 import java.time.Clock
 
@@ -61,12 +59,6 @@ object NetworkModule {
     @Singleton
     fun provideWeatherApiService(httpClient: HttpClient): WeatherApiService {
         return WeatherApiServiceImpl(httpClient)
-    }
-    
-    @Provides
-    @Singleton
-    fun provideGeocodingService(httpClient: HttpClient): GeocodingService {
-        return GeocodingService(httpClient)
     }
     
     @Provides

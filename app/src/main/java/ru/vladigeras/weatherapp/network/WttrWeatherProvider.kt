@@ -26,7 +26,7 @@ class WttrWeatherProvider @Inject constructor(
 ) : WeatherProvider {
     override val id = WeatherProviderId.WTTR
     override val capabilities = ProviderCapabilities(
-        maxForecastDays = 3, hourlyStepHours = 3, explicitSearch = true,
+        maxForecastDays = 3, hourlyStepHours = 3,
         dailyPrecipitation = false, dailyUv = false, dailyWind = false, dayNight = false
     )
 
@@ -83,31 +83,17 @@ class WttrWeatherProvider @Inject constructor(
         )
     }
 
-    override suspend fun searchLocations(query: String, languageCode: String): List<SearchLocation> {
-        val response = json.decodeFromString<WttrResponse>(request(query, "j2", languageCode, 10_000))
-        return response.areas.take(1).map { area ->
-            val latitude = requireNotNull(area.latitude.toDoubleOrNull())
-            val longitude = requireNotNull(area.longitude.toDoubleOrNull())
-            SearchLocation(
-                id = "$latitude,$longitude", name = requireNotNull(area.name.firstOrNull()?.value),
-                latitude = latitude, longitude = longitude,
-                country = area.country.firstOrNull()?.value, admin1 = area.region.firstOrNull()?.value
-            )
-        }
-    }
-
     private suspend fun loadResponse(location: String, format: String): WttrResponse =
         json.decodeFromString<WttrResponse>(request(location, format)).also {
             require(it.current.isNotEmpty()) { "Missing current weather" }
         }
 
-    private suspend fun request(location: String, format: String, language: String? = null, timeoutMillis: Long = 15_000): String {
+    private suspend fun request(location: String, format: String, timeoutMillis: Long = 15_000): String {
         val response = client.get(BuildConfig.WTTR_API_URL) {
             timeout { requestTimeoutMillis = timeoutMillis }
             url {
                 appendPathSegments(location, encodeSlash = true)
                 parameters.append("format", format)
-                language?.let { parameters.append("lang", it) }
             }
         }
         if (!response.status.isSuccess()) throw ResponseException(response, "HTTP ${response.status.value}")
@@ -151,7 +137,6 @@ class WttrWeatherProvider @Inject constructor(
 @Serializable
 private data class WttrResponse(
     @SerialName("current_condition") val current: List<WttrCurrent> = emptyList(),
-    @SerialName("nearest_area") val areas: List<WttrArea> = emptyList(),
     @SerialName("weather") val days: List<WttrDay> = emptyList()
 )
 
@@ -184,15 +169,3 @@ private data class WttrHour(
     @SerialName("windspeedKmph") val windSpeed: String? = null,
     @SerialName("weatherCode") val code: String? = null
 )
-
-@Serializable
-private data class WttrArea(
-    val latitude: String,
-    val longitude: String,
-    @SerialName("areaName") val name: List<WttrValue> = emptyList(),
-    val country: List<WttrValue> = emptyList(),
-    val region: List<WttrValue> = emptyList()
-)
-
-@Serializable
-private data class WttrValue(val value: String)

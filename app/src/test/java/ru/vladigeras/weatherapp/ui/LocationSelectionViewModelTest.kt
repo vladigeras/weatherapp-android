@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.runCurrent
@@ -34,21 +33,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import ru.vladigeras.weatherapp.data.Location
-import ru.vladigeras.weatherapp.network.GeocodingResponse
-import ru.vladigeras.weatherapp.network.GeocodingResult
-import ru.vladigeras.weatherapp.network.GeocodingService
-import ru.vladigeras.weatherapp.repository.CitySearchCache
-import ru.vladigeras.weatherapp.repository.WeatherRepository
-import ru.vladigeras.weatherapp.repository.WeatherRepositoryImpl
-import ru.vladigeras.weatherapp.repository.WeatherDisplayPrefsRepository
-import ru.vladigeras.weatherapp.repository.WeatherParamsBuilder
-import ru.vladigeras.weatherapp.network.OpenMeteoWeatherProvider
-import ru.vladigeras.weatherapp.network.WeatherProviders
-import ru.vladigeras.weatherapp.network.WeatherProvider
-import ru.vladigeras.weatherapp.data.ProviderCapabilities
-import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
-import ru.vladigeras.weatherapp.data.WeatherProviderId
-import ru.vladigeras.weatherapp.util.asSearchLocation
+import ru.vladigeras.weatherapp.data.SearchLocation
+import ru.vladigeras.weatherapp.repository.CitySearchRepository
+import ru.vladigeras.weatherapp.repository.CitySearchUnavailableException
 import ru.vladigeras.weatherapp.repository.LanguagePreferenceRepository
 import ru.vladigeras.weatherapp.repository.LocationRepository
 import ru.vladigeras.weatherapp.repository.SelectedLocationRepository
@@ -61,14 +48,9 @@ class LocationSelectionViewModelTest {
 
     private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var locationRepository: LocationRepository
-    private lateinit var geocodingService: GeocodingService
-    private lateinit var citySearchCache: CitySearchCache
+    private lateinit var citySearchRepository: CitySearchRepository
     private lateinit var selectedLocationRepository: SelectedLocationRepository
     private lateinit var languagePreferenceRepository: LanguagePreferenceRepository
-    private val prefs = kotlinx.coroutines.flow.MutableStateFlow(WeatherDisplayPrefs())
-    private lateinit var wttrProvider: WeatherProvider
-    private lateinit var weatherRepository: WeatherRepository
-    private lateinit var prefsRepository: WeatherDisplayPrefsRepository
     private lateinit var viewModel: LocationSelectionViewModel
     private val testDispatcher = StandardTestDispatcher()
     private val viewModelStore = ViewModelStore()
@@ -79,8 +61,8 @@ class LocationSelectionViewModelTest {
     private val context: Context get() = RuntimeEnvironment.getApplication()
 
     private val testSearchResults = listOf(
-        GeocodingResult(1, "Moscow", 55.75, 37.62, "Russia", "RU", "Moscow City"),
-        GeocodingResult(2, "Moscow", 41.7, -83.5, "United States", "US", "Ohio")
+        SearchLocation("Moscow", 55.75, 37.62, "Russia", "Moscow City"),
+        SearchLocation("Moscow", 41.7, -83.5, "United States", "Ohio")
     )
 
     @Before
@@ -90,9 +72,8 @@ class LocationSelectionViewModelTest {
         savedStateHandle = SavedStateHandle()
 
         locationRepository = mockk(relaxed = true)
-        geocodingService = mockk()
-        coEvery { geocodingService.searchCity(any(), any()) } returns Result.success(GeocodingResponse(emptyList()))
-        citySearchCache = mockk(relaxed = true)
+        citySearchRepository = mockk()
+        coEvery { citySearchRepository.searchLocations(any(), any()) } returns Result.success(emptyList())
         selectedLocationRepository = mockk(relaxed = true)
         languagePreferenceRepository = mockk(relaxed = true)
 
@@ -101,22 +82,12 @@ class LocationSelectionViewModelTest {
         coEvery { locationRepository.getLocation(any()) } returns Result.success(mockAutoLocation)
         coEvery { locationRepository.hasLocationPermission() } returns true
         coEvery { languagePreferenceRepository.getEffectiveLocaleCode() } returns "en"
-        every { citySearchCache.get(any(), any(), any()) } returns null
-        prefs.value = WeatherDisplayPrefs()
-        prefsRepository = mockk { every { getPrefs() } returns prefs }
-        wttrProvider = mockk {
-            every { id } returns WeatherProviderId.WTTR
-            every { capabilities } returns ProviderCapabilities(3, 3, true, false, false, false, false)
-            coEvery { searchLocations(any(), any()) } returns emptyList()
-        }
-        weatherRepository = WeatherRepositoryImpl(WeatherProviders(listOf(OpenMeteoWeatherProvider(mockk(), geocodingService, WeatherParamsBuilder()), wttrProvider)), mockk(), citySearchCache)
 
         viewModel = LocationSelectionViewModel(
             context = context,
             savedStateHandle = savedStateHandle,
             locationRepository = locationRepository,
-            weatherRepository = weatherRepository,
-            prefsRepository = prefsRepository,
+            citySearchRepository = citySearchRepository,
             selectedLocationRepository = selectedLocationRepository,
             languagePreferenceRepository = languagePreferenceRepository
         ).tracked()
@@ -154,8 +125,7 @@ class LocationSelectionViewModelTest {
             context = context,
             savedStateHandle = SavedStateHandle(),
             locationRepository = locationRepository,
-            weatherRepository = weatherRepository,
-            prefsRepository = prefsRepository,
+            citySearchRepository = citySearchRepository,
             selectedLocationRepository = selectedLocationRepository,
             languagePreferenceRepository = languagePreferenceRepository
         ).tracked()
@@ -185,8 +155,7 @@ class LocationSelectionViewModelTest {
             context = context,
             savedStateHandle = SavedStateHandle(),
             locationRepository = locationRepository,
-            weatherRepository = weatherRepository,
-            prefsRepository = prefsRepository,
+            citySearchRepository = citySearchRepository,
             selectedLocationRepository = selectedLocationRepository,
             languagePreferenceRepository = languagePreferenceRepository
         ).tracked()
@@ -209,55 +178,45 @@ class LocationSelectionViewModelTest {
     }
 
     @Test
-    fun `search query shorter than 2 chars clears results`() = runTest {
+    fun `search query shorter than 2 chars clears results and cannot submit`() = runTest {
+        coEvery { citySearchRepository.searchLocations("Moscow", "en") } returns Result.success(testSearchResults)
         viewModel.updateSearchQuery("Moscow")
-        advanceTimeBy(500)
+        viewModel.submitSearch()
         advanceUntilIdle()
 
+        assertEquals(testSearchResults, viewModel.uiState.value.searchResults)
         viewModel.updateSearchQuery("M")
+        viewModel.submitSearch()
         advanceUntilIdle()
+        coVerify(exactly = 0) { citySearchRepository.searchLocations("M", any()) }
 
         val state = viewModel.uiState.first()
         assertTrue(state.searchResults.isEmpty())
     }
 
     @Test
-    fun `search query triggers geocoding after debounce`() = runTest {
-        coEvery { geocodingService.searchCity("Moscow", "en") } returns Result.success(
-            GeocodingResponse(testSearchResults)
+    fun `submitted search returns candidates without selecting a city`() = runTest {
+        coEvery { citySearchRepository.searchLocations("Moscow", "en") } returns Result.success(
+            testSearchResults
         )
 
         viewModel.updateSearchQuery("Moscow")
-        advanceTimeBy(500)
+        viewModel.submitSearch()
         advanceUntilIdle()
 
         val state = viewModel.uiState.first { it.searchResults.isNotEmpty() }
         assertEquals(2, state.searchResults.size)
         assertEquals("Moscow", state.searchResults[0].name)
 
-        coVerify { geocodingService.searchCity("Moscow", "en") }
-    }
-
-    @Test
-    fun `search query returns cached results without API call`() = runTest {
-        every { citySearchCache.get("Moscow", WeatherProviderId.OPEN_METEO, "en") } returns testSearchResults.map { it.asSearchLocation() }
-
-        viewModel.updateSearchQuery("Moscow")
-        advanceTimeBy(500)
-        advanceUntilIdle()
-
-        val state = viewModel.uiState.first { it.searchResults.isNotEmpty() }
-        assertEquals(2, state.searchResults.size)
-
-        coVerify(exactly = 0) { geocodingService.searchCity(any(), any()) }
+        coVerify { citySearchRepository.searchLocations("Moscow", "en") }
     }
 
     @Test
     fun `search query failure shows error`() = runTest {
-        coEvery { geocodingService.searchCity("Unknown", "en") } returns Result.failure(IOException("Network error"))
+        coEvery { citySearchRepository.searchLocations("Unknown", "en") } returns Result.failure(IOException("Network error"))
 
         viewModel.updateSearchQuery("Unknown")
-        advanceTimeBy(500)
+        viewModel.submitSearch()
         advanceUntilIdle()
 
         val state = viewModel.uiState.first { it.searchError != null }
@@ -267,52 +226,38 @@ class LocationSelectionViewModelTest {
     }
 
     @Test
-    fun `search results are cached after successful geocoding`() = runTest {
-        coEvery { geocodingService.searchCity("Moscow", "en") } returns Result.success(
-            GeocodingResponse(testSearchResults)
-        )
-
-        viewModel.updateSearchQuery("Moscow")
-        advanceTimeBy(500)
-        advanceUntilIdle()
-
-        coVerify { citySearchCache.put("Moscow", testSearchResults.map { it.asSearchLocation() }, WeatherProviderId.OPEN_METEO, "en") }
-    }
-
-    @Test
-    fun `empty search results are not cached`() = runTest {
-        coEvery { geocodingService.searchCity("Xyz", "en") } returns Result.success(
-            GeocodingResponse(emptyList())
+    fun `empty search completes without an error`() = runTest {
+        coEvery { citySearchRepository.searchLocations("Xyz", "en") } returns Result.success(
+            emptyList()
         )
 
         viewModel.updateSearchQuery("Xyz")
-        advanceTimeBy(500)
+        viewModel.submitSearch()
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { citySearchCache.put(any(), any(), any(), any()) }
         assertTrue(viewModel.uiState.value.searchCompleted)
         assertNull(viewModel.uiState.value.searchError)
     }
 
     @Test
     fun `search can be retried after a timeout without changing the query`() = runTest {
-        coEvery { geocodingService.searchCity("Unknown", "en") } returns Result.failure(io.ktor.client.plugins.HttpRequestTimeoutException("https://example.com/search", 10_000))
+        coEvery { citySearchRepository.searchLocations("Unknown", "en") } returns Result.failure(java.net.SocketTimeoutException())
 
         viewModel.updateSearchQuery("Unknown")
-        advanceTimeBy(500)
+        viewModel.submitSearch()
         advanceUntilIdle()
 
         val errorState = viewModel.uiState.first { it.searchError != null }
         assertEquals(context.getString(ru.vladigeras.weatherapp.R.string.request_timed_out), errorState.searchError)
         assertFalse(errorState.searchCompleted)
 
-        coEvery { geocodingService.searchCity("Unknown", "en") } returns Result.success(GeocodingResponse(testSearchResults))
+        coEvery { citySearchRepository.searchLocations("Unknown", "en") } returns Result.success(testSearchResults)
         viewModel.submitSearch()
         advanceUntilIdle()
 
         val clearedState = viewModel.uiState.first()
         assertNull(clearedState.searchError)
-        assertEquals(testSearchResults.map { it.asSearchLocation() }, clearedState.searchResults)
+        assertEquals(testSearchResults, clearedState.searchResults)
     }
 
     @Test
@@ -383,8 +328,7 @@ class LocationSelectionViewModelTest {
             context = context,
             savedStateHandle = SavedStateHandle(),
             locationRepository = locationRepository,
-            weatherRepository = weatherRepository,
-            prefsRepository = prefsRepository,
+            citySearchRepository = citySearchRepository,
             selectedLocationRepository = selectedLocationRepository,
             languagePreferenceRepository = languagePreferenceRepository
         ).tracked()
@@ -441,72 +385,58 @@ class LocationSelectionViewModelTest {
         assertFalse(state.locationPermissionGranted)
     }
     @Test
-    fun `restored query waits for saved provider before any search`() = runTest {
-        val loadedPrefs = kotlinx.coroutines.CompletableDeferred<WeatherDisplayPrefs>()
-        every { prefsRepository.getPrefs() } returns kotlinx.coroutines.flow.flow { emit(loadedPrefs.await()) }
+    fun `restored query waits for explicit action`() = runTest {
         val vm = LocationSelectionViewModel(context, SavedStateHandle(mapOf("search_query" to "Moscow")),
-            locationRepository, weatherRepository, prefsRepository, selectedLocationRepository, languagePreferenceRepository).tracked()
-        advanceTimeBy(301)
-        runCurrent()
-        vm.submitSearch()
-        coVerify(exactly = 0) { geocodingService.searchCity(any(), any()) }
-        coVerify(exactly = 0) { wttrProvider.searchLocations(any(), any()) }
-        loadedPrefs.complete(WeatherDisplayPrefs(provider = WeatherProviderId.WTTR))
+            locationRepository, citySearchRepository, selectedLocationRepository, languagePreferenceRepository).tracked()
         advanceUntilIdle()
-        assertTrue(vm.uiState.value.explicitSearch)
-        coVerify(exactly = 0) { wttrProvider.searchLocations(any(), any()) }
+        coVerify(exactly = 0) { citySearchRepository.searchLocations(any(), any()) }
         vm.submitSearch()
         advanceUntilIdle()
-        coVerify(exactly = 1) { wttrProvider.searchLocations("Moscow", "en") }
-        coVerify(exactly = 0) { geocodingService.searchCity(any(), any()) }
+        coVerify(exactly = 1) { citySearchRepository.searchLocations("Moscow", "en") }
     }
 
     @Test
-    fun `wttr search requires submission and selecting candidate before saving`() = runTest {
-        advanceUntilIdle()
-        prefs.value = prefs.value.copy(provider = WeatherProviderId.WTTR)
-        advanceUntilIdle()
-        val candidate = testSearchResults.first().asSearchLocation()
-        coEvery { wttrProvider.searchLocations("Moscow", "en") } returns listOf(candidate)
+    fun `typing never searches and submission uses the app language`() = runTest {
         viewModel.updateSearchQuery("Moscow")
-        advanceTimeBy(500)
         advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.explicitSearch)
-        coVerify(exactly = 0) { wttrProvider.searchLocations(any(), any()) }
+        coVerify(exactly = 0) { citySearchRepository.searchLocations(any(), any()) }
+        coEvery { languagePreferenceRepository.getEffectiveLocaleCode() } returns "ru"
+        coEvery { citySearchRepository.searchLocations("Moscow", "ru") } returns Result.success(testSearchResults)
         viewModel.submitSearch()
         advanceUntilIdle()
-        assertEquals(listOf(candidate), viewModel.uiState.value.searchResults)
+        assertEquals(testSearchResults, viewModel.uiState.value.searchResults)
+        coVerify(exactly = 1) { citySearchRepository.searchLocations("Moscow", "ru") }
         coVerify(exactly = 0) { selectedLocationRepository.saveSelectedLocation(any()) }
-        coVerify(exactly = 0) { geocodingService.searchCity(any(), any()) }
-        viewModel.selectLocation(Location(candidate.latitude, candidate.longitude, candidate.name))
-        advanceUntilIdle()
-        coVerify { selectedLocationRepository.saveSelectedLocation(match { it.latitude == candidate.latitude && it.longitude == candidate.longitude }) }
     }
 
     @Test
-    fun `provider change rejects late old city result`() = runTest {
+    fun `missing system service shows a search error and preserves the saved city`() = runTest {
+        coEvery { citySearchRepository.searchLocations(any(), any()) } returns Result.failure(CitySearchUnavailableException())
+        viewModel.updateSearchQuery("Moscow")
+        viewModel.submitSearch()
         advanceUntilIdle()
-        val old = kotlinx.coroutines.CompletableDeferred<GeocodingResponse>()
-        try {
-            coEvery { geocodingService.searchCity("Moscow", "en") } coAnswers {
-                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { old.await() }.let { Result.success(it) }
-            }
-            viewModel.updateSearchQuery("Moscow")
-            advanceTimeBy(301)
-            runCurrent()
-            prefs.value = prefs.value.copy(provider = WeatherProviderId.WTTR)
-            runCurrent()
-            val candidate = testSearchResults.first().asSearchLocation()
-            coEvery { wttrProvider.searchLocations("Moscow", "en") } returns listOf(candidate)
-            viewModel.submitSearch()
-            runCurrent()
-            old.complete(GeocodingResponse(testSearchResults))
-            advanceUntilIdle()
-            assertEquals(WeatherProviderId.WTTR, viewModel.uiState.value.provider)
-            assertEquals(listOf(candidate), viewModel.uiState.value.searchResults)
-        } finally {
-            old.complete(GeocodingResponse(testSearchResults))
+        assertEquals(context.getString(ru.vladigeras.weatherapp.R.string.city_search_unavailable), viewModel.uiState.value.searchError)
+        assertEquals(mockManualLocation, viewModel.uiState.value.activeLocation)
+        assertFalse(viewModel.uiState.value.searchCompleted)
+    }
+
+    @Test
+    fun `changing query rejects the cancelled late city result`() = runTest {
+        advanceUntilIdle()
+        val old = kotlinx.coroutines.CompletableDeferred<List<SearchLocation>>()
+        coEvery { citySearchRepository.searchLocations("Moscow", "en") } coAnswers {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { old.await() }.let { Result.success(it) }
         }
+        viewModel.updateSearchQuery("Moscow")
+        viewModel.submitSearch()
+        runCurrent()
+        viewModel.updateSearchQuery("London")
+        coEvery { citySearchRepository.searchLocations("London", "en") } returns Result.success(listOf(SearchLocation("London", 51.5, -0.1)))
+        viewModel.submitSearch()
+        runCurrent()
+        old.complete(testSearchResults)
+        advanceUntilIdle()
+        assertEquals("London", viewModel.uiState.value.searchResults.single().name)
     }
 
     @Test

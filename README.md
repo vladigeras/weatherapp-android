@@ -29,11 +29,11 @@ To build from source, open the project in Android Studio or run:
 
 ## 🔒 Privacy
 
-**No ads or analytics.** Your selected provider receives coordinates for weather requests, or the city name and language for searches. Android services can detect your location and its name. Settings and cached weather stay on your device.
+**No ads or analytics.** Your selected provider receives coordinates for weather requests. Android services search for cities by name and language, and can detect your location and its name. Settings and cached weather stay on your device.
 
 ## 📦 Usage
 
-1. Choose a city or allow location access. Approximate location works too. With wttr.in, tap **Find** and confirm the suggested place.
+1. Find a city and select a result, or allow location access. Approximate location works too.
 2. Pull down to refresh the weather. **Refresh** on the location screen saves your new coordinates.
 3. In **Settings**, choose the provider, forecast, weather details, and language. Tap **Save** to apply changes.
 4. To add the widget, hold your home screen → **Widgets** → **Weatherapp**.

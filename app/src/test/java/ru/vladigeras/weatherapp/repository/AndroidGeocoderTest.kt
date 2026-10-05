@@ -4,6 +4,9 @@ import android.location.Address
 import android.location.Geocoder
 import io.mockk.every
 import io.mockk.mockkConstructor
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
+import io.mockk.verify
 import io.mockk.slot
 import io.mockk.unmockkConstructor
 import kotlinx.coroutines.async
@@ -22,6 +25,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.util.Locale
+import java.net.SocketTimeoutException
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -33,13 +37,17 @@ class AndroidGeocoderTest {
     @Before
     fun setup() {
         mockkConstructor(Geocoder::class)
+        mockkStatic(Geocoder::class)
+        every { Geocoder.isPresent() } returns true
         every { anyConstructed<Geocoder>().getFromLocation(any(), any(), any(), capture(listener)) } returns Unit
+        every { anyConstructed<Geocoder>().getFromLocationName(any(), any(), capture(listener)) } returns Unit
         geocoder = AndroidGeocoder(RuntimeEnvironment.getApplication())
     }
 
     @After
     fun teardown() {
         unmockkConstructor(Geocoder::class)
+        unmockkStatic(Geocoder::class)
     }
 
     @Test
@@ -89,6 +97,58 @@ class AndroidGeocoderTest {
     @Test
     fun `parent cancellation remains cancellation and ignores late response`() = runTest {
         val result = async { geocoder.getFromLocation(55.75, 37.62, 1) }
+        runCurrent()
+        result.cancel()
+        runCurrent()
+        listener.captured.onGeocode(emptyList())
+        listener.captured.onError("late error")
+        assertTrue(result.isCancelled)
+    }
+
+    @Test
+    fun `name lookup returns addresses including an empty successful result`() = runTest {
+        for (addresses in listOf(listOf(Address(Locale.ENGLISH).apply { locality = "Moscow" }), emptyList())) {
+            val result = async { geocoder.getFromLocationName("Moscow", 5, Locale.ENGLISH) }
+            runCurrent()
+            listener.captured.onGeocode(addresses)
+            assertEquals(addresses, result.await())
+        }
+        verify(exactly = 2) { anyConstructed<Geocoder>().getFromLocationName("Moscow", 5, any()) }
+    }
+
+    @Test
+    fun `missing name lookup service returns an error without a request`() = runTest {
+        every { Geocoder.isPresent() } returns false
+        val error = runCatching { geocoder.getFromLocationName("Moscow", 5, Locale.ENGLISH) }.exceptionOrNull()
+        assertTrue(error is CitySearchUnavailableException)
+        verify(exactly = 0) { anyConstructed<Geocoder>().getFromLocationName(any(), any(), any<Geocoder.GeocodeListener>()) }
+    }
+
+    @Test
+    fun `name lookup error is not an empty successful result`() = runTest {
+        val result = async { runCatching { geocoder.getFromLocationName("Moscow", 5, Locale.ENGLISH) } }
+        runCurrent()
+        listener.captured.onError("service unavailable")
+        assertTrue(result.await().exceptionOrNull() is CitySearchUnavailableException)
+    }
+
+    @Test
+    fun `name lookup times out after five seconds and ignores late callbacks`() = runTest {
+        val result = async { runCatching { geocoder.getFromLocationName("Moscow", 5, Locale.ENGLISH) } }
+        runCurrent()
+        advanceTimeBy(4_999)
+        assertFalse(result.isCompleted)
+        advanceTimeBy(1)
+        runCurrent()
+        assertTrue(result.await().exceptionOrNull() is SocketTimeoutException)
+        listener.captured.onGeocode(emptyList())
+        listener.captured.onError("late error")
+        assertTrue(result.await().exceptionOrNull() is SocketTimeoutException)
+    }
+
+    @Test
+    fun `cancelled name lookup ignores late callbacks`() = runTest {
+        val result = async { geocoder.getFromLocationName("Moscow", 5, Locale.ENGLISH) }
         runCurrent()
         result.cancel()
         runCurrent()

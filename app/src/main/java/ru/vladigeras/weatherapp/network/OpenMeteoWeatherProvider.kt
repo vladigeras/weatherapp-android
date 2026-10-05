@@ -5,7 +5,6 @@ import ru.vladigeras.weatherapp.data.ForecastDay
 import ru.vladigeras.weatherapp.data.ForecastHour
 import ru.vladigeras.weatherapp.data.ProviderCapabilities
 import ru.vladigeras.weatherapp.data.ProviderWeather
-import ru.vladigeras.weatherapp.data.SearchLocation
 import ru.vladigeras.weatherapp.data.WeatherCondition
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.data.WeatherProviderId
@@ -18,7 +17,6 @@ import javax.inject.Inject
 
 class OpenMeteoWeatherProvider @Inject constructor(
     private val weatherApi: WeatherApiService,
-    private val geocoding: GeocodingService,
     private val paramsBuilder: WeatherParamsBuilder
 ) : WeatherProvider {
     override val id = WeatherProviderId.OPEN_METEO
@@ -32,11 +30,6 @@ class OpenMeteoWeatherProvider @Inject constructor(
             if (prefs.showHourlyForecast) prefs.hourlyForecastHours + 1 else 0
         ), prefs)
     }
-
-    override suspend fun searchLocations(query: String, languageCode: String): List<SearchLocation> =
-        geocoding.searchCity(query, languageCode).getOrThrow().results.orEmpty().map {
-            SearchLocation(it.id.toString(), it.name, it.latitude, it.longitude, it.country, it.countryCode, it.admin1)
-        }
 
     internal fun normalize(response: WeatherResponse, prefs: WeatherDisplayPrefs): ProviderWeather {
         val zone = ZoneId.of(response.timezone)

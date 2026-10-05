@@ -122,7 +122,6 @@
     <string name="provider_unavailable">Этот источник не предоставляет эти данные</string>
     <string name="daily_wind_unavailable">Ветер сейчас и по часам; суточный максимум недоступен</string>
     <string name="forecast_limit">До %1$d дней. Более длинные периоды недоступны.</string>
-    <string name="single_location_search">Будет найдена одна ближайшая локация. Проверьте регион и страну перед выбором.</string>
     <string name="find_city">Найти</string>
     <string name="confirm_location">Выбрать</string>
     <string name="city_not_found">Локация не найдена</string>
@@ -133,4 +132,5 @@
     <string name="request_timed_out">Сервис не ответил вовремя. Попробуйте ещё раз.</string>
     <string name="service_unavailable">Сервис недоступен. Попробуйте позже.</string>
     <string name="connection_error">Не удалось подключиться. Проверьте соединение и попробуйте ещё раз.</string>
+    <string name="city_search_unavailable">Поиск городов недоступен на этом устройстве. Попробуйте позже или используйте GPS.</string>
 </resources>

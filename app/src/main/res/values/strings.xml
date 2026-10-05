@@ -120,7 +120,6 @@
     <string name="provider_unavailable">Unavailable from this provider</string>
     <string name="daily_wind_unavailable">Current and hourly wind; daily maximum is unavailable</string>
     <string name="forecast_limit">Up to %1$d days. Longer ranges are unavailable.</string>
-    <string name="single_location_search">One nearby location will be found. Check its region and country before selecting it.</string>
     <string name="find_city">Find</string>
     <string name="confirm_location">Select</string>
     <string name="city_not_found">No location found</string>
@@ -131,4 +130,5 @@
     <string name="request_timed_out">The service took too long to respond. Try again.</string>
     <string name="service_unavailable">The service is unavailable. Try again later.</string>
     <string name="connection_error">Could not connect. Check your connection and try again.</string>
+    <string name="city_search_unavailable">City search is unavailable on this device. Try again later or use GPS.</string>
 </resources>

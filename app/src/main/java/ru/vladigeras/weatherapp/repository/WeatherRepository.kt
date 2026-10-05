@@ -5,7 +5,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import ru.vladigeras.weatherapp.BuildConfig
 import ru.vladigeras.weatherapp.data.ProviderWeather
 import ru.vladigeras.weatherapp.data.ProviderCapabilities
-import ru.vladigeras.weatherapp.data.SearchLocation
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.data.WeatherProviderId
 import ru.vladigeras.weatherapp.network.WeatherProviders
@@ -16,14 +15,12 @@ import kotlin.coroutines.cancellation.CancellationException
 interface WeatherRepository {
     fun capabilities(provider: WeatherProviderId): ProviderCapabilities
     suspend fun getWeather(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs = WeatherDisplayPrefs(), forceRefresh: Boolean = false): Result<ProviderWeather>
-    suspend fun searchLocations(provider: WeatherProviderId, query: String, language: String): Result<List<SearchLocation>>
 }
 
 @Singleton
 class WeatherRepositoryImpl @Inject constructor(
     private val providers: WeatherProviders,
-    private val weatherCache: WeatherCache,
-    private val citySearchCache: CitySearchCache
+    private val weatherCache: WeatherCache
 ) : WeatherRepository {
     override fun capabilities(provider: WeatherProviderId) = providers[provider].capabilities
     override suspend fun getWeather(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs, forceRefresh: Boolean): Result<ProviderWeather> {
@@ -48,16 +45,4 @@ class WeatherRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun searchLocations(provider: WeatherProviderId, query: String, language: String): Result<List<SearchLocation>> {
-        citySearchCache.get(query, provider, language)?.let { return Result.success(it) }
-        return try {
-            val results = providers[provider].searchLocations(query, language)
-            if (results.isNotEmpty()) citySearchCache.put(query, results, provider, language)
-            Result.success(results)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
 }

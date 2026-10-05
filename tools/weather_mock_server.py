@@ -10,11 +10,11 @@ from zoneinfo import ZoneInfo
 
 def location(query):
     western = "york" in query.lower() or "74" in query
-    return ("New York", 40.7128, -74.0060, "United States", "New York", "America/New_York") if western else ("Moscow", 55.7558, 37.6173, "Russia", "Moscow City", "Europe/Moscow")
+    return (40.7128, -74.0060, "America/New_York") if western else (55.7558, 37.6173, "Europe/Moscow")
 
 
 def open_meteo(params):
-    city, latitude, longitude, country, region, zone = location(params.get("longitude", [""])[0])
+    latitude, longitude, zone = location(params.get("longitude", [""])[0])
     now = datetime.now(ZoneInfo(zone))
     days = [now.date() + timedelta(days=i) for i in range(int(params.get("forecast_days", ["7"])[0]))]
     hours = [now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=i) for i in range(int(params.get("forecast_hours", ["12"])[0]))]
@@ -32,8 +32,8 @@ def open_meteo(params):
     }
 
 
-def wttr(query, include_hourly, language):
-    city, latitude, longitude, country, region, zone = location(query)
+def wttr(query, include_hourly):
+    zone = location(query)[-1]
     now = datetime.now(ZoneInfo(zone))
     days = []
     for i in range(3):
@@ -43,7 +43,6 @@ def wttr(query, include_hourly, language):
         days.append(day)
     return {
         "current_condition": [{"temp_C": "27", "FeelsLikeC": "26", "humidity": "70", "windspeedKmph": "9", "weatherCode": "113", "observation_time": "12:00 PM"}],
-        "nearest_area": [{"areaName": [{"value": "Москва" if language == "ru" and city == "Moscow" else city}], "latitude": str(latitude), "longitude": str(longitude), "country": [{"value": country}], "region": [{"value": region}]}],
         "weather": days
     }
 
@@ -65,10 +64,7 @@ class Handler(BaseHTTPRequestHandler):
             if params.get("format") == ["%Z"]:
                 body = location(query)[-1]
             else:
-                body = wttr(query, params.get("format") == ["j1"], params.get("lang", ["en"])[0])
-        elif request.path == "/open-meteo/search":
-            city, latitude, longitude, country, region, zone = location(params.get("name", [""])[0])
-            body = {"results": [{"id": 1, "name": city, "latitude": latitude, "longitude": longitude, "country": country, "admin1": region}]}
+                body = wttr(query, params.get("format") == ["j1"])
         elif request.path == "/open-meteo/forecast":
             body = open_meteo(params)
         else:

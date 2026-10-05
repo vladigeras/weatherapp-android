@@ -66,19 +66,16 @@ data class ForecastHour(
 )
 
 data class SearchLocation(
-    val id: String,
     val name: String,
     val latitude: Double,
     val longitude: Double,
     val country: String? = null,
-    val countryCode: String? = null,
     val admin1: String? = null
 )
 
 data class ProviderCapabilities(
     val maxForecastDays: Int,
     val hourlyStepHours: Int,
-    val explicitSearch: Boolean = false,
     val dailyPrecipitation: Boolean = true,
     val dailyUv: Boolean = true,
     val dailyWind: Boolean = true,

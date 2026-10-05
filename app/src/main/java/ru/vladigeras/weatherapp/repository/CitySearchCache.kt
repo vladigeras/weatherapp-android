@@ -1,7 +1,6 @@
 package ru.vladigeras.weatherapp.repository
 
 import ru.vladigeras.weatherapp.data.SearchLocation
-import ru.vladigeras.weatherapp.data.WeatherProviderId
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,8 +19,8 @@ class CitySearchCache @Inject constructor(
         }
     }
     
-    fun get(query: String, provider: WeatherProviderId = WeatherProviderId.OPEN_METEO, language: String = "en"): List<SearchLocation>? {
-        val key = "${provider.value}:$language:${query.lowercase(java.util.Locale.ROOT)}"
+    fun get(query: String, language: String = "en"): List<SearchLocation>? {
+        val key = "$language:${query.lowercase(java.util.Locale.ROOT)}"
         val cached = cache[key] ?: return null
         
         // Check if expired
@@ -34,10 +33,8 @@ class CitySearchCache @Inject constructor(
         return cached.results
     }
     
-    fun put(query: String, results: List<SearchLocation>, provider: WeatherProviderId = WeatherProviderId.OPEN_METEO, language: String = "en") {
-        val key = "${provider.value}:$language:${query.lowercase(java.util.Locale.ROOT)}"
+    fun put(query: String, results: List<SearchLocation>, language: String = "en") {
+        val key = "$language:${query.lowercase(java.util.Locale.ROOT)}"
         cache[key] = CachedCitySearch(results, timeProvider())
     }
-    
-    fun clear() = cache.clear()
 }
