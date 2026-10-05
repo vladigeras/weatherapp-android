@@ -36,7 +36,8 @@ class WeatherCache @Inject constructor(
         val latRounded = (latitude * 1000).roundToInt() / 1000.0
         val lngRounded = (longitude * 1000).roundToInt() / 1000.0
         val flags = listOf(prefs.showHumidity, prefs.showWind, prefs.showPrecipitation, prefs.showSunTimes, prefs.showUvIndex, prefs.showForecastDays, prefs.showHourlyForecast).joinToString("") { if (it) "1" else "0" }
-        return "v2_${prefs.provider.value}_${latRounded}_${lngRounded}_${flags}_${prefs.forecastDays}_${prefs.hourlyForecastHours}.json"
+        val version = if (prefs.provider in listOf(WeatherProviderId.SEVEN_TIMER, WeatherProviderId.YR)) 3 else 2
+        return "v${version}_${prefs.provider.value}_${latRounded}_${lngRounded}_${flags}_${prefs.forecastDays}_${prefs.hourlyForecastHours}.json"
     }
 
     private fun getCurrentTimeMillis(): Long = timeProvider()

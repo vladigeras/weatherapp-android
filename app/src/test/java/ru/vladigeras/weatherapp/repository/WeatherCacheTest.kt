@@ -24,6 +24,7 @@ import ru.vladigeras.weatherapp.util.asProviderWeather
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 import java.time.Instant
+import java.time.ZoneId
 import java.util.TimeZone
 import ru.vladigeras.weatherapp.data.ForecastDay
 
@@ -160,6 +161,24 @@ class WeatherCacheTest {
         assertNull(cache.getWeather(testLatitude, testLongitude, prefs.copy(showHumidity = false)))
         assertNull(cache.getWeather(testLatitude, testLongitude, prefs.copy(forecastDays = 3)))
         assertNull(cache.getWeather(testLatitude, testLongitude, prefs.copy(hourlyForecastHours = 48)))
+    }
+
+    @Test
+    fun `new provider cache versions exclude old calculated summaries`() = runTest {
+        for (provider in WeatherProviderId.entries) {
+            val prefs = WeatherDisplayPrefs(provider = provider)
+            val weather = createTestWeatherResponse().copy(provider = provider, timezone = ZoneId.systemDefault().id)
+            cache.putWeather(testLatitude, testLongitude, weather, prefs)
+            val key = cache.createKey(testLatitude, testLongitude, prefs)
+            if (provider in listOf(WeatherProviderId.SEVEN_TIMER, WeatherProviderId.YR)) {
+                assertTrue(key.startsWith("v3_"))
+                val file = File(tempDir, "weather_cache/$key")
+                assertTrue(file.renameTo(File(file.parentFile, key.replaceFirst("v3_", "v2_"))))
+                assertNull(cache.getWeather(testLatitude, testLongitude, prefs))
+                cache.putWeather(testLatitude, testLongitude, weather, prefs)
+            } else assertTrue(key.startsWith("v2_"))
+            assertEquals(weather, cache.getWeather(testLatitude, testLongitude, prefs))
+        }
     }
 
     @Test

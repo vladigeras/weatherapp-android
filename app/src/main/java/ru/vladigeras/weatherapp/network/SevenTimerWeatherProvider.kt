@@ -11,6 +11,7 @@ import kotlinx.serialization.json.Json
 import ru.vladigeras.weatherapp.BuildConfig
 import ru.vladigeras.weatherapp.data.*
 import java.time.Clock
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -26,23 +27,13 @@ class SevenTimerWeatherProvider @Inject constructor(
 ) : WeatherProvider {
     override val id = WeatherProviderId.SEVEN_TIMER
     override val capabilities = ProviderCapabilities(
-        maxForecastDays = 7, hourlyStepHours = 3,
+        maxForecastDays = 7,
         dailyPrecipitation = false, dailyUv = false, dailyWind = false,
         wind = false, sunTimes = false
     )
 
     override suspend fun getWeather(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs): ProviderWeather {
-        val response = client.get(BuildConfig.SEVEN_TIMER_API_URL) {
-            url {
-                parameters.append("lat", latitude.toString())
-                parameters.append("lon", longitude.toString())
-                parameters.append("product", "civil")
-                parameters.append("output", "json")
-                parameters.append("unit", "metric")
-            }
-        }
-        if (!response.status.isSuccess()) throw ResponseException(response, "HTTP ${response.status.value}")
-        val forecast = json.decodeFromString<SevenTimerResponse>(response.bodyAsText())
+        val forecast = json.decodeFromString<SevenTimerResponse>(request(latitude, longitude, "civil"))
         require(forecast.dataseries.isNotEmpty()) { "Missing weather forecast" }
         val init = LocalDateTime.parse(forecast.init, DateTimeFormatter.ofPattern("uuuuMMddHH").withResolverStyle(ResolverStyle.STRICT))
             .toInstant(ZoneOffset.UTC)
@@ -52,7 +43,17 @@ class SevenTimerWeatherProvider @Inject constructor(
         val now = clock.instant()
         val zone = ZoneId.systemDefault()
         val current = points.minBy { abs(it.second.epochSecond - now.epochSecond) }.first
-        val today = now.atZone(zone).toLocalDate()
+        val daily = if (!prefs.showForecastDays) emptyList() else {
+            val days = json.decodeFromString<SevenTimerDailyResponse>(request(latitude, longitude, "civillight"))
+            days.dataseries.take(prefs.forecastDays.coerceAtMost(capabilities.maxForecastDays)).map { day ->
+                ForecastDay(
+                    date = LocalDate.parse(day.date.toString(), DateTimeFormatter.BASIC_ISO_DATE).toString(),
+                    condition = condition(day.weather),
+                    temperatureMin = day.temp2m?.min?.takeUnless { it == -9999.0 },
+                    temperatureMax = day.temp2m?.max?.takeUnless { it == -9999.0 }
+                )
+            }
+        }
         return ProviderWeather(
             provider = id,
             timezone = zone.id,
@@ -65,20 +66,25 @@ class SevenTimerWeatherProvider @Inject constructor(
                     else -> null
                 }
             ),
-            daily = if (!prefs.showForecastDays) emptyList() else points.groupBy { it.second.atZone(zone).toLocalDate() }
-                .filterKeys { !it.isBefore(today) }.entries.take(prefs.forecastDays.coerceAtMost(capabilities.maxForecastDays)).map { (date, dayPoints) ->
-                    val temperatures = dayPoints.mapNotNull { it.first.temperature() }
-                    val noon = date.atTime(12, 0).atZone(zone).toEpochSecond()
-                    ForecastDay(
-                        date = date.toString(),
-                        condition = dayPoints.minBy { abs(it.second.epochSecond - noon) }.first.let { condition(it.weather, it.precipitationType) },
-                        temperatureMin = temperatures.minOrNull(), temperatureMax = temperatures.maxOrNull()
-                    )
-                },
+            daily = daily,
             hourly = if (!prefs.showHourlyForecast) emptyList() else points.map { (point, instant) ->
                 ForecastHour(instant.epochSecond, condition(point.weather, point.precipitationType), point.temperature(), point.humidity())
             }
         )
+    }
+
+    private suspend fun request(latitude: Double, longitude: Double, product: String): String {
+        val response = client.get(BuildConfig.SEVEN_TIMER_API_URL) {
+            url {
+                parameters.append("lat", latitude.toString())
+                parameters.append("lon", longitude.toString())
+                parameters.append("product", product)
+                parameters.append("output", "json")
+                parameters.append("unit", "metric")
+            }
+        }
+        if (!response.status.isSuccess()) throw ResponseException(response, "HTTP ${response.status.value}")
+        return response.bodyAsText()
     }
 
     internal fun condition(code: String?, precipitationType: String? = null): WeatherCondition? = when (code?.removeSuffix("day")?.removeSuffix("night")) {
@@ -104,6 +110,15 @@ class SevenTimerWeatherProvider @Inject constructor(
 
 @Serializable
 private data class SevenTimerResponse(val init: String, val dataseries: List<SevenTimerPoint>)
+
+@Serializable
+private data class SevenTimerDailyResponse(val dataseries: List<SevenTimerDay>)
+
+@Serializable
+private data class SevenTimerDay(val date: Int, val weather: String? = null, val temp2m: SevenTimerTemperatures? = null)
+
+@Serializable
+private data class SevenTimerTemperatures(val min: Double? = null, val max: Double? = null)
 
 @Serializable
 private data class SevenTimerPoint(

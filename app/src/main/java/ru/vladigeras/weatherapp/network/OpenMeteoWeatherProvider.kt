@@ -20,7 +20,7 @@ class OpenMeteoWeatherProvider @Inject constructor(
     private val paramsBuilder: WeatherParamsBuilder
 ) : WeatherProvider {
     override val id = WeatherProviderId.OPEN_METEO
-    override val capabilities = ProviderCapabilities(maxForecastDays = 16, hourlyStepHours = 1)
+    override val capabilities = ProviderCapabilities(maxForecastDays = 16)
 
     override suspend fun getWeather(latitude: Double, longitude: Double, prefs: WeatherDisplayPrefs): ProviderWeather {
         val (current, hourly, daily) = paramsBuilder.build(prefs)

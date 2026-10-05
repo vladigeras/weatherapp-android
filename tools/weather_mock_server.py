@@ -52,6 +52,10 @@ def seven_timer(params):
     zone = ZoneInfo(location(params.get("lon", [""])[0])[-1])
     now = datetime.now(timezone.utc)
     init = now.replace(hour=now.hour // 6 * 6, minute=0, second=0, microsecond=0)
+    if params.get("product") == ["civillight"]:
+        days = [{"date": int((now.date() + timedelta(days=i)).strftime("%Y%m%d")), "weather": "cloudy",
+                 "temp2m": {"min": 5 + i, "max": 27 + i}, "wind10m_max": 8} for i in range(7)]
+        return {"product": "civillight", "init": init.strftime("%Y%m%d%H"), "dataseries": days}
     points = []
     for hour in range(3, 193, 3):
         local = (init + timedelta(hours=hour)).astimezone(zone)
@@ -74,14 +78,6 @@ def met_forecast():
         points.append({"time": instant.isoformat().replace("+00:00", "Z"), "data": data})
     return {"properties": {"timeseries": points}}
 
-
-def met_sun(params):
-    date = datetime.fromisoformat(params["date"][0]).replace(tzinfo=timezone.utc)
-    polar = abs(float(params["lat"][0])) > 66
-    return {"properties": {
-        "sunrise": {"time": None if polar else (date + timedelta(hours=10)).isoformat()},
-        "sunset": {"time": None if polar else (date + timedelta(hours=22)).isoformat()}
-    }}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -114,8 +110,6 @@ class Handler(BaseHTTPRequestHandler):
             body = seven_timer(params)
         elif request.path == "/met/forecast":
             body = met_forecast()
-        elif request.path == "/met/sun":
-            body = met_sun(params)
         else:
             self.send_error(404)
             return

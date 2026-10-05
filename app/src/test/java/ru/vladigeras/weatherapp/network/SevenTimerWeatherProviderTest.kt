@@ -49,39 +49,38 @@ class SevenTimerWeatherProviderTest {
         }
     }
 
-    private fun provider(body: String = fixture(), status: HttpStatusCode = HttpStatusCode.OK, at: Clock = clock): SevenTimerWeatherProvider {
-        val client = HttpClient(MockEngine { respond(body, status) }).also(clients::add)
+    private fun provider(body: String = fixture(), status: HttpStatusCode = HttpStatusCode.OK, at: Clock = clock, dailyBody: String = dailyFixture()): SevenTimerWeatherProvider {
+        val client = HttpClient(MockEngine { request -> respond(if (request.url.parameters["product"] == "civillight") dailyBody else body, status) }).also(clients::add)
         return SevenTimerWeatherProvider(client, json, at)
     }
 
     @Test
-    fun `civil alone maps nearest weather and forecasts in phone zone for foreign coordinates`() = runTest {
-        var calls = 0
+    fun `civil maps ready current and hourly values while civillight supplies daily values`() = runTest {
+        val products = mutableListOf<String?>()
         val client = HttpClient(MockEngine { request ->
-            calls++
+            products.add(request.url.parameters["product"])
             assertEquals(Url(BuildConfig.SEVEN_TIMER_API_URL).host, request.url.host)
             assertEquals(Url(BuildConfig.SEVEN_TIMER_API_URL).encodedPath, request.url.encodedPath)
             assertEquals(setOf("lat", "lon", "product", "output", "unit"), request.url.parameters.names())
             assertEquals("40.7128", request.url.parameters["lat"])
             assertEquals("-74.006", request.url.parameters["lon"])
-            assertEquals("civil", request.url.parameters["product"])
             assertEquals("json", request.url.parameters["output"])
             assertEquals("metric", request.url.parameters["unit"])
-            respond(fixture())
+            respond(if (request.url.parameters["product"] == "civil") fixture() else dailyFixture())
         }).also(clients::add)
         val adapter = SevenTimerWeatherProvider(client, json, clock)
         val weather = adapter.getWeather(40.7128, -74.006, prefs.copy(forecastDays = 16))
-        assertEquals(1, calls)
+        assertEquals(listOf("civil", "civillight"), products)
         assertEquals(WeatherProviderId.SEVEN_TIMER, weather.provider)
         assertEquals("Europe/Moscow", weather.timezone)
         assertEquals(CurrentWeather(temperature = 18.0, humidity = 70, condition = WeatherCondition.CLEAR, isDay = 0), weather.current)
         assertEquals(7, weather.daily.size)
         assertEquals("2026-10-03", weather.daily.first().date)
-        assertEquals(3.0, weather.daily.first().temperatureMin!!, 0.0)
-        assertEquals(18.0, weather.daily.first().temperatureMax!!, 0.0)
-        assertEquals(WeatherCondition.CLEAR, weather.daily.first().condition)
-        assertEquals(0.0, weather.daily[1].temperatureMin!!, 0.0)
-        assertEquals(21.0, weather.daily[1].temperatureMax!!, 0.0)
+        assertEquals(-50.0, weather.daily.first().temperatureMin!!, 0.0)
+        assertEquals(50.0, weather.daily.first().temperatureMax!!, 0.0)
+        assertEquals(WeatherCondition.OVERCAST, weather.daily.first().condition)
+        assertEquals(-51.0, weather.daily[1].temperatureMin!!, 0.0)
+        assertEquals(51.0, weather.daily[1].temperatureMax!!, 0.0)
         assertEquals(64, weather.hourly.size)
         assertEquals(Instant.parse("2026-10-03T03:00:00Z").epochSecond, weather.hourly.first().epochSeconds)
         assertEquals(10800L, weather.hourly[1].epochSeconds - weather.hourly[0].epochSeconds)
@@ -98,7 +97,6 @@ class SevenTimerWeatherProviderTest {
             assertNull(it.sunset)
         }
         assertTrue(weather.hourly.all { it.windSpeed == null })
-        assertEquals(3, adapter.capabilities.hourlyStepHours)
         assertTrue(adapter.capabilities.dayNight)
         val effective = adapter.capabilities.effectivePrefs(prefs)
         assertFalse(effective.showWind)
@@ -108,18 +106,16 @@ class SevenTimerWeatherProviderTest {
     }
 
     @Test
-    fun `daily boundaries and future hours follow phone zone across daylight saving change`() = runTest {
+    fun `future hours follow phone zone across daylight saving change`() = runTest {
         TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"))
         val at = Clock.fixed(Instant.parse("2026-11-01T04:00:00Z"), ZoneOffset.UTC)
         val body = """{"init":"2026110100","dataseries":[
             {"timepoint":3,"temp2m":99,"weather":"clearnight"},
             {"timepoint":6,"temp2m":5,"weather":"clearnight"},
             {"timepoint":9,"temp2m":8,"weather":"clearday"}]}"""
-        val weather = provider(body, at = at).getWeather(55.7, 37.6, prefs)
+        val weather = provider(body, at = at).getWeather(55.7, 37.6, prefs.copy(showForecastDays = false))
         assertEquals("America/New_York", weather.timezone)
-        assertEquals("2026-11-01", weather.daily.single().date)
-        assertEquals(5.0, weather.daily.single().temperatureMin!!, 0.0)
-        assertEquals(8.0, weather.daily.single().temperatureMax!!, 0.0)
+        assertTrue(weather.daily.isEmpty())
         val hours = WeatherMapper(mockk(), at).mapToHourlyForecast(weather.hourly, weather.timezone, 12)
         assertEquals(listOf("01:00", "04:00"), hours.map { it.time })
         assertEquals(10800L, hours[1].epochSeconds - hours[0].epochSeconds)
@@ -127,18 +123,24 @@ class SevenTimerWeatherProviderTest {
 
     @Test
     fun `disabled forecasts stay absent and selected day count is respected`() = runTest {
-        val adapter = provider()
+        val products = mutableListOf<String?>()
+        val client = HttpClient(MockEngine { request ->
+            products.add(request.url.parameters["product"])
+            respond(if (request.url.parameters["product"] == "civil") fixture() else dailyFixture())
+        }).also(clients::add)
+        val adapter = SevenTimerWeatherProvider(client, json, clock)
         val hidden = adapter.getWeather(55.7, 37.6, prefs.copy(showHourlyForecast = false, showForecastDays = false))
         assertTrue(hidden.hourly.isEmpty())
         assertTrue(hidden.daily.isEmpty())
         assertNotNull(hidden.current.temperature)
+        assertEquals(listOf("civil"), products)
         assertEquals(2, adapter.getWeather(55.7, 37.6, prefs.copy(forecastDays = 2)).daily.size)
     }
 
     @Test
     fun `sentinels missing optional values and unknown codes remain absent`() = runTest {
         val body = """{"init":"2026100300","dataseries":[{"timepoint":18,"temp2m":-9999,"rh2m":"-9999","weather":"unknown","wind10m":{"speed":8},"prec_amount":9},{"timepoint":21}]}"""
-        val weather = provider(body).getWeather(55.7, 37.6, prefs)
+        val weather = provider(body, dailyBody = """{"dataseries":[{"date":20261003,"weather":"unknown","temp2m":{"min":-9999}}]}""").getWeather(55.7, 37.6, prefs)
         assertEquals(CurrentWeather(), weather.current)
         assertEquals(ForecastDay("2026-10-03"), weather.daily.first())
         assertTrue(weather.hourly.all { it.temperature == null && it.humidity == null && it.condition == null })
@@ -164,7 +166,7 @@ class SevenTimerWeatherProviderTest {
     }
 
     @Test
-    fun `precipitation preserves its known type without inventing intensity in all forecasts`() = runTest {
+    fun `precipitation preserves its known type without inventing intensity in current and hourly forecasts`() = runTest {
         val cases = listOf(
             Triple("rain", "rain", WeatherCondition.RAIN_UNSPECIFIED),
             Triple("snow", "snow", WeatherCondition.SNOW_UNSPECIFIED),
@@ -174,9 +176,9 @@ class SevenTimerWeatherProviderTest {
         )
         for ((code, type, expected) in cases) {
             val body = """{"init":"2026100300","dataseries":[{"timepoint":18,"weather":"${code}day","prec_type":"$type","prec_amount":9}]}"""
-            val weather = provider(body).getWeather(55.7, 37.6, prefs)
+            val weather = provider(body).getWeather(55.7, 37.6, prefs.copy(showForecastDays = false))
             assertEquals(expected, weather.current.condition)
-            assertEquals(expected, weather.daily.single().condition)
+            assertTrue(weather.daily.isEmpty())
             assertEquals(expected, weather.hourly.single().condition)
         }
     }
@@ -198,6 +200,21 @@ class SevenTimerWeatherProviderTest {
     }
 
     @Test
+    fun `civillight failures do not fall back to daily calculations`() = runTest {
+        for ((body, status) in listOf("Unavailable" to HttpStatusCode.ServiceUnavailable, "{" to HttpStatusCode.OK,
+            "{}" to HttpStatusCode.OK, """{"dataseries":[{"date":20260230}]}""" to HttpStatusCode.OK)) {
+            val products = mutableListOf<String?>()
+            val client = HttpClient(MockEngine { request ->
+                products.add(request.url.parameters["product"])
+                if (request.url.parameters["product"] == "civil") respond(fixture()) else respond(body, status)
+            }).also(clients::add)
+            val result = runCatching { SevenTimerWeatherProvider(client, json, clock).getWeather(55.7, 37.6, prefs) }
+            assertTrue(result.isFailure)
+            assertEquals(listOf("civil", "civillight"), products)
+        }
+    }
+
+    @Test
     fun `cancellation stops civil request without another request`() = runTest {
         val entered = CompletableDeferred<Unit>()
         var calls = 0
@@ -215,6 +232,13 @@ class SevenTimerWeatherProviderTest {
     }
 
     companion object {
+        fun dailyFixture(): String {
+            val days = (0..6).joinToString(",") { day ->
+                """{"date":${20261003 + day},"weather":"cloudy","temp2m":{"min":${-50 - day},"max":${50 + day}},"wind10m_max":8}"""
+            }
+            return """{"product":"civillight","dataseries":[$days]}"""
+        }
+
         fun fixture(): String {
             val points = (3..192 step 3).joinToString(",") { hour ->
                 val suffix = if (hour % 24 in 6..15) "day" else "night"

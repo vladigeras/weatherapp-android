@@ -45,8 +45,7 @@ sealed interface WeatherUiState {
         val temperatureUnit: String,
         val dailyForecast: List<DailyForecast> = emptyList(),
         val hourlyForecast: List<HourlyForecast> = emptyList(),
-        val prefs: WeatherDisplayPrefs = WeatherDisplayPrefs(),
-        val hourlyStepHours: Int = 1
+        val prefs: WeatherDisplayPrefs = WeatherDisplayPrefs()
     ) : WeatherUiState
     data class Error(val message: String) : WeatherUiState
 }
@@ -154,7 +153,7 @@ class WeatherViewModel @Inject constructor(
         _uiState.value = WeatherUiState.Success(
             current.temperature, current.feelsLike, current.humidity, current.windSpeed, current.condition?.displayCode,
             current.isDay, response.timezone, cityName, response.temperatureUnit, daily, hourly,
-            weatherRepository.capabilities(prefs.provider).effectivePrefs(prefs), weatherRepository.capabilities(prefs.provider).hourlyStepHours
+            weatherRepository.capabilities(prefs.provider).effectivePrefs(prefs)
         )
         _showUpdateToast.value = false
         WeatherWidgetProvider.updateAllWidgets(context)

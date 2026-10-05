@@ -77,9 +77,10 @@ class ProviderSwitchingTest {
                         assertEquals(Url(BuildConfig.SEVEN_TIMER_API_URL).host, request.url.host)
                         assertEquals("40.7128", request.url.parameters["lat"])
                         assertEquals("-74.006", request.url.parameters["lon"])
-                        requests += "7timer"
+                        val product = request.url.parameters["product"]
+                        requests += "7timer-$product"
                         if (sevenTimerFailed) respond("Unavailable", HttpStatusCode.ServiceUnavailable)
-                        else respond(SevenTimerWeatherProviderTest.fixture())
+                        else respond(if (product == "civillight") SevenTimerWeatherProviderTest.dailyFixture() else SevenTimerWeatherProviderTest.fixture())
                     }
                     Url(BuildConfig.MET_FORECAST_API_URL).encodedPath -> {
                         assertEquals(Url(BuildConfig.MET_FORECAST_API_URL).host, request.url.host)
@@ -225,14 +226,15 @@ class ProviderSwitchingTest {
             val sevenTimerPrefs = original.copy(provider = WeatherProviderId.SEVEN_TIMER, forecastDays = 14, hourlyForecastHours = 48)
             prefsRepository.updatePrefs(sevenTimerPrefs)
             val sevenTimer = success(WeatherProviderId.SEVEN_TIMER)
-            assertEquals(listOf("7timer"), requests.drop(beforeSevenTimer))
+            assertEquals(listOf("7timer-civil", "7timer-civillight"), requests.drop(beforeSevenTimer))
             assertEquals(18.0, sevenTimer.temperature!!, 0.0)
             assertEquals("New York", sevenTimer.cityName)
             assertEquals("Europe/Moscow", sevenTimer.timezone)
             assertEquals(7, sevenTimer.dailyForecast.size)
+            assertEquals(-50.0, sevenTimer.dailyForecast.first().temperatureMin!!, 0.0)
+            assertEquals(50.0, sevenTimer.dailyForecast.first().temperatureMax!!, 0.0)
             assertEquals(16, sevenTimer.hourlyForecast.size)
             assertEquals("21:00", sevenTimer.hourlyForecast.first().time)
-            assertEquals(3, sevenTimer.hourlyStepHours)
             assertNull(sevenTimer.feelsLike)
             assertNull(sevenTimer.windSpeed)
             assertFalse(sevenTimer.prefs.showWind)
@@ -245,7 +247,7 @@ class ProviderSwitchingTest {
             sevenTimerFailed = true
             vm.refreshActiveLocation()
             vm.uiState.first { it is WeatherUiState.Error }
-            assertEquals(beforeSevenTimer + 2, requests.size)
+            assertEquals(beforeSevenTimer + 3, requests.size)
             sevenTimerFailed = false
             vm.refreshActiveLocation()
             assertEquals(16, success(WeatherProviderId.SEVEN_TIMER).hourlyForecast.size)
@@ -256,13 +258,16 @@ class ProviderSwitchingTest {
             assertEquals("New York", success(WeatherProviderId.SEVEN_TIMER).cityName)
             assertEquals(sevenTimerPrefs, prefsRepository.getPrefs().first())
             assertEquals(beforeSevenTimerRestart, requests.size)
-            assertEquals(listOf("7timer", "7timer", "7timer"), requests.drop(beforeSevenTimer))
+            assertEquals(listOf("7timer-civil", "7timer-civillight", "7timer-civil", "7timer-civil", "7timer-civillight"), requests.drop(beforeSevenTimer))
             val beforeMet = requests.size
             val metPrefs = original.copy(provider = WeatherProviderId.YR, forecastDays = 14, hourlyForecastHours = 48, showSunTimes = false)
             prefsRepository.updatePrefs(metPrefs)
             val met = success(WeatherProviderId.YR)
             assertEquals(listOf("met"), requests.drop(beforeMet))
-            assertEquals(9, met.dailyForecast.size)
+            assertTrue(met.dailyForecast.isEmpty())
+            assertFalse(met.prefs.showForecastDays)
+            assertFalse(met.prefs.showPrecipitation)
+            assertFalse(met.prefs.showSunTimes)
             assertEquals(17.0, met.temperature!!, 0.0)
             assertEquals(16.0, met.feelsLike!!, 0.0)
             assertEquals(7.2, met.windSpeed!!, 0.0)

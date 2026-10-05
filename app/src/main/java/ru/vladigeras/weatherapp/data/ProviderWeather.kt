@@ -75,7 +75,6 @@ data class SearchLocation(
 
 data class ProviderCapabilities(
     val maxForecastDays: Int,
-    val hourlyStepHours: Int,
     val dailyPrecipitation: Boolean = true,
     val dailyUv: Boolean = true,
     val dailyWind: Boolean = true,
@@ -85,6 +84,7 @@ data class ProviderCapabilities(
 ) {
     fun effectivePrefs(prefs: WeatherDisplayPrefs) = prefs.copy(
         forecastDays = prefs.forecastDays.coerceAtMost(maxForecastDays),
+        showForecastDays = prefs.showForecastDays && maxForecastDays > 0,
         showWind = prefs.showWind && wind,
         showSunTimes = prefs.showSunTimes && sunTimes,
         showPrecipitation = prefs.showPrecipitation && dailyPrecipitation,
