@@ -28,6 +28,8 @@ import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowLooper
 import ru.vladigeras.weatherapp.data.WeatherDisplayPrefs
 import ru.vladigeras.weatherapp.data.WeatherProviderId
+import ru.vladigeras.weatherapp.data.ProviderCapabilities
+import ru.vladigeras.weatherapp.repository.LanguagePreference
 import ru.vladigeras.weatherapp.R
 import ru.vladigeras.weatherapp.ui.theme.WeatherAppTheme
 import java.util.concurrent.TimeUnit
@@ -37,30 +39,54 @@ import java.util.concurrent.TimeUnit
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class WeatherScreenLayoutTest {
     @Test
-    fun yrShowsPhoneTimeAndCreditWhileMissingCurrentValuesStayHidden() {
-        val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
-        val activity = controller.get()
-        val state = WeatherUiState.Success(18.0, null, null, null, -3, null, "Europe/Moscow", "Moscow", "°C",
-            hourlyForecast = listOf(HourlyForecast("21:00", -3, 18.0, null, null)),
-            prefs = WeatherDisplayPrefs(provider = WeatherProviderId.YR, showForecastDays = false))
-        val viewModel = mockk<WeatherViewModel>(relaxed = true)
-        every { viewModel.uiState } returns MutableStateFlow(state)
-        every { viewModel.showUpdateToast } returns MutableStateFlow(false)
-        try {
-            activity.setContent { WeatherAppTheme { WeatherScreen(SavedStateHandle(), viewModel = viewModel) } }
-            val root = activity.findViewById<ViewGroup>(android.R.id.content)
-            repeat(3) {
-                ShadowLooper.idleMainLooper(100, TimeUnit.MILLISECONDS)
-                root.measure(View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(1600, View.MeasureSpec.EXACTLY))
-                root.layout(0, 0, 800, 1600)
-            }
-            val owner = views(root).firstNotNullOf { view -> view.javaClass.methods.firstOrNull { it.name == "getSemanticsOwner" }?.invoke(view) as? SemanticsOwner }
-            val texts = nodes(owner.unmergedRootSemanticsNode).flatMap { it.config.getOrNull(SemanticsProperties.Text).orEmpty().asSequence() }.map { it.text }.toList()
-            assertTrue(texts.contains(activity.getString(R.string.phone_forecast_time)))
-            assertTrue(texts.contains(activity.getString(R.string.met_attribution)))
-            assertTrue(texts.contains("CC BY 4.0"))
-            assertTrue(texts.none { "км/ч" in it || "%" in it || "Ощущается" in it })
-        } finally { controller.pause().stop().destroy() }
+    fun providersShareForecastHeadingAndOnlyYrSettingsShowCredits() {
+        for (provider in WeatherProviderId.entries) {
+            val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+            val activity = controller.get()
+            val state = WeatherUiState.Success(18.0, null, null, null, -3, null, "Europe/Moscow", "Moscow", "°C",
+                hourlyForecast = listOf(HourlyForecast("21:00", -3, 18.0, null, null)),
+                prefs = WeatherDisplayPrefs(provider = provider, showForecastDays = false))
+            val viewModel = mockk<WeatherViewModel>(relaxed = true)
+            every { viewModel.uiState } returns MutableStateFlow(state)
+            every { viewModel.showUpdateToast } returns MutableStateFlow(false)
+            try {
+                activity.setContent { WeatherAppTheme { WeatherScreen(SavedStateHandle(), viewModel = viewModel) } }
+                val root = activity.findViewById<ViewGroup>(android.R.id.content)
+                repeat(3) {
+                    ShadowLooper.idleMainLooper(100, TimeUnit.MILLISECONDS)
+                    root.measure(View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(1600, View.MeasureSpec.EXACTLY))
+                    root.layout(0, 0, 800, 1600)
+                }
+                val owner = views(root).firstNotNullOf { view -> view.javaClass.methods.firstOrNull { it.name == "getSemanticsOwner" }?.invoke(view) as? SemanticsOwner }
+                val texts = nodes(owner.unmergedRootSemanticsNode).flatMap { it.config.getOrNull(SemanticsProperties.Text).orEmpty().asSequence() }.map { it.text }.toList()
+                assertTrue("$provider: $texts", texts.contains("Прогноз по времени"))
+                assertTrue(texts.none { "часовом поясе" in it || "шаг" in it })
+                assertTrue(texts.none { "MET Norway" in it || "CC BY 4.0" in it })
+                assertTrue(texts.none { "км/ч" in it || "%" in it || "Ощущается" in it })
+                val settingsViewModel = mockk<SettingsViewModel>(relaxed = true)
+                every { settingsViewModel.localPrefs } returns MutableStateFlow(state.prefs)
+                every { settingsViewModel.hasChanges } returns MutableStateFlow(false)
+                every { settingsViewModel.languagePreference } returns MutableStateFlow(LanguagePreference.SYSTEM)
+                every { settingsViewModel.capabilities(any()) } returns if (provider == WeatherProviderId.YR)
+                    ProviderCapabilities(0, dailyPrecipitation = false, dailyUv = false, dailyWind = false, sunTimes = false)
+                else ProviderCapabilities(16)
+                activity.setContent { WeatherAppTheme { SettingsScreen(settingsViewModel) } }
+                repeat(3) {
+                    ShadowLooper.idleMainLooper(100, TimeUnit.MILLISECONDS)
+                    root.measure(View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(5000, View.MeasureSpec.EXACTLY))
+                    root.layout(0, 0, 800, 5000)
+                }
+                val settingsTexts = nodes(owner.unmergedRootSemanticsNode).flatMap { it.config.getOrNull(SemanticsProperties.Text).orEmpty().asSequence() }.map { it.text }.toList()
+                assertEquals(provider == WeatherProviderId.YR, settingsTexts.contains(activity.getString(R.string.met_attribution)))
+                assertEquals(provider == WeatherProviderId.YR, settingsTexts.contains("CC BY 4.0"))
+                assertEquals(provider != WeatherProviderId.YR, settingsTexts.contains(activity.getString(R.string.daily_forecast_days)))
+                if (provider == WeatherProviderId.YR) assertTrue(nodes(owner.unmergedRootSemanticsNode).any { node ->
+                    node.config.contains(SemanticsProperties.Disabled) && nodes(node).any {
+                        it.config.getOrNull(SemanticsProperties.Text)?.any { text -> text.text == activity.getString(R.string.daily_forecast) } == true
+                    }
+                })
+            } finally { controller.pause().stop().destroy() }
+        }
     }
 
     @Test
@@ -69,7 +95,7 @@ class WeatherScreenLayoutTest {
             val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
             val activity = controller.get()
             val state = WeatherUiState.Success(18.0, 17.0, 73, 12.0, 2, 1, "Europe/Moscow", "Moscow", "°C",
-                emptyList(), emptyList(), WeatherDisplayPrefs(showHourlyForecast = false, showForecastDays = false), 1)
+                emptyList(), emptyList(), WeatherDisplayPrefs(showHourlyForecast = false, showForecastDays = false))
             val viewModel = mockk<WeatherViewModel>(relaxed = true)
             every { viewModel.uiState } returns MutableStateFlow(state)
             every { viewModel.showUpdateToast } returns MutableStateFlow(false)

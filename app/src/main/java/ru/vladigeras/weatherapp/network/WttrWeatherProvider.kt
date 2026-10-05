@@ -26,7 +26,7 @@ class WttrWeatherProvider @Inject constructor(
 ) : WeatherProvider {
     override val id = WeatherProviderId.WTTR
     override val capabilities = ProviderCapabilities(
-        maxForecastDays = 3, hourlyStepHours = 3,
+        maxForecastDays = 3,
         dailyPrecipitation = false, dailyUv = false, dailyWind = false, dayNight = false
     )
 

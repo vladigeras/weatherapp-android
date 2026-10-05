@@ -1,6 +1,5 @@
 <resources>
-    <string name="phone_forecast_time">Times follow your phone\'s time zone.</string>
-    <string name="met_attribution">Weather data: MET Norway. Daily summaries are calculated by the app.</string>
+    <string name="met_attribution">Weather data: MET Norway.</string>
     <string name="app_name">Weatherapp</string>
     
     <!-- Settings -->
@@ -61,8 +60,8 @@
     <string name="sun_times_description">Show sunrise and sunset times</string>
     <string name="uv_index_description">Show maximum UV index</string>
     <string name="forecast_description">Enable forecast block</string>
-    <string name="hourly_forecast">Hourly Forecast</string>
-    <string name="hourly_forecast_description">Show hourly weather forecast</string>
+    <string name="hourly_forecast">Forecast by time</string>
+    <string name="hourly_forecast_description">Show weather forecast by time</string>
     <string name="hourly_forecast_hours">Hours to show</string>
     
     <!-- Weather labels -->
@@ -118,7 +117,6 @@
     <string name="tomorrow">Tomorrow</string>
     <string name="day_after_tomorrow">Day after tomorrow</string>
     <string name="weather_provider">Weather provider</string>
-    <string name="forecast_step">Forecast · every %1$d hours</string>
     <string name="provider_unavailable">Unavailable from this provider</string>
     <string name="daily_wind_unavailable">Current and hourly wind; daily maximum is unavailable</string>
     <string name="forecast_limit">Up to %1$d days. Longer ranges are unavailable.</string>
@@ -131,7 +129,7 @@
     <string name="weather_freezing_rain">Freezing rain</string>
     <string name="weather_rain">Rain</string>
     <string name="weather_snow">Snow</string>
-    <string name="hourly_forecast_unavailable">Hourly forecast is unavailable</string>
+    <string name="hourly_forecast_unavailable">Forecast by time is unavailable</string>
     <string name="request_timed_out">The service took too long to respond. Try again.</string>
     <string name="service_unavailable">The service is unavailable. Try again later.</string>
     <string name="connection_error">Could not connect. Check your connection and try again.</string>

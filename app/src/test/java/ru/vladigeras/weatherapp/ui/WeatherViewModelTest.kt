@@ -148,7 +148,7 @@ class WeatherViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        weatherRepository = mockk { every { capabilities(any()) } returns ProviderCapabilities(16, 1) }
+        weatherRepository = mockk { every { capabilities(any()) } returns ProviderCapabilities(16) }
         locationRepository = mockk()
         selectedLocationRepository = mockk {
             every { getSelectedLocation() } returns flowOf(null)
@@ -209,7 +209,7 @@ class WeatherViewModelTest {
     fun `should load weather for selected location`() = runTest {
         // Create isolated mocks for this test
         val testWeatherRepository = mockk<WeatherRepository> {
-            every { capabilities(any()) } returns ProviderCapabilities(16, 1)
+            every { capabilities(any()) } returns ProviderCapabilities(16)
             coEvery { getWeather(55.7558, 37.6173, any(), any()) } returns Result.success(mockResponse.asProviderWeather())
         }
         val testSelectedLocationRepository = mockk<SelectedLocationRepository> {

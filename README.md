@@ -13,7 +13,7 @@ Current weather, hourly and daily forecasts, and a choice of language and weathe
 - **Open-Meteo:** forecasts for up to 16 days.
 - **wttr.in:** forecasts for up to 3 days at 3-hour intervals. If hourly data is unavailable, the app shows a notice and keeps the current and daily weather.
 - **7Timer:** forecasts for up to 7 days at 3-hour intervals.
-- **yr.no (MET Norway):** forecasts for up to 9 days.
+- **yr.no (MET Norway):** forecasts by time.
 
 ## 🧩 Home Screen Widget
 
@@ -41,3 +41,5 @@ Contributions are welcome! Follow the project style and include tests for change
 ## 📄 License
 
 MIT — see [LICENSE](LICENSE).
+
+*yr.no weather data: MET Norway, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).*

@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -111,6 +112,7 @@ fun SettingsScreen(
     val hasChanges by viewModel.hasChanges.collectAsState(false)
     val languagePreference by viewModel.languagePreference.collectAsState(LanguagePreference.SYSTEM)
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val capabilities = viewModel.capabilities(prefs.provider)
     val scope = rememberCoroutineScope()
 
@@ -204,6 +206,14 @@ fun SettingsScreen(
                                 hours = item.hours,
                                 onHoursChanged = { viewModel.setHourlyForecastHours(it) }
                             )
+                        }
+                    }
+                }
+                if (prefs.provider == WeatherProviderId.YR) {
+                    item {
+                        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                            Text(stringResource(R.string.met_attribution), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            TextButton(onClick = { uriHandler.openUri("https://creativecommons.org/licenses/by/4.0/") }) { Text("CC BY 4.0") }
                         }
                     }
                 }
@@ -472,7 +482,7 @@ private fun settingsItems(
 ): List<SettingsItem> {
     val capabilities = viewModel.capabilities(prefs.provider)
     val effective = capabilities.effectivePrefs(prefs)
-    return listOf(
+    return listOfNotNull(
         SettingsItem.ProviderSelector(prefs.provider),
         SettingsItem.LanguageSelector(
             titleRes = R.string.language,
@@ -524,14 +534,15 @@ private fun settingsItems(
         SettingsItem.Toggle(
             key = "daily_forecast",
             titleRes = R.string.daily_forecast,
-            descriptionRes = R.string.forecast_description,
-            checked = prefs.showForecastDays,
+            descriptionRes = if (capabilities.maxForecastDays > 0) R.string.forecast_description else R.string.provider_unavailable,
+            checked = effective.showForecastDays,
+            enabled = capabilities.maxForecastDays > 0,
             icon = { Icon(Icons.Filled.Cloud, contentDescription = null) }
         ),
         SettingsItem.ForecastDays(
             titleRes = R.string.daily_forecast_days,
             days = prefs.forecastDays
-        ),
+        ).takeIf { capabilities.maxForecastDays > 0 },
         SettingsItem.Toggle(
             key = "hourly_forecast",
             titleRes = R.string.hourly_forecast,
@@ -593,6 +604,7 @@ class SettingsViewModel @Inject constructor(
     fun toggleItem(key: String, checked: Boolean) {
         val current = localPrefs.value
         val available = when (key) {
+            "daily_forecast" -> capabilities().maxForecastDays > 0
             "wind" -> capabilities().wind
             "sun_times" -> capabilities().sunTimes
             "precipitation" -> capabilities().dailyPrecipitation

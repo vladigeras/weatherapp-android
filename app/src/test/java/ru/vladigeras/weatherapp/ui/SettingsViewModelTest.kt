@@ -36,10 +36,10 @@ import ru.vladigeras.weatherapp.repository.WeatherRepository
 class SettingsViewModelTest {
     private val weatherRepository = mockk<WeatherRepository> { every { capabilities(any()) } answers {
         when (firstArg<WeatherProviderId>()) {
-            WeatherProviderId.YR -> ProviderCapabilities(9, 1, dailyUv = false)
-            WeatherProviderId.OPEN_METEO -> ProviderCapabilities(16, 1)
-            WeatherProviderId.WTTR -> ProviderCapabilities(3, 3, false, false, false, false)
-            WeatherProviderId.SEVEN_TIMER -> ProviderCapabilities(7, 3, false, false, false, wind = false, sunTimes = false)
+            WeatherProviderId.YR -> ProviderCapabilities(0, dailyPrecipitation = false, dailyUv = false, dailyWind = false, sunTimes = false)
+            WeatherProviderId.OPEN_METEO -> ProviderCapabilities(16)
+            WeatherProviderId.WTTR -> ProviderCapabilities(3, false, false, false, false)
+            WeatherProviderId.SEVEN_TIMER -> ProviderCapabilities(7, false, false, false, wind = false, sunTimes = false)
         }
     } }
     private val testDispatcher = StandardTestDispatcher()
@@ -244,22 +244,27 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `yr permits nine days and masks UV without overwriting shared choices`() = runTest {
+    fun `yr disables unavailable daily choices without overwriting shared preferences`() = runTest {
         advanceUntilIdle()
         viewModel.setForecastDays(16)
         viewModel.setProvider(WeatherProviderId.YR)
         val effective = viewModel.capabilities().effectivePrefs(viewModel.localPrefs.value)
-        assertEquals(9, effective.forecastDays)
+        assertEquals(0, effective.forecastDays)
+        assertFalse(effective.showForecastDays)
         assertFalse(effective.showUvIndex)
-        assertTrue(effective.showWind && effective.showSunTimes && effective.showPrecipitation)
-        viewModel.toggleItem("uv_index", false)
+        assertFalse(effective.showSunTimes)
+        assertFalse(effective.showPrecipitation)
+        assertTrue(effective.showWind)
+        listOf("daily_forecast", "sun_times", "precipitation", "uv_index").forEach { viewModel.toggleItem(it, false) }
         viewModel.setForecastDays(10)
         assertEquals(16, viewModel.localPrefs.value.forecastDays)
         assertTrue(viewModel.localPrefs.value.showUvIndex)
         viewModel.setForecastDays(9)
         viewModel.savePrefsAndCheckLanguage()
-        io.mockk.coVerify { prefsRepository.updatePrefs(match { it.provider == WeatherProviderId.YR && it.forecastDays == 9 && it.showUvIndex }) }
+        io.mockk.coVerify { prefsRepository.updatePrefs(match {
+            it.provider == WeatherProviderId.YR && it.forecastDays == 16 && it.showForecastDays && it.showSunTimes && it.showPrecipitation && it.showUvIndex
+        }) }
         viewModel.setProvider(WeatherProviderId.OPEN_METEO)
-        assertTrue(viewModel.capabilities().effectivePrefs(viewModel.localPrefs.value).showUvIndex)
+        assertEquals(WeatherDisplayPrefs(forecastDays = 16), viewModel.capabilities().effectivePrefs(viewModel.localPrefs.value))
     }
 }

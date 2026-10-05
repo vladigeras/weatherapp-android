@@ -1,6 +1,5 @@
 <resources>
-    <string name="phone_forecast_time">Время указано в часовом поясе телефона.</string>
-    <string name="met_attribution">Данные о погоде: MET Norway. Суточные сводки рассчитывает приложение.</string>
+    <string name="met_attribution">Данные о погоде: MET Norway.</string>
     <string name="app_name">Weatherapp</string>
     
     <!-- Settings -->
@@ -61,8 +60,8 @@
     <string name="sun_times_description">Показать время восхода и заката</string>
     <string name="uv_index_description">Показать максимальный УФ-индекс</string>
     <string name="forecast_description">Включить блок прогноза</string>
-    <string name="hourly_forecast">Почасовой прогноз</string>
-    <string name="hourly_forecast_description">Показать почасовой прогноз погоды</string>
+    <string name="hourly_forecast">Прогноз по времени</string>
+    <string name="hourly_forecast_description">Показать прогноз погоды по времени</string>
     <string name="hourly_forecast_hours">Количество часов</string>
     
     <!-- Weather labels -->
@@ -120,7 +119,6 @@
     <string name="tomorrow">Завтра</string>
     <string name="day_after_tomorrow">Послезавтра</string>
     <string name="weather_provider">Источник погоды</string>
-    <string name="forecast_step">Прогноз · шаг %1$d часа</string>
     <string name="provider_unavailable">Этот источник не предоставляет эти данные</string>
     <string name="daily_wind_unavailable">Ветер сейчас и по часам; суточный максимум недоступен</string>
     <string name="forecast_limit">До %1$d дней. Более длинные периоды недоступны.</string>
@@ -133,7 +131,7 @@
     <string name="weather_freezing_rain">Ледяной дождь</string>
     <string name="weather_rain">Дождь</string>
     <string name="weather_snow">Снег</string>
-    <string name="hourly_forecast_unavailable">Почасовой прогноз недоступен</string>
+    <string name="hourly_forecast_unavailable">Прогноз по времени недоступен</string>
     <string name="request_timed_out">Сервис не ответил вовремя. Попробуйте ещё раз.</string>
     <string name="service_unavailable">Сервис недоступен. Попробуйте позже.</string>
     <string name="connection_error">Не удалось подключиться. Проверьте соединение и попробуйте ещё раз.</string>
